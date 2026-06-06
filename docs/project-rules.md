@@ -448,6 +448,16 @@ VITE_API_BASE_URL=
 
 ---
 
+# API Response Rules
+
+- Return Pydantic models directly.
+- Use standard FastAPI response patterns.
+- Do not wrap responses in success/data/message envelopes.
+- Use proper HTTP status codes.
+- Use structured responses for paginated endpoints.
+
+---
+
 # AI Rules
 
 ## Recommendation Engine
