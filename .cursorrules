@@ -1,0 +1,352 @@
+# Smart Library Platform - Cursor Rules
+
+## Project Context
+
+This project is an AI-Powered Cloud-Based Library Management System.
+
+User Roles:
+
+* Admin
+* Librarian
+* Student
+
+Core Features:
+
+* Physical Books
+* Digital Resources
+* QR-Based Issue/Return
+* Reservations
+* Fine Management
+* Notifications
+* Ratings
+* Reviews
+* Recommendation Engine
+* Semantic Search
+
+---
+
+## Documentation First
+
+Before generating or modifying code, always follow:
+
+1. docs/architecture.md
+2. docs/database.md
+3. docs/api-spec.md
+4. docs/project-rules.md
+
+Documentation is the source of truth.
+
+Do not invent architecture, database structures, APIs, or business rules that contradict project documentation.
+
+---
+
+## Frontend Rules
+
+Mandatory Stack:
+
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
+* shadcn/ui
+* React Router
+* Zustand
+* TanStack Query
+* Axios
+
+Never use:
+
+* Next.js
+* Redux
+* JavaScript
+* jQuery
+
+Requirements:
+
+* Strict TypeScript
+* Reusable components
+* Feature-based organization
+* Responsive UI
+
+---
+
+## Backend Rules
+
+Mandatory Stack:
+
+* Python
+* FastAPI
+* Uvicorn
+* SQLAlchemy
+* Alembic
+* Psycopg
+* Pydantic
+
+Never use:
+
+* Django
+* Flask
+* Raw SQL unless absolutely necessary
+
+Requirements:
+
+* Type hints everywhere
+* Pydantic validation
+* Docstrings for public functions
+* Dependency injection where appropriate
+
+---
+
+## Package Managers
+
+Backend:
+
+* Use uv
+
+Examples:
+
+```bash
+uv add fastapi
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+Frontend:
+
+* Use pnpm
+
+Examples:
+
+```bash
+pnpm install
+pnpm dev
+pnpm build
+```
+
+Never generate:
+
+```bash
+pip install
+npm install
+yarn add
+```
+
+unless explicitly requested.
+
+---
+
+## Architecture Rules
+
+Backend must follow:
+
+API Layer
+↓
+Service Layer
+↓
+Repository Layer
+↓
+Database Layer
+
+Rules:
+
+* Routers contain no business logic.
+* Services contain business logic.
+* Repositories contain database queries.
+* Models represent database entities.
+* Schemas represent API contracts.
+
+Never place business logic inside routers.
+
+---
+
+## Database Rules
+
+Database:
+
+* PostgreSQL
+* pgvector
+* UUID primary keys
+
+Use:
+
+* SQLAlchemy ORM
+* Alembic migrations
+
+Never:
+
+* Store PDFs in PostgreSQL
+* Use SQLite in production
+* Use MongoDB
+* Use Firestore
+
+Soft Deletes:
+
+Use deleted_at for:
+
+* users
+* books
+* authors
+* categories
+* publishers
+* digital_resources
+
+Never hard delete business entities.
+
+---
+
+## Authentication Rules
+
+Authentication:
+
+* JWT
+* python-jose
+
+Passwords:
+
+* Passlib
+* bcrypt
+
+Never:
+
+* Store plain text passwords
+* Expose password hashes
+* Trust frontend authorization
+
+Role checks must be enforced on the backend.
+
+---
+
+## API Rules
+
+Base URL:
+
+```text
+/api/v1
+```
+
+Requirements:
+
+* RESTful design
+* Proper HTTP status codes
+* Resource-oriented endpoints
+* Pagination for list endpoints
+* Filtering and sorting support
+
+Prefer plural resource names.
+
+Examples:
+
+```text
+/books
+/users
+/categories
+```
+
+---
+
+## AI Rules
+
+Recommendation Engine:
+
+* Popularity-Based Filtering
+* Content-Based Filtering
+* Collaborative Filtering
+
+Semantic Search:
+
+* Sentence Transformers
+* pgvector
+* Cosine Similarity
+
+Do not use:
+
+* LangChain
+* LlamaIndex
+* AI Agents
+
+unless explicitly requested.
+
+---
+
+## QR Rules
+
+Book QR:
+
+* Generated from inventory_code
+
+Student QR:
+
+* Generated from student_code
+
+Issue Flow:
+
+Student QR
+↓
+Book QR
+↓
+Issue Transaction
+
+Return Flow:
+
+Book QR
+↓
+Return Transaction
+↓
+Fine Calculation
+
+---
+
+## Cloud Storage Rules
+
+Use:
+
+* Cloudflare R2
+
+Store:
+
+* PDFs
+* Digital Resources
+
+Database stores URLs only.
+
+Never store files inside PostgreSQL.
+
+---
+
+## Coding Standards
+
+Prefer:
+
+* Readable code
+* Explicit naming
+* Small functions
+* Reusable components
+
+Avoid:
+
+* Duplicate code
+* Large files
+* Premature optimization
+
+Always prioritize:
+
+1. Maintainability
+2. Scalability
+3. Consistency
+4. Professional architecture
+
+over implementation speed.
+
+---
+
+## Output Expectations
+
+When generating code:
+
+* Follow existing project structure.
+* Reuse existing components and services.
+* Do not introduce new frameworks.
+* Do not change architecture without explicit approval.
+* Generate production-quality code.
+* Explain significant architectural decisions.
+

@@ -1,0 +1,118 @@
+# =========================
+
+# Python
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual Environments
+
+.venv/
+venv/
+
+# Environment Variables
+
+.env
+.env.*
+
+!.env.example
+
+# Build Artifacts
+
+build/
+dist/
+
+# =========================
+
+# uv
+
+# =========================
+
+# Keep uv.lock committed
+
+# Do NOT ignore uv.lock
+
+# =========================
+
+# Node / Frontend
+
+# =========================
+
+node_modules/
+
+# Keep lock file committed
+
+# Do NOT ignore pnpm-lock.yaml
+
+# Vite
+
+frontend/dist/
+
+# =========================
+
+# IDEs
+
+# =========================
+
+.vscode/
+.idea/
+
+# Cursor
+
+.cursor/
+
+# =========================
+
+# OS Files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+
+# Logs
+
+# =========================
+
+*.log
+logs/
+
+# =========================
+
+# Coverage
+
+# =========================
+
+.coverage
+htmlcov/
+coverage/
+
+# =========================
+
+# Database
+
+# =========================
+
+*.sqlite
+*.db
+
+# =========================
+
+# Temporary Files
+
+# =========================
+
+tmp/
+temp/
+*.tmp
+
