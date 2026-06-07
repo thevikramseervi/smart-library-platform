@@ -1,10 +1,12 @@
-# Smart Library Platform - API Specification (v1.0)
+# Smart Library Platform - API Specification
+
+**Version:** Sprint 4.8 (implemented surface)
 
 ## Overview
 
 The backend exposes REST APIs using FastAPI.
 
-Authentication is JWT-based.
+Authentication is JWT-based. Only `POST /auth/login` and `GET /auth/me` are implemented today.
 
 Authorization uses Role-Based Access Control (RBAC).
 
@@ -19,6 +21,8 @@ Base URL:
 ```text
 /api/v1
 ```
+
+Planned endpoints that are **not yet implemented** are listed in [Appendix: Planned APIs](#appendix-planned-apis-not-yet-implemented) at the end of this document.
 
 ---
 
@@ -62,36 +66,7 @@ Purpose:
 Get current user profile.
 ```
 
----
-
-## Refresh Token
-
-```http
-POST /api/v1/auth/refresh
-```
-
-Access:
-
-```text
-Authenticated Users
-```
-
----
-
-## Logout
-
-```http
-POST /api/v1/auth/logout
-```
-
-Access:
-
-```text
-Authenticated Users
-```
-
-Authenticated Users
-```
+> **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are planned for a future sprint. Clients currently store the JWT locally and clear it on logout.
 
 ---
 
@@ -516,6 +491,26 @@ Errors: `409` when active users are assigned to the department.
 GET /api/v1/publishers
 ```
 
+Access:
+
+```text
+Authenticated Users
+```
+
+---
+
+## Get Publisher
+
+```http
+GET /api/v1/publishers/{id}
+```
+
+Access:
+
+```text
+Authenticated Users
+```
+
 ---
 
 ## Create Publisher
@@ -634,6 +629,26 @@ DELETE /api/v1/authors/{id}
 GET /api/v1/categories
 ```
 
+Access:
+
+```text
+Authenticated Users
+```
+
+---
+
+## Get Category
+
+```http
+GET /api/v1/categories/{id}
+```
+
+Access:
+
+```text
+Authenticated Users
+```
+
 ---
 
 ## Create Category
@@ -742,6 +757,11 @@ Admin, Librarian
 
 Students use book-level availability on `GET /books/{id}` instead of copy-level records.
 
+Query params:
+
+* `book_id` (UUID) — filter copies for a book
+* `status` — filter by `BookCopyStatus` (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`)
+
 ---
 
 ## Get Copy
@@ -772,51 +792,9 @@ POST /api/v1/book-copies
 PUT /api/v1/book-copies/{id}
 ```
 
----
+Staff may update copy `status`, `location`, and `acquired_date`. Status changes validate open loans and circulation-managed statuses (`BORROWED`, `RESERVED`).
 
-## Generate QR
-
-```http
-GET /api/v1/book-copies/{id}/qr
-```
-
-Purpose:
-
-```text
-Generate QR code for book copy.
-```
-
----
-
-# Digital Resources
-
-## Upload Resource
-
-```http
-POST /api/v1/digital-resources
-```
-
-Access:
-
-```text
-Admin, Librarian
-```
-
----
-
-## List Resources
-
-```http
-GET /api/v1/digital-resources
-```
-
----
-
-## Download Resource
-
-```http
-GET /api/v1/digital-resources/{id}
-```
+> **Not yet implemented:** `GET /book-copies/{id}/qr` — QR image generation is planned for Sprint 5+. Copies store `qr_code_value` equal to `inventory_code` for future use.
 
 ---
 
@@ -1158,186 +1136,6 @@ Business rules:
 
 ---
 
-# Ratings
-
-## Rate Book
-
-```http
-POST /api/v1/ratings
-```
-
-Access:
-
-```text
-Student
-```
-
----
-
-## Update Rating
-
-```http
-PUT /api/v1/ratings/{id}
-```
-
----
-
-# Reviews
-
-## Create Review
-
-```http
-POST /api/v1/reviews
-```
-
----
-
-## Update Review
-
-```http
-PUT /api/v1/reviews/{id}
-```
-
----
-
-## Delete Review
-
-```http
-DELETE /api/v1/reviews/{id}
-```
-
----
-
-# Notifications
-
-## My Notifications
-
-```http
-GET /api/v1/notifications
-```
-
----
-
-## Mark Read
-
-```http
-POST /api/v1/notifications/{id}/read
-```
-
----
-
-# Analytics
-
-## Dashboard Analytics
-
-```http
-GET /api/v1/analytics/dashboard
-```
-
-Access:
-
-```text
-Admin
-```
-
-Metrics:
-
-```text
-Books Borrowed
-
-Popular Categories
-
-Top Readers
-
-Fine Collection
-
-Department Usage
-```
-
----
-
-# AI APIs
-
-## Recommendations
-
-```http
-GET /api/v1/recommendations/me
-```
-
-Access:
-
-```text
-Student
-```
-
-Returns:
-
-```text
-Personalized recommendations.
-```
-
----
-
-## Semantic Search
-
-```http
-GET /api/v1/search/semantic
-```
-
-Query:
-
-```text
-?q=machine learning books for beginners
-```
-
-Returns:
-
-```text
-Similarity-ranked books.
-```
-
----
-
-# Audit Logs
-
-## List Audit Logs
-
-```http
-GET /api/v1/audit-logs
-```
-
-Access:
-
-```text
-Admin
-```
-
----
-
-# Library Calendar
-
-## List Calendar Entries
-
-```http
-GET /api/v1/library-calendar
-```
-
----
-
-## Create Calendar Entry
-
-```http
-POST /api/v1/library-calendar
-```
-
-Access:
-
-```text
-Admin
-```
-
----
-
 # Health Check
 
 ## API Health
@@ -1351,4 +1149,86 @@ Purpose:
 ```text
 Service monitoring and deployment verification.
 ```
+
+Response: `200` when API and database are healthy; `503` when database is unreachable.
+
+---
+
+# Appendix: Planned APIs (Not Yet Implemented)
+
+The endpoints below are **design targets** for future sprints. They are **not registered** in the current FastAPI application.
+
+## Authentication (Future)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/api/v1/auth/refresh` | Token refresh |
+| POST | `/api/v1/auth/logout` | Server-side logout |
+
+## Book Copies (Future)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/v1/book-copies/{id}/qr` | QR code image for copy |
+
+## Digital Resources (Sprint 5+)
+
+| Method | Path |
+|--------|------|
+| POST | `/api/v1/digital-resources` |
+| GET | `/api/v1/digital-resources` |
+| GET | `/api/v1/digital-resources/{id}` |
+
+Requires Cloudflare R2 configuration (`CLOUD_STORAGE_*` env vars).
+
+## Ratings & Reviews (Future)
+
+| Method | Path |
+|--------|------|
+| POST | `/api/v1/ratings` |
+| PUT | `/api/v1/ratings/{id}` |
+| POST | `/api/v1/reviews` |
+| PUT | `/api/v1/reviews/{id}` |
+| DELETE | `/api/v1/reviews/{id}` |
+
+## Notifications (Sprint 5+)
+
+| Method | Path |
+|--------|------|
+| GET | `/api/v1/notifications` |
+| POST | `/api/v1/notifications/{id}/read` |
+
+## Analytics (Future)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/v1/analytics/dashboard` | Superseded in design by role dashboards (`/dashboard/admin`); may be revisited |
+
+## AI (Future)
+
+| Method | Path |
+|--------|------|
+| GET | `/api/v1/recommendations/me` |
+| GET | `/api/v1/search/semantic?q=...` |
+
+Requires pgvector and embedding pipeline.
+
+## Audit Logs (Future)
+
+| Method | Path |
+|--------|------|
+| GET | `/api/v1/audit-logs` |
+
+## Library Calendar (Future)
+
+| Method | Path |
+|--------|------|
+| GET | `/api/v1/library-calendar` |
+| POST | `/api/v1/library-calendar` |
+
+Will support working-day fine calculation (currently fines use **calendar days**).
+
+## Book Renewal (Future)
+
+No endpoint defined yet. Renewal workflow is not implemented.
 

@@ -1,426 +1,328 @@
 # Smart Library Platform - Architecture Document
 
+**Version:** Sprint 4.8
+
 ## 1. Project Overview
 
-Smart Library Platform is an AI-powered, cloud-based Library Management System developed as a final-year engineering project.
+Smart Library Platform is a cloud-based Library Management System developed as a final-year engineering project.
 
-The system manages physical books, digital resources, library circulation, reservations, fines, notifications, analytics, and AI-powered features such as semantic search and personalized recommendations.
+The **implemented system** (Sprint 4.7) manages physical books, catalog metadata, circulation, reservations, fines, admin user/department management, and role-based dashboards.
 
-The platform supports multiple user roles and is designed using modern web technologies and industry-standard software architecture principles.
+Advanced capabilities (digital resources, QR scanning, AI search, notifications, analytics) are **planned** and documented separately as future architecture.
 
 ---
 
 ## 2. Objectives
 
-### Core Objectives
+### Implemented Objectives
 
-* Manage library books and inventory.
-* Manage students, librarians, and administrators.
-* Support issue, return, renewal, and reservation workflows.
-* Manage fines and borrowing history.
-* Support digital books and cloud-based storage.
+* Manage library books and physical inventory
+* Manage students, librarians, and administrators
+* Support issue, return, and reservation workflows
+* Manage fines and borrowing history
+* Admin user and department management
+* Role-based dashboards
 
-### Advanced Objectives
+### Future Objectives (Not Yet Built)
 
-* QR-based issue and return process.
-* AI-powered recommendation system.
-* Semantic search using vector embeddings.
-* Analytics and reporting dashboard.
-* Notification system.
+* QR-based issue and return
+* Digital books and cloud storage
+* AI-powered recommendations and semantic search
+* Notifications and analytics dashboards
+* Audit logging
 
 ---
 
 ## 3. User Roles
 
-### Admin
+### Admin (Implemented)
 
-Responsibilities:
+* Manage users and departments
+* Full catalog and circulation staff access
+* Platform dashboard with user and circulation activity
 
-* Manage librarians.
-* Manage students.
-* Manage books and categories.
-* Manage departments.
-* View analytics and reports.
-* View audit logs.
-* Configure system settings.
+### Librarian (Implemented)
 
-### Librarian
+* Manage catalog (books, copies, reference data)
+* Issue and return books
+* Manage reservations and fines
+* Librarian dashboard
 
-Responsibilities:
+### Student (Implemented)
 
-* Add and manage books.
-* Manage book copies.
-* Issue books.
-* Accept returns.
-* Manage reservations.
-* Manage fines.
-* Upload digital resources.
+* Browse catalog and view availability
+* Borrow books (via staff issue)
+* Reserve unavailable books
+* View loans, reservations, and fines
+* Student dashboard
 
-### Student
+### Future Student/Staff Capabilities
 
-Responsibilities:
-
-* Search books.
-* Borrow books.
-* Reserve books.
-* View digital resources.
-* View borrowing history.
-* View fines.
-* Rate and review books.
-* Receive recommendations.
+* Digital resource viewing
+* Ratings, reviews, recommendations
+* QR self-service (if added)
+* In-app notifications
 
 ---
 
 ## 4. System Architecture
 
-The system follows a modern three-tier architecture.
-
 ```text
-Frontend
-    ↓
-Backend API
-    ↓
-Database
+Frontend (React + Vite)
+        ↓ REST + JWT
+Backend API (FastAPI, layered)
+        ↓ SQLAlchemy
+PostgreSQL (Docker local or Neon)
 ```
 
 ### Frontend Layer
 
 Responsible for:
 
-* User Interface
-* Dashboards
-* Forms
-* QR Scanning
-* Data Visualization
-* Authentication UI
+* User interface and routing
+* Authentication UI (login, JWT storage)
+* Role-based dashboards
+* Catalog, circulation, and admin modules
+* TanStack Query data fetching
+
+Not yet implemented: QR scanning, PDF viewer, analytics charts, notification center.
 
 ### Backend Layer
 
-Responsible for:
+Layered architecture:
 
-* Business Logic
-* Authentication
-* Authorization
-* Recommendation Engine
-* Semantic Search
-* Notification Processing
+```text
+API Layer (routers)
+    ↓
+Service Layer (business logic)
+    ↓
+Repository Layer (queries)
+    ↓
+Database Layer (PostgreSQL)
+```
 
 ### Database Layer
 
-Responsible for:
-
-* Persistent Data Storage
-* Transaction Management
-* Vector Storage
-* Analytics Data
+Alembic-managed PostgreSQL schema. See [`database.md`](database.md) for implemented vs planned tables.
 
 ---
 
 ## 5. Technology Stack
 
-### Frontend
+### In Production Use
 
-* React
-* TypeScript
-* Vite
-* Tailwind CSS
-* shadcn/ui
-* React Router
-* Zustand
-* TanStack Query
-* Axios
-* Recharts
+| Layer | Technologies |
+|-------|--------------|
+| Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, Zustand, TanStack Query, Axios |
+| Backend | Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic, Psycopg |
+| Database | PostgreSQL 16 (Docker or Neon) |
+| Auth | JWT (python-jose), Passlib/bcrypt |
+| Tooling | uv, pnpm, Git |
 
-### Backend
+### Planned (Not Integrated)
 
-* Python
-* FastAPI
-* Uvicorn
-* Pydantic
-* SQLAlchemy
-* Alembic
-* Psycopg
-
-### Database
-
-* PostgreSQL
-* pgvector
-* Neon PostgreSQL
-
-### Authentication
-
-* JWT
-* python-jose
-* Passlib
-
-### AI / Machine Learning
-
-* NumPy
-* Pandas
-* scikit-learn
-* Sentence Transformers
-
-### Development Tools
-
-* Git
-* GitHub
-* Cursor
-* uv
-* pnpm
+* pgvector, Sentence Transformers (semantic search)
+* Cloudflare R2 (digital files)
+* Recharts (analytics UI — dependency present, unused)
+* scikit-learn / Pandas (recommendations)
 
 ---
 
 ## 6. Frontend Architecture
 
-The frontend follows a modular architecture.
-
 ```text
-pages/
-components/
-layouts/
-routes/
-services/
-hooks/
-store/
-types/
-utils/
+frontend/src/
+├── pages/          # login, dashboard, catalog, circulation, admin
+├── layouts/        # MainLayout, CatalogLayout, CirculationLayout, AdminLayout
+├── routes/         # React Router configuration
+├── services/       # Axios API clients
+├── store/          # Zustand (auth)
+├── components/     # Shared UI and auth guards
+└── types/          # TypeScript contracts
 ```
 
-### State Management
-
-* Zustand
-
-### API Communication
-
-* Axios
-* TanStack Query
-
-### Routing
-
-* React Router
+State: Zustand for auth; TanStack Query for server state.
 
 ---
 
 ## 7. Backend Architecture
 
-The backend follows a layered architecture.
+Routers in `app/api/v1/endpoints/` delegate to services in `app/services/` and repositories in `app/repositories/`.
 
-```text
-API Layer
-    ↓
-Service Layer
-    ↓
-Repository Layer
-    ↓
-Database Layer
-```
-
-### API Layer
-
-Handles HTTP requests and responses.
-
-### Service Layer
-
-Contains business logic.
-
-### Repository Layer
-
-Handles database interactions.
-
-### Database Layer
-
-Handles persistence using PostgreSQL.
+**Rule:** No business logic in routers.
 
 ---
 
-## 8. Authentication & Authorization
-
-Authentication is implemented using JWT tokens.
-
-Workflow:
+## 8. Authentication & Authorization (Implemented)
 
 ```text
-Login
+Login (POST /auth/login)
     ↓
-Password Verification
+Password verification (bcrypt)
     ↓
-JWT Generation
+JWT issued
     ↓
-Authenticated Requests
+Bearer token on authenticated requests
+    ↓
+require_roles() / get_current_user dependencies
 ```
 
-Role-Based Access Control (RBAC) is used.
+Roles: `ADMIN`, `LIBRARIAN`, `STUDENT`.
 
-Roles:
+Frontend route guards (`AdminRoute`, `StaffRoute`, `ProtectedRoute`) improve UX; **backend RBAC is authoritative**.
 
-* Admin
-* Librarian
-* Student
+**Not implemented:** token refresh, server-side logout.
 
 ---
 
-## 9. AI Architecture
+## 9. Implemented Modules
 
-### Recommendation Engine
+### Admin Module (Sprint 4.5)
 
-Algorithms:
+* **User Management** — CRUD, soft delete, password reset, role/department validation
+* **Department Management** — CRUD, delete protection when users assigned
 
-* Popularity-Based Recommendation
-* Content-Based Recommendation
-* Collaborative Filtering
+Frontend: `/admin/users`, `/admin/departments`
 
-Input Signals:
+### Dashboard Module (Sprint 4.6–4.7)
 
-* Borrow History
-* Ratings
-* Department
-* Semester
+Role-specific summary endpoints and views:
 
-### Semantic Search
+| Role | API | UI |
+|------|-----|-----|
+| Student | `GET /dashboard/student` | Loans, reservations, fines KPIs |
+| Librarian | `GET /dashboard/librarian` | Catalog/circulation KPIs |
+| Admin | `GET /dashboard/admin` | User and platform KPIs |
 
-Pipeline:
+Home route `/` redirects to `/dashboard`.
 
-```text
-Book Metadata
-    ↓
-Sentence Transformer
-    ↓
-Vector Embedding
-    ↓
-pgvector Storage
-    ↓
-Similarity Search
-```
+### Catalog Module (Sprint 3)
 
----
+Books, authors, categories, publishers, languages, physical copies with lifecycle statuses.
 
-## 10. QR-Based Circulation
+### Circulation Module (Sprint 4)
 
-Each student and physical book copy receives a unique QR code.
+* Issue and return transactions
+* Active/overdue loan tracking
+* Fine creation on late return
+* Unpaid fine borrowing block
 
-Issue Process:
+### Reservations Module (Sprint 4)
 
-```text
-Scan Student QR
-    ↓
-Scan Book QR
-    ↓
-Issue Book
-```
+* FIFO queue per book
+* Student reserve when unavailable
+* Staff queue visibility
 
-Return Process:
+### Reservation-Aware Circulation (Sprint 4.3)
 
-```text
-Scan Book QR
-    ↓
-Return Book
-    ↓
-Fine Calculation
-```
+Staff issue/return workflows surface active reservation queues:
+
+* Issue page warns when queue exists for selected copy's book
+* Return page shows queue dialog for fulfillment awareness
+* Reservation responses include nested `student` summary
+
+### Fine Workflow (Sprint 4)
+
+Calendar-day overdue calculation. Staff mark fines paid. INR display in frontend.
 
 ---
 
-## 11. Digital Library Architecture
+## 10. Future Architecture (Not Yet Implemented)
 
-Digital resources are stored in cloud storage.
+The sections below describe **planned** design. No production code paths exist yet.
 
-The database stores metadata and file URLs.
+### QR-Based Circulation (Sprint 5+)
 
 ```text
-Cloud Storage
-      ↓
-File URL
-      ↓
-PostgreSQL
+Scan Student QR → Scan Book QR → Issue
+Scan Book QR → Return → Fine Calculation
 ```
 
-Students can:
+Copy `qr_code_value` is stored today; QR API and scanner UI are not built.
 
-* View PDFs in browser.
-* Download PDFs.
+### Digital Library (Sprint 5+)
+
+```text
+Cloudflare R2 → file URL → PostgreSQL metadata
+```
+
+### AI / Semantic Search (Future)
+
+```text
+Book metadata → Sentence Transformer → pgvector → similarity search
+```
+
+### Recommendation Engine (Future)
+
+Popularity, content-based, and collaborative filtering over borrow/rating signals.
+
+### Notifications (Sprint 5+)
+
+Due reminders, reservation availability, fine alerts.
+
+### Analytics (Future)
+
+Trend dashboards distinct from Sprint 4.6 operational role dashboards.
 
 ---
 
-## 12. Deployment Architecture
+## 11. Deployment Architecture
 
 ```text
-React Frontend
-       ↓
-Vercel
-
-FastAPI Backend
-       ↓
-Render
-
-PostgreSQL + pgvector
-       ↓
-Neon
+React Frontend → Vercel
+FastAPI Backend → Render / Railway / Fly.io
+PostgreSQL → Neon
 ```
 
-Digital resources are stored using cloud object storage.
+See [`deployment.md`](deployment.md) for environment variables and checklist.
+
+Digital resources (future) will add Cloudflare R2.
 
 ---
 
-## 13. Non-Functional Requirements
+## 12. Non-Functional Requirements
 
-### Security
+### Security (Implemented)
 
-* Password hashing
+* Password hashing (bcrypt)
 * JWT authentication
-* Role-based authorization
+* Role-based authorization on backend
 
-### Scalability
+### Scalability & Maintainability
 
-* Layered architecture
-* Modular design
-* Separation of concerns
-
-### Maintainability
-
-* TypeScript
-* SQLAlchemy ORM
+* Layered backend
+* TypeScript frontend
 * Repository pattern
-* Modular project structure
-
-### Performance
-
-* Indexed database queries
-* Vector search using pgvector
-* Cached frontend requests via TanStack Query
+* UUID primary keys, soft deletes
 
 ---
 
-## 14. Project Scope
+## 13. Project Scope
 
-Included:
+### Included (Implemented through Sprint 4.7)
 
-* Physical library management
-* Digital library management
-* QR-based circulation
-* Reservations
-* Fine management
-* Notifications
-* Ratings and reviews
-* Recommendation system
-* Semantic search
+Physical library catalog and inventory, circulation, reservations, fines, admin users/departments, role dashboards, reservation-aware staff UX.
 
-Excluded:
+### Excluded / Future
 
-* Payment gateway integration
-* Multi-branch libraries
-* Vendor management
-* Procurement management
-* RFID systems
-* Microservices architecture
-* AI chatbots
+Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, digital resources, notifications, QR, semantic search, recommendations, audit logs, analytics.
 
 ---
 
-## 15. Development Tools
+## 14. Development Tools
 
-- Cursor
-- Git
-- GitHub
-- uv
-- pnpm
+* Cursor, Git, GitHub
+* uv (Python), pnpm (frontend)
 
+Setup: [`setup.md`](setup.md)
+
+---
+
+## Related Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`api-spec.md`](api-spec.md) | REST API (implemented + planned appendix) |
+| [`database.md`](database.md) | Schema (implemented + planned) |
+| [`sprint-4-summary.md`](sprint-4-summary.md) | Sprint delivery history |
+| [`project-rules.md`](project-rules.md) | Engineering standards |

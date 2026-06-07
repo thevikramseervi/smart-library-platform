@@ -1,22 +1,17 @@
-# Smart Library Platform - Database Design (v1.0)
+# Smart Library Platform - Database Design
+
+**Version:** Sprint 4.8
 
 ## Overview
 
-The Smart Library Platform uses PostgreSQL as the primary database and follows a normalized relational schema.
+The Smart Library Platform uses **PostgreSQL** managed by **Alembic migrations** in `backend/alembic/versions/`.
 
-The design supports:
+This document has two parts:
 
-* Role-based access control
-* Physical book inventory management
-* Digital resource management
-* QR-based circulation
-* Reservations
-* Fine management
-* Ratings and reviews
-* Notifications
-* Audit logging
-* AI-powered recommendations
-* Semantic search using vector embeddings
+1. **[Implemented Schema](#implemented-schema)** — tables that exist in migrations today  
+2. **[Planned Schema](#planned-schema-not-yet-implemented)** — future tables documented for design reference only  
+
+Do not assume planned tables exist in the database until a migration adds them.
 
 ---
 
@@ -25,14 +20,6 @@ The design supports:
 ## Primary Keys
 
 All tables use UUID primary keys.
-
-Example:
-
-```sql
-id UUID PRIMARY KEY
-```
-
----
 
 ## Timestamps
 
@@ -43,8 +30,6 @@ created_at TIMESTAMP WITH TIME ZONE
 updated_at TIMESTAMP WITH TIME ZONE
 ```
 
----
-
 ## Soft Deletes
 
 Major business entities use:
@@ -53,22 +38,28 @@ Major business entities use:
 deleted_at TIMESTAMP WITH TIME ZONE NULL
 ```
 
-Records should be soft deleted instead of permanently removed.
-
-Used for:
-
-* users
-* books
-* authors
-* categories
-* publishers
-* digital_resources
+Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when deleted via API).
 
 ---
 
-# PostgreSQL ENUM Definitions
+# Implemented Schema
 
-## UserRole
+Tables created by Alembic migrations `001` through `004`.
+
+## Migration History
+
+| Revision | Tables / changes |
+|----------|------------------|
+| `001_core_schema` | `roles`, `departments`, `users`; enables `pgcrypto` |
+| `002_catalog_schema` | `publishers`, `languages`, `authors`, `categories`, `books`, `book_authors`, `book_categories`, `book_copies` |
+| `003_circulation_schema` | `transactions`, `reservations`, `fines` |
+| `004_book_copy_retired_status` | Adds `RETIRED` to `BookCopyStatus` enum |
+
+---
+
+## PostgreSQL ENUM Definitions (Implemented)
+
+### UserRole (stored in `roles.name`)
 
 ```text
 ADMIN
@@ -76,9 +67,7 @@ LIBRARIAN
 STUDENT
 ```
 
----
-
-## BookCopyStatus
+### BookCopyStatus
 
 ```text
 AVAILABLE
@@ -89,21 +78,20 @@ DAMAGED
 RETIRED
 ```
 
-`LOST`, `DAMAGED`, and `RETIRED` copies are excluded from `available_copies` and cannot be issued. Staff may update copy status via `PUT /book-copies/{id}` when the copy is not on loan.
+`LOST`, `DAMAGED`, and `RETIRED` copies are excluded from `available_copies` and cannot be issued. Staff update copy status via `PUT /book-copies/{id}` when the copy is not on loan. `BORROWED` and `RESERVED` are managed by circulation workflows.
 
----
-
-## TransactionStatus
+### TransactionStatus
 
 ```text
 ISSUED
 RETURNED
-OVERDUE
 ```
 
----
+**Overdue is not stored.** A loan is overdue when `status = ISSUED` AND `due_at < current_date`. API responses include computed `is_overdue`.
 
-## ReservationStatus
+> The enum value `OVERDUE` is **not used** in the current schema.
+
+### ReservationStatus
 
 ```text
 ACTIVE
@@ -114,8 +102,6 @@ EXPIRED
 
 ---
 
-# Roles
-
 ## roles
 
 | Column     | Type        | Constraints     |
@@ -124,16 +110,6 @@ EXPIRED
 | name       | VARCHAR(50) | UNIQUE NOT NULL |
 | created_at | TIMESTAMPTZ | NOT NULL        |
 | updated_at | TIMESTAMPTZ | NOT NULL        |
-
-Relationship:
-
-```text
-Role (1) → Users (N)
-```
-
----
-
-# Departments
 
 ## departments
 
@@ -146,21 +122,7 @@ Role (1) → Users (N)
 | created_at  | TIMESTAMPTZ  |
 | updated_at  | TIMESTAMPTZ  |
 
-Constraints:
-
-```text
-code UNIQUE
-```
-
-Relationship:
-
-```text
-Department (1) → Users (N)
-```
-
----
-
-# Users
+`code` is UNIQUE. Hard delete via API only when no active users reference the department.
 
 ## users
 
@@ -181,222 +143,21 @@ Department (1) → Users (N)
 | updated_at    | TIMESTAMPTZ  |
 | deleted_at    | TIMESTAMPTZ  |
 
-Constraints:
+Constraints: `email` UNIQUE, `student_code` UNIQUE.
 
-```text
-email UNIQUE
-student_code UNIQUE
-```
+Students require `semester` and `department_id`. Admins and librarians may have NULL `semester`.
 
-Notes:
+## publishers, languages, authors, categories
 
-* Admins may have NULL semester.
-* Librarians may have NULL semester.
-* Students must have semester.
-
-Relationships:
-
-```text
-User (N) → Role (1)
-
-User (N) → Department (1)
-```
-
----
-
-# Publishers
-
-## publishers
-
-| Column     | Type         |
-| ---------- | ------------ |
-| id         | UUID         |
-| name       | VARCHAR(255) |
-| website    | VARCHAR(255) |
-| country    | VARCHAR(100) |
-| created_at | TIMESTAMPTZ  |
-| updated_at | TIMESTAMPTZ  |
-| deleted_at | TIMESTAMPTZ  |
-
-Constraint:
-
-```text
-name UNIQUE
-```
-
-Relationship:
-
-```text
-Publisher (1) → Books (N)
-```
-
----
-
-# Languages
-
-## languages
-
-| Column     | Type         |
-| ---------- | ------------ |
-| id         | UUID         |
-| name       | VARCHAR(100) |
-| code       | VARCHAR(20)  |
-| created_at | TIMESTAMPTZ  |
-| updated_at | TIMESTAMPTZ  |
-
-Constraints:
-
-```text
-name UNIQUE
-code UNIQUE
-```
-
-Relationship:
-
-```text
-Language (1) → Books (N)
-```
-
----
-
-# Authors
-
-## authors
-
-| Column     | Type         |
-| ---------- | ------------ |
-| id         | UUID         |
-| name       | VARCHAR(255) |
-| bio        | TEXT         |
-| created_at | TIMESTAMPTZ  |
-| updated_at | TIMESTAMPTZ  |
-| deleted_at | TIMESTAMPTZ  |
-
-Relationship:
-
-```text
-Author (M) ↔ Books (M)
-```
-
----
-
-# Categories
-
-## categories
-
-| Column      | Type         |
-| ----------- | ------------ |
-| id          | UUID         |
-| name        | VARCHAR(255) |
-| description | TEXT         |
-| created_at  | TIMESTAMPTZ  |
-| updated_at  | TIMESTAMPTZ  |
-| deleted_at  | TIMESTAMPTZ  |
-
-Constraint:
-
-```text
-name UNIQUE
-```
-
-Relationship:
-
-```text
-Category (M) ↔ Books (M)
-```
-
----
-
-# Books
+Standard catalog reference tables with soft delete on publishers, authors, categories.
 
 ## books
 
-| Column           | Type         |
-| ---------------- | ------------ |
-| id               | UUID         |
-| title            | VARCHAR(500) |
-| isbn             | VARCHAR(50)  |
-| publisher_id     | UUID         |
-| language_id      | UUID         |
-| edition          | VARCHAR(50)  |
-| publication_year | INTEGER      |
-| description      | TEXT         |
-| cover_image_url  | TEXT         |
-| is_digital       | BOOLEAN      |
-| created_at       | TIMESTAMPTZ  |
-| updated_at       | TIMESTAMPTZ  |
-| deleted_at       | TIMESTAMPTZ  |
+Core bibliographic record with optional ISBN, publisher, language, edition, cover URL, `is_digital` flag (no digital resource storage yet).
 
-Notes:
+## book_authors, book_categories
 
-* ISBN is optional.
-* Books without ISBN are allowed.
-
-Indexes:
-
-```text
-title
-isbn
-publication_year
-```
-
-Relationships:
-
-```text
-Book (N) → Publisher (1)
-
-Book (N) → Language (1)
-```
-
----
-
-# Book Authors
-
-## book_authors
-
-| Column    | Type |
-| --------- | ---- |
-| book_id   | UUID |
-| author_id | UUID |
-
-Primary Key:
-
-```text
-(book_id, author_id)
-```
-
-Relationship:
-
-```text
-Book (M) ↔ Author (M)
-```
-
----
-
-# Book Categories
-
-## book_categories
-
-| Column      | Type |
-| ----------- | ---- |
-| book_id     | UUID |
-| category_id | UUID |
-
-Primary Key:
-
-```text
-(book_id, category_id)
-```
-
-Relationship:
-
-```text
-Book (M) ↔ Category (M)
-```
-
----
-
-# Book Copies
+Many-to-many junction tables.
 
 ## book_copies
 
@@ -405,73 +166,14 @@ Book (M) ↔ Category (M)
 | id             | UUID           |
 | book_id        | UUID           |
 | inventory_code | VARCHAR(100)   |
+| qr_code_value  | VARCHAR(100)   |
 | location       | VARCHAR(100)   |
 | status         | BookCopyStatus |
 | acquired_date  | DATE           |
 | created_at     | TIMESTAMPTZ    |
 | updated_at     | TIMESTAMPTZ    |
 
-Constraints:
-
-```text
-inventory_code UNIQUE
-```
-
-Notes:
-
-* QR codes are generated using inventory_code.
-* Each physical copy has a unique inventory code.
-
-Relationship:
-
-```text
-Book (1) → BookCopies (N)
-```
-
----
-
-# Digital Resources
-
-## digital_resources
-
-| Column      | Type         |
-| ----------- | ------------ |
-| id          | UUID         |
-| book_id     | UUID         |
-| file_url    | TEXT         |
-| file_name   | VARCHAR(255) |
-| file_type   | VARCHAR(50)  |
-| file_size   | BIGINT       |
-| uploaded_by | UUID         |
-| created_at  | TIMESTAMPTZ  |
-| updated_at  | TIMESTAMPTZ  |
-| deleted_at  | TIMESTAMPTZ  |
-
-Notes:
-
-Multiple resources may belong to a single book.
-
-Examples:
-
-```text
-PDF
-
-Solution Manual
-
-Lab Guide
-
-Supplementary Material
-```
-
-Relationship:
-
-```text
-Book (1) → DigitalResources (N)
-```
-
----
-
-# Transactions
+`inventory_code` UNIQUE. `qr_code_value` defaults to `inventory_code` for future QR workflows.
 
 ## transactions
 
@@ -488,30 +190,14 @@ Book (1) → DigitalResources (N)
 | created_at   | TIMESTAMPTZ       |
 | updated_at   | TIMESTAMPTZ       |
 
-`TransactionStatus`: `ISSUED`, `RETURNED` only. Overdue is derived (`status=ISSUED` AND `due_at < current_date`).
+Partial unique index: one open loan per copy (`status = ISSUED`).
 
-Partial unique index: one open loan per copy (`status=ISSUED`).
+Business rules:
 
-Relationships:
-
-```text
-BookCopy (1) → Transactions (N)
-
-Student (1) → Transactions (N)
-
-Librarian (1) → Transactions (N)
-```
-
-Business Rules:
-
-* A book copy can only be issued if status = AVAILABLE.
-* Returning a book updates BookCopy status to AVAILABLE.
-* Due date = issue date + library policy (`LOAN_PERIOD_DAYS`, default 14).
-* Students with any unpaid fine cannot be issued additional copies.
-
----
-
-# Reservations
+* Issue only when copy status is `AVAILABLE`
+* Return sets transaction `RETURNED` and copy `AVAILABLE`
+* `due_at` = issue date + `LOAN_PERIOD_DAYS` (default 14, env-configurable)
+* Students with unpaid fines cannot borrow (HTTP 409)
 
 ## reservations
 
@@ -526,24 +212,11 @@ Business Rules:
 | created_at       | TIMESTAMPTZ       |
 | updated_at       | TIMESTAMPTZ       |
 
-Business Rules:
+Business rules:
 
-* Reservation queue follows FIFO by `reservation_date` (position computed at query time).
-* Reservations allowed only when no copies are AVAILABLE for the book.
-* Oldest active reservation gets priority when a copy is returned.
-* One active reservation per student per book (partial unique index).
-
-Relationships:
-
-```text
-Student (1) → Reservations (N)
-
-Book (1) → Reservations (N)
-```
-
----
-
-# Fines
+* Allowed only when no `AVAILABLE` copies exist for the book
+* FIFO queue by `reservation_date`; position computed at query time
+* One active reservation per student per book
 
 ## fines
 
@@ -558,264 +231,84 @@ Book (1) → Reservations (N)
 | created_at     | TIMESTAMPTZ   |
 | updated_at     | TIMESTAMPTZ   |
 
-Business Rules:
+Business rules:
 
-* Created automatically on late return (days overdue × `DAILY_OVERDUE_FINE_RATE`).
-* Unpaid fines block new borrowing for the student.
-* Fine linked to exactly one transaction.
-
-Relationship:
-
-```text
-Transaction (1) → Fine (0..1)
-```
+* Created on late return: `(return_date - due_at)` **calendar days** × `DAILY_OVERDUE_FINE_RATE` (default ₹10.00/day)
+* One fine per transaction
+* Unpaid fines block new issues
 
 ---
 
-# Ratings
+# Business Rules Summary
+
+| Topic | Current behaviour | Future |
+|-------|-------------------|--------|
+| Overdue detection | Derived (`ISSUED` + past `due_at`) | — |
+| Fine calculation | Calendar days late × daily rate | Working-day calculation via `library_calendar` (planned) |
+| Reservation queue | FIFO by `reservation_date` | — |
+| Copy QR | `qr_code_value` stored; no QR API yet | Sprint 5+ QR endpoints |
+| Book renewal | Not implemented | Future sprint |
+
+---
+
+# Planned Schema (Not Yet Implemented)
+
+The tables below are **design targets**. They do **not** exist in current migrations.
+
+## digital_resources
+
+PDF and file metadata with URLs pointing to Cloudflare R2 (not PostgreSQL blobs).
 
 ## ratings
 
-| Column     | Type        |
-| ---------- | ----------- |
-| id         | UUID        |
-| student_id | UUID        |
-| book_id    | UUID        |
-| rating     | SMALLINT    |
-| created_at | TIMESTAMPTZ |
-
-Constraint:
-
-```text
-rating BETWEEN 1 AND 5
-```
-
-Business Rule:
-
-One rating per student per book.
-
----
-
-# Reviews
+One rating (1–5) per student per book.
 
 ## reviews
 
-| Column      | Type        |
-| ----------- | ----------- |
-| id          | UUID        |
-| student_id  | UUID        |
-| book_id     | UUID        |
-| review_text | TEXT        |
-| created_at  | TIMESTAMPTZ |
-| updated_at  | TIMESTAMPTZ |
-
-Business Rule:
-
-One review per student per book.
-
----
-
-# Book Embeddings
+One review text per student per book.
 
 ## book_embeddings
 
-| Column     | Type         |
-| ---------- | ------------ |
-| book_id    | UUID         |
-| embedding  | VECTOR       |
-| model_name | VARCHAR(255) |
-| updated_at | TIMESTAMPTZ  |
-
-Relationship:
-
-```text
-Book (1) → BookEmbedding (1)
-```
-
-Used For:
-
-```text
-Semantic Search
-
-Similarity Search
-
-Recommendation Features
-```
-
----
-
-# Notifications
+Vector embeddings for semantic search (requires pgvector extension on PostgreSQL).
 
 ## notifications
 
-| Column     | Type         |
-| ---------- | ------------ |
-| id         | UUID         |
-| user_id    | UUID         |
-| title      | VARCHAR(255) |
-| message    | TEXT         |
-| is_read    | BOOLEAN      |
-| created_at | TIMESTAMPTZ  |
-
-Examples:
-
-```text
-Reservation Available
-
-Book Due Tomorrow
-
-Fine Generated
-
-Book Returned Successfully
-```
-
----
-
-# Audit Logs
+In-app notification records per user.
 
 ## audit_logs
 
-| Column      | Type         |
-| ----------- | ------------ |
-| id          | UUID         |
-| user_id     | UUID         |
-| action      | VARCHAR(255) |
-| entity_type | VARCHAR(100) |
-| entity_id   | UUID         |
-| created_at  | TIMESTAMPTZ  |
-
-Examples:
-
-```text
-BOOK_CREATED
-
-BOOK_UPDATED
-
-BOOK_DELETED
-
-BOOK_ISSUED
-
-BOOK_RETURNED
-
-USER_CREATED
-```
-
----
-
-# Library Calendar
+Administrative action audit trail.
 
 ## library_calendar
 
-| Column     | Type         |
-| ---------- | ------------ |
-| date       | DATE         |
-| is_open    | BOOLEAN      |
-| reason     | VARCHAR(255) |
-| created_at | TIMESTAMPTZ  |
-
-Primary Key:
-
-```text
-date
-```
-
-Used For:
-
-```text
-Fine Calculation
-
-Holiday Management
-
-Working Day Calculations
-```
-
-Examples:
-
-```text
-Republic Day
-
-Independence Day
-
-Library Maintenance
-
-Festival Holiday
-```
+Holiday and closure dates for working-day fine calculation.
 
 ---
 
-# AI Design Notes
+# AI Design Notes (Future)
 
-## Recommendation Engine
+When implemented, recommendations will use borrow history, ratings, department, and semester. Semantic search will use Sentence Transformers + pgvector cosine similarity over book metadata embeddings.
 
-Input Signals:
-
-```text
-Borrow History
-
-Ratings
-
-Department
-
-Semester
-```
-
-Algorithms:
-
-```text
-Popularity-Based
-
-Content-Based
-
-Collaborative Filtering
-```
+These features require planned tables and infrastructure not present in Sprint 4.
 
 ---
 
-## Semantic Search
+# PostgreSQL Deployment Notes
 
-Embedding Source:
+## Local development
 
-```text
-Book Title
+Docker Compose (`docker-compose.yml`) uses `pgvector/pgvector:pg16`. Current migrations only require `pgcrypto`.
 
-Description
+## Neon
 
-Author Names
+Use connection string with `sslmode=require`. Run `uv run alembic upgrade head` from `backend/`.
 
-Category Names
-```
-
-Storage:
-
-```text
-PostgreSQL + pgvector
-```
-
-Similarity:
-
-```text
-Cosine Similarity
-```
+Enable `pgvector` on Neon when semantic search is implemented.
 
 ---
 
-# Future Extensions
+# Related Documentation
 
-Potential future additions:
-
-```text
-Faculty Role
-
-Payment Gateway
-
-RFID Support
-
-Multi-Branch Libraries
-
-Inter-Library Loans
-
-Advanced Analytics
-```
-
-These features are intentionally excluded from version 1.0.
-
+- [`setup.md`](setup.md) — database setup
+- [`api-spec.md`](api-spec.md) — REST API
+- [`sprint-4-summary.md`](sprint-4-summary.md) — delivery history
