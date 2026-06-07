@@ -27,7 +27,7 @@ export function LoginPage() {
     },
     onSuccess: ({ token: accessToken, user }) => {
       setAuth(accessToken, user);
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     },
     onError: (error) => {
       if (isAxiosError(error) && error.response?.status === 401) {
@@ -39,7 +39,7 @@ export function LoginPage() {
   });
 
   if (token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

@@ -9,17 +9,24 @@ from app.api.v1.endpoints import (
     books,
     categories,
     circulation,
+    dashboard,
+    departments,
     fines,
     health,
     languages,
     publishers,
     reservations,
+    roles,
     transactions,
+    users,
 )
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
+api_router.include_router(users.router, prefix="/users", tags=["users"])
+api_router.include_router(departments.router, prefix="/departments", tags=["departments"])
 api_router.include_router(languages.router, prefix="/languages", tags=["languages"])
 api_router.include_router(publishers.router, prefix="/publishers", tags=["publishers"])
 api_router.include_router(authors.router, prefix="/authors", tags=["authors"])
@@ -30,3 +37,4 @@ api_router.include_router(transactions.router, prefix="/transactions", tags=["tr
 api_router.include_router(reservations.router, prefix="/reservations", tags=["reservations"])
 api_router.include_router(fines.router, prefix="/fines", tags=["fines"])
 api_router.include_router(circulation.router, prefix="/circulation", tags=["circulation"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])

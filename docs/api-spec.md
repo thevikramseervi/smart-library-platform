@@ -90,9 +90,191 @@ Access:
 Authenticated Users
 ```
 
+Authenticated Users
+```
+
+---
+
+# Dashboard
+
+Role-specific summary endpoints. All return real aggregated data; no charts or analytics.
+
+## Student Dashboard
+
+```http
+GET /api/v1/dashboard/student
+```
+
+Access:
+
+```text
+Student
+```
+
+Response: `200`
+
+```json
+{
+  "active_loans": 1,
+  "active_reservations": 0,
+  "unpaid_fines": "10.00",
+  "total_books_borrowed": 5,
+  "recent_loans": [
+    {
+      "book_title": "Clean Code",
+      "issued_at": "2026-06-01T10:00:00Z",
+      "due_at": "2026-06-15",
+      "status": "ISSUED",
+      "is_overdue": false
+    }
+  ],
+  "recent_reservations": [
+    {
+      "book_title": "Design Patterns",
+      "queue_position": 2,
+      "reservation_date": "2026-06-07T10:00:00Z"
+    }
+  ]
+}
+```
+
+## Librarian Dashboard
+
+```http
+GET /api/v1/dashboard/librarian
+```
+
+Access:
+
+```text
+Librarian
+```
+
+Response: `200`
+
+```json
+{
+  "books_count": 120,
+  "copies_count": 340,
+  "active_loans": 45,
+  "overdue_loans": 3,
+  "reservations_count": 12,
+  "unpaid_fines_count": 8,
+  "recent_transactions": [
+    {
+      "book_title": "Clean Code",
+      "student_name": "Dev Student",
+      "student_code": "STU-001",
+      "action": "ISSUE",
+      "occurred_at": "2026-06-07T09:00:00Z"
+    }
+  ]
+}
+```
+
+## Admin Dashboard
+
+```http
+GET /api/v1/dashboard/admin
+```
+
+Access:
+
+```text
+Admin
+```
+
+Response: `200`
+
+```json
+{
+  "users_count": 50,
+  "students_count": 45,
+  "librarians_count": 3,
+  "departments_count": 2,
+  "books_count": 120,
+  "active_loans": 45,
+  "recent_user_activity": [
+    {
+      "activity_type": "CREATED",
+      "user_name": "John Doe",
+      "email": "john@library.local",
+      "role_name": "STUDENT",
+      "occurred_at": "2026-06-07T08:00:00Z"
+    }
+  ],
+  "recent_circulation_activity": [
+    {
+      "action": "RETURN",
+      "book_title": "Clean Code",
+      "student_name": "Dev Student",
+      "occurred_at": "2026-06-07T09:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+# Roles
+
+## List Roles
+
+```http
+GET /api/v1/roles
+```
+
+Access:
+
+```text
+Admin
+```
+
+Response: `200` — array of role summaries for admin forms.
+
+```json
+[
+  { "id": "uuid", "name": "ADMIN" },
+  { "id": "uuid", "name": "LIBRARIAN" },
+  { "id": "uuid", "name": "STUDENT" }
+]
+```
+
 ---
 
 # User Management
+
+All user management endpoints are **Admin only**. Responses never include `password_hash`.
+
+Shared response shape (`UserResponse`):
+
+```json
+{
+  "id": "uuid",
+  "email": "student@library.local",
+  "first_name": "Dev",
+  "last_name": "Student",
+  "phone": null,
+  "student_code": "STU-001",
+  "semester": 4,
+  "is_active": true,
+  "role": { "id": "uuid", "name": "STUDENT" },
+  "department": { "id": "uuid", "name": "Computer Science", "code": "CSE", "description": "..." }
+}
+```
+
+Role-specific validation:
+
+| Role | `student_code` | `semester` | `department_id` |
+|------|----------------|------------|-----------------|
+| STUDENT | Required, unique | Required (≥ 1) | **Required** |
+| LIBRARIAN | Must be null | Must be null | Optional |
+| ADMIN | Must be null | Must be null | Optional |
+
+Admin safety (HTTP `409`):
+
+* Cannot delete, deactivate, or demote self
+* Cannot delete, deactivate, or demote the last active ADMIN
 
 ## List Users
 
@@ -106,7 +288,9 @@ Access:
 Admin
 ```
 
----
+Query params: `page`, `page_size` (max 100), `q` (email, name, student_code), `role` (`ADMIN` | `LIBRARIAN` | `STUDENT`), `department_id`, `is_active`.
+
+Response: `200` — `PaginatedResponse[UserResponse]`. Soft-deleted users are excluded.
 
 ## Get User
 
@@ -120,7 +304,7 @@ Access:
 Admin
 ```
 
----
+Response: `200` — `UserResponse`. Returns `404` for soft-deleted users.
 
 ## Create User
 
@@ -134,7 +318,26 @@ Access:
 Admin
 ```
 
----
+Request:
+
+```json
+{
+  "role_id": "uuid",
+  "department_id": "uuid-or-null",
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "john.doe@library.local",
+  "phone": "+91-9876543210",
+  "password": "securePassword123",
+  "student_code": "STU-003",
+  "semester": 3,
+  "is_active": true
+}
+```
+
+Response: `201` — `UserResponse`.
+
+Errors: `404` invalid role/department · `409` duplicate email or student_code · `422` validation.
 
 ## Update User
 
@@ -148,7 +351,31 @@ Access:
 Admin
 ```
 
----
+Request: partial fields (`role_id`, `department_id`, `first_name`, `last_name`, `email`, `phone`, `password`, `student_code`, `semester`, `is_active`). Omit `password` to leave unchanged.
+
+Response: `200` — `UserResponse`.
+
+## Reset User Password
+
+```http
+POST /api/v1/users/{id}/reset-password
+```
+
+Access:
+
+```text
+Admin
+```
+
+Request:
+
+```json
+{ "password": "newSecurePassword123" }
+```
+
+Response: `204 No Content`.
+
+Admin-only password reset with no email workflow. Password is hashed server-side.
 
 ## Deactivate User
 
@@ -165,12 +392,27 @@ Admin
 Behavior:
 
 ```text
-Soft Delete
+Soft delete (sets deleted_at and is_active = false)
 ```
+
+Response: `204 No Content`.
 
 ---
 
 # Departments
+
+All department endpoints are **Admin only**.
+
+Shared response shape (`DepartmentResponse`):
+
+```json
+{
+  "id": "uuid",
+  "name": "Computer Science",
+  "code": "CSE",
+  "description": "Computer Science and Engineering"
+}
+```
 
 ## List Departments
 
@@ -178,7 +420,27 @@ Soft Delete
 GET /api/v1/departments
 ```
 
----
+Access:
+
+```text
+Admin
+```
+
+Response: `200` — `DepartmentResponse[]` ordered by `code`.
+
+## Get Department
+
+```http
+GET /api/v1/departments/{id}
+```
+
+Access:
+
+```text
+Admin
+```
+
+Response: `200` — `DepartmentResponse`.
 
 ## Create Department
 
@@ -192,7 +454,19 @@ Access:
 Admin
 ```
 
----
+Request:
+
+```json
+{
+  "name": "Computer Science",
+  "code": "CSE",
+  "description": "Optional description"
+}
+```
+
+Response: `201` — `DepartmentResponse`.
+
+Errors: `409` duplicate `code`.
 
 ## Update Department
 
@@ -206,7 +480,9 @@ Access:
 Admin
 ```
 
----
+Request: partial `name`, `code`, `description`.
+
+Response: `200` — `DepartmentResponse`.
 
 ## Delete Department
 
@@ -219,6 +495,16 @@ Access:
 ```text
 Admin
 ```
+
+Behavior:
+
+```text
+Hard delete only when no non-deleted users reference the department.
+```
+
+Response: `204 No Content`.
+
+Errors: `409` when active users are assigned to the department.
 
 ---
 

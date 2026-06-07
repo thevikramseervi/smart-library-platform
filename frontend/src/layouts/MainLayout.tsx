@@ -1,5 +1,6 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 
+import { useIsAdmin } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 
@@ -7,6 +8,7 @@ export function MainLayout() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const isAdmin = useIsAdmin();
 
   const handleLogout = () => {
     clearAuth();
@@ -25,8 +27,8 @@ export function MainLayout() {
               <h1 className="text-xl font-semibold tracking-tight">Library Management</h1>
             </div>
             <nav className="flex items-center gap-4 text-sm">
-              <Link to="/" className="font-medium text-muted-foreground hover:text-foreground">
-                Home
+              <Link to="/dashboard" className="font-medium text-muted-foreground hover:text-foreground">
+                Dashboard
               </Link>
               {showNavLinks ? (
                 <>
@@ -42,6 +44,14 @@ export function MainLayout() {
                   >
                     Circulation
                   </Link>
+                  {isAdmin ? (
+                    <Link
+                      to="/admin"
+                      className="font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Admin
+                    </Link>
+                  ) : null}
                 </>
               ) : null}
             </nav>

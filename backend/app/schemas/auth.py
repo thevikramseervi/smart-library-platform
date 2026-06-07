@@ -36,6 +36,7 @@ class DepartmentResponse(BaseModel):
     id: UUID
     name: str
     code: str
+    description: str | None = None
 
 
 class UserResponse(BaseModel):
