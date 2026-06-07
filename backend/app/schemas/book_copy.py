@@ -12,7 +12,7 @@ class BookCopyCreate(BaseModel):
     """Payload for creating a book copy."""
 
     book_id: UUID
-    inventory_code: str = Field(min_length=1, max_length=100)
+    inventory_code: str | None = Field(default=None, max_length=100)
     location: str | None = Field(default=None, max_length=100)
     status: BookCopyStatus = BookCopyStatus.AVAILABLE
     acquired_date: date | None = None

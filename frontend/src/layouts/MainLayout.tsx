@@ -13,7 +13,7 @@ export function MainLayout() {
     navigate("/login", { replace: true });
   };
 
-  const showCatalogLink = Boolean(user);
+  const showNavLinks = Boolean(user);
 
   return (
     <div className="min-h-svh bg-background">
@@ -28,13 +28,21 @@ export function MainLayout() {
               <Link to="/" className="font-medium text-muted-foreground hover:text-foreground">
                 Home
               </Link>
-              {showCatalogLink ? (
-                <Link
-                  to="/catalog"
-                  className="font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Catalog
-                </Link>
+              {showNavLinks ? (
+                <>
+                  <Link
+                    to="/catalog"
+                    className="font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Catalog
+                  </Link>
+                  <Link
+                    to="/circulation"
+                    className="font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Circulation
+                  </Link>
+                </>
               ) : null}
             </nav>
           </div>

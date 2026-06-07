@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_db, require_roles
+from app.api.deps import get_db, require_roles
 from app.models.book_copy import BookCopyStatus
 from app.models.user import User
 from app.schemas.book_copy import BookCopyCreate, BookCopyResponse, BookCopyUpdate
@@ -23,7 +23,7 @@ def get_book_copy_service(db: Session = Depends(get_db)) -> BookCopyService:
 def list_book_copies(
     book_id: UUID | None = Query(default=None),
     status_filter: BookCopyStatus | None = Query(default=None, alias="status"),
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookCopyService = Depends(get_book_copy_service),
 ) -> list[BookCopyResponse]:
     """List book copies with optional filters."""
@@ -33,7 +33,7 @@ def list_book_copies(
 @router.get("/{copy_id}", response_model=BookCopyResponse)
 def get_book_copy(
     copy_id: UUID,
-    _current_user: User = Depends(get_current_user),
+    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookCopyService = Depends(get_book_copy_service),
 ) -> BookCopyResponse:
     """Get a book copy by id."""

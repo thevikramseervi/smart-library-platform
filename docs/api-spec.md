@@ -278,6 +278,18 @@ GET /api/v1/languages
 POST /api/v1/languages
 ```
 
+Access:
+
+```text
+Admin, Librarian
+```
+
+### Language management policy
+
+Languages are **create-only** by design. There are no edit or delete endpoints.
+
+Reference data such as language codes is shared across books and catalog filters. Allowing deletion or renaming would risk orphaned references and inconsistent historical records. New languages are added when needed; existing codes remain stable for the life of the catalog.
+
 ---
 
 # Authors
@@ -436,6 +448,28 @@ Soft Delete
 GET /api/v1/book-copies
 ```
 
+Access:
+
+```text
+Admin, Librarian
+```
+
+Students use book-level availability on `GET /books/{id}` instead of copy-level records.
+
+---
+
+## Get Copy
+
+```http
+GET /api/v1/book-copies/{id}
+```
+
+Access:
+
+```text
+Admin, Librarian
+```
+
 ---
 
 ## Create Copy
@@ -511,16 +545,31 @@ POST /api/v1/transactions/issue
 Access:
 
 ```text
-Librarian
+Librarian, Admin
 ```
 
-Input:
+Request body (UUID pair **or** code pair — do not mix):
 
-```text
-Student QR
-
-Book QR
+```json
+{
+  "book_copy_id": "uuid",
+  "student_id": "uuid"
+}
 ```
+
+```json
+{
+  "inventory_code": "BK-...",
+  "student_code": "STU-001"
+}
+```
+
+Business rules:
+
+* Copy must have status `AVAILABLE`.
+* Student must not have any unpaid fines (409).
+* Sets `due_at` to issue date + `LOAN_PERIOD_DAYS` (default 14).
+* Overdue is derived at read time (`status=ISSUED` and `due_at < today`); there is no persisted `OVERDUE` status.
 
 ---
 
@@ -533,22 +582,25 @@ POST /api/v1/transactions/return
 Access:
 
 ```text
-Librarian
+Librarian, Admin
 ```
 
----
+Request body:
 
-## Renew Book
-
-```http
-POST /api/v1/transactions/renew
+```json
+{ "book_copy_id": "uuid" }
 ```
 
-Access:
+or
 
-```text
-Librarian
+```json
+{ "inventory_code": "BK-..." }
 ```
+
+Business rules:
+
+* Marks transaction `RETURNED`, sets copy back to `AVAILABLE`.
+* If returned after `due_at`, creates an unpaid fine linked to the transaction.
 
 ---
 
@@ -558,6 +610,44 @@ Librarian
 GET /api/v1/transactions
 ```
 
+Access:
+
+```text
+Librarian, Admin
+```
+
+Query params: `page`, `page_size`, `status` (`ISSUED` | `RETURNED`), `overdue` (bool), `student_id`, `book_id`.
+
+---
+
+## My Transaction History
+
+```http
+GET /api/v1/transactions/me
+```
+
+Access:
+
+```text
+Student
+```
+
+---
+
+## My Active Loans
+
+```http
+GET /api/v1/transactions/me/active
+```
+
+Access:
+
+```text
+Student
+```
+
+Returns all open (`ISSUED`) loans for the authenticated student, including computed `is_overdue`.
+
 ---
 
 ## Student History
@@ -565,6 +655,60 @@ GET /api/v1/transactions
 ```http
 GET /api/v1/transactions/student/{id}
 ```
+
+Access:
+
+```text
+Librarian, Admin
+```
+
+---
+
+## Get Transaction
+
+```http
+GET /api/v1/transactions/{id}
+```
+
+Access:
+
+```text
+Librarian, Admin, Student (own loans only)
+```
+
+---
+
+# Circulation Helpers
+
+## Search Students
+
+```http
+GET /api/v1/circulation/students/search?q={query}
+```
+
+Access:
+
+```text
+Librarian, Admin
+```
+
+Query param `q` is optional. When omitted, returns all active students (for client-side filtering in the issue workflow).
+
+---
+
+## List Available Copies
+
+```http
+GET /api/v1/circulation/copies/available
+```
+
+Access:
+
+```text
+Librarian, Admin
+```
+
+Query params: `book_id`, `q` (matches inventory code or book title).
 
 ---
 
@@ -582,12 +726,30 @@ Access:
 Student
 ```
 
+Request body:
+
+```json
+{ "book_id": "uuid" }
+```
+
+Business rules:
+
+* Allowed only when the book has zero `AVAILABLE` copies.
+* One active reservation per student per book.
+* FIFO queue position is computed from `reservation_date` (not stored).
+
 ---
 
 ## Cancel Reservation
 
 ```http
 DELETE /api/v1/reservations/{id}
+```
+
+Access:
+
+```text
+Student (own), Librarian, Admin
 ```
 
 ---
@@ -597,6 +759,67 @@ DELETE /api/v1/reservations/{id}
 ```http
 GET /api/v1/reservations/me
 ```
+
+Access:
+
+```text
+Student
+```
+
+---
+
+## List Reservations
+
+```http
+GET /api/v1/reservations
+```
+
+Access:
+
+```text
+Librarian, Admin
+```
+
+Query params: `page`, `page_size`, `book_id`, `status`.
+
+---
+
+## Reservation Queue
+
+```http
+GET /api/v1/reservations/queue/{book_id}
+```
+
+Access:
+
+```text
+Librarian, Admin
+```
+
+Returns active reservations for a book in FIFO order with computed `queue_position`.
+
+Each reservation includes nested `book` and `student` summaries:
+
+```json
+{
+  "id": "uuid",
+  "student_id": "uuid",
+  "book_id": "uuid",
+  "reservation_date": "2026-06-07T10:00:00Z",
+  "expiry_date": "2026-06-14T10:00:00Z",
+  "status": "ACTIVE",
+  "queue_position": 1,
+  "book": { "id": "uuid", "title": "Clean Code" },
+  "student": {
+    "id": "uuid",
+    "first_name": "John",
+    "last_name": "Doe",
+    "student_code": "STU-001"
+  }
+}
+```
+
+The same `student` summary is included on create, list, and `/reservations/me` responses.
 
 ---
 
@@ -639,8 +862,13 @@ POST /api/v1/fines/{id}/pay
 Access:
 
 ```text
-Librarian
+Librarian, Admin
 ```
+
+Business rules:
+
+* Marks fine as paid and records `paid_at`.
+* Unpaid fines block new book issues for that student (409 on issue).
 
 ---
 

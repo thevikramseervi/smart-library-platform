@@ -16,6 +16,7 @@ from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
     from app.models.book import Book
+    from app.models.transaction import Transaction
 
 
 class BookCopyStatus(str, enum.Enum):
@@ -26,6 +27,7 @@ class BookCopyStatus(str, enum.Enum):
     RESERVED = "RESERVED"
     LOST = "LOST"
     DAMAGED = "DAMAGED"
+    RETIRED = "RETIRED"
 
 
 class BookCopy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -50,3 +52,4 @@ class BookCopy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     acquired_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     book: Mapped["Book"] = relationship("Book", back_populates="copies")
+    transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="book_copy")

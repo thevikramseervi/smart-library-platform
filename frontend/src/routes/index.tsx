@@ -14,6 +14,17 @@ import { CategoryFormPage } from "@/pages/catalog/CategoryFormPage";
 import { LanguagesListPage } from "@/pages/catalog/LanguagesListPage";
 import { PublisherFormPage } from "@/pages/catalog/PublisherFormPage";
 import { PublishersListPage } from "@/pages/catalog/PublishersListPage";
+import { CirculationLayout } from "@/layouts/CirculationLayout";
+import { ActiveLoansPage } from "@/pages/circulation/ActiveLoansPage";
+import { CirculationIndexRedirect } from "@/pages/circulation/CirculationIndexRedirect";
+import { IssueBookPage } from "@/pages/circulation/IssueBookPage";
+import { MyFinesPage } from "@/pages/circulation/MyFinesPage";
+import { MyLoansPage } from "@/pages/circulation/MyLoansPage";
+import { MyReservationsPage } from "@/pages/circulation/MyReservationsPage";
+import { OverdueLoansPage } from "@/pages/circulation/OverdueLoansPage";
+import { ReservationsQueuePage } from "@/pages/circulation/ReservationsQueuePage";
+import { ReturnBookPage } from "@/pages/circulation/ReturnBookPage";
+import { StaffFinesPage } from "@/pages/circulation/StaffFinesPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 
@@ -99,6 +110,57 @@ export const router = createBrowserRouter([
                   {
                     path: "books/:id/edit",
                     element: <BookFormPage />,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            path: "circulation",
+            element: <CirculationLayout />,
+            children: [
+              {
+                index: true,
+                element: <CirculationIndexRedirect />,
+              },
+              {
+                path: "my-loans",
+                element: <MyLoansPage />,
+              },
+              {
+                path: "my-reservations",
+                element: <MyReservationsPage />,
+              },
+              {
+                path: "my-fines",
+                element: <MyFinesPage />,
+              },
+              {
+                element: <StaffRoute />,
+                children: [
+                  {
+                    path: "issue",
+                    element: <IssueBookPage />,
+                  },
+                  {
+                    path: "return",
+                    element: <ReturnBookPage />,
+                  },
+                  {
+                    path: "loans",
+                    element: <ActiveLoansPage />,
+                  },
+                  {
+                    path: "overdue",
+                    element: <OverdueLoansPage />,
+                  },
+                  {
+                    path: "reservations",
+                    element: <ReservationsQueuePage />,
+                  },
+                  {
+                    path: "fines",
+                    element: <StaffFinesPage />,
                   },
                 ],
               },

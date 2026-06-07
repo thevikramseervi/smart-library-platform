@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from app.models.category import Category
     from app.models.language import Language
     from app.models.publisher import Publisher
+    from app.models.reservation import Reservation
 
 
 class Book(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
@@ -56,3 +57,4 @@ class Book(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         back_populates="books",
     )
     copies: Mapped[list["BookCopy"]] = relationship("BookCopy", back_populates="book")
+    reservations: Mapped[list["Reservation"]] = relationship("Reservation", back_populates="book")

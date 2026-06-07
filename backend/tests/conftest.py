@@ -5,6 +5,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+pytest_plugins = ["tests.conftest_circulation"]
+
 
 @pytest.fixture
 def client() -> TestClient:

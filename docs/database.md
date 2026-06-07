@@ -86,7 +86,10 @@ BORROWED
 RESERVED
 LOST
 DAMAGED
+RETIRED
 ```
+
+`LOST`, `DAMAGED`, and `RETIRED` copies are excluded from `available_copies` and cannot be issued. Staff may update copy status via `PUT /book-copies/{id}` when the copy is not on loan.
 
 ---
 
@@ -478,12 +481,16 @@ Book (1) → DigitalResources (N)
 | book_copy_id | UUID              |
 | student_id   | UUID              |
 | issued_by    | UUID              |
-| issue_date   | DATE              |
-| due_date     | DATE              |
-| return_date  | DATE              |
+| issued_at    | TIMESTAMPTZ       |
+| due_at       | DATE              |
+| returned_at  | TIMESTAMPTZ       |
 | status       | TransactionStatus |
 | created_at   | TIMESTAMPTZ       |
 | updated_at   | TIMESTAMPTZ       |
+
+`TransactionStatus`: `ISSUED`, `RETURNED` only. Overdue is derived (`status=ISSUED` AND `due_at < current_date`).
+
+Partial unique index: one open loan per copy (`status=ISSUED`).
 
 Relationships:
 
@@ -498,8 +505,9 @@ Librarian (1) → Transactions (N)
 Business Rules:
 
 * A book copy can only be issued if status = AVAILABLE.
-* Returning a book updates BookCopy status.
-* Due dates are determined by library policy.
+* Returning a book updates BookCopy status to AVAILABLE.
+* Due date = issue date + library policy (`LOAN_PERIOD_DAYS`, default 14).
+* Students with any unpaid fine cannot be issued additional copies.
 
 ---
 
@@ -520,8 +528,10 @@ Business Rules:
 
 Business Rules:
 
-* Reservation queue follows FIFO.
-* Oldest active reservation gets priority.
+* Reservation queue follows FIFO by `reservation_date` (position computed at query time).
+* Reservations allowed only when no copies are AVAILABLE for the book.
+* Oldest active reservation gets priority when a copy is returned.
+* One active reservation per student per book (partial unique index).
 
 Relationships:
 
@@ -542,6 +552,7 @@ Book (1) → Reservations (N)
 | id             | UUID          |
 | transaction_id | UUID          |
 | amount         | DECIMAL(10,2) |
+| reason         | VARCHAR       |
 | paid           | BOOLEAN       |
 | paid_at        | TIMESTAMPTZ   |
 | created_at     | TIMESTAMPTZ   |
@@ -549,8 +560,8 @@ Book (1) → Reservations (N)
 
 Business Rules:
 
-* Fine calculated using working days.
-* Library closures are excluded.
+* Created automatically on late return (days overdue × `DAILY_OVERDUE_FINE_RATE`).
+* Unpaid fines block new borrowing for the student.
 * Fine linked to exactly one transaction.
 
 Relationship:

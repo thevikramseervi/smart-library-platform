@@ -15,9 +15,12 @@ from app.models import (  # noqa: F401
     BookCopy,
     Category,
     Department,
+    Fine,
     Language,
     Publisher,
+    Reservation,
     Role,
+    Transaction,
     User,
 )
 

@@ -1,5 +1,7 @@
 """Application configuration loaded from environment variables."""
 
+from decimal import Decimal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +29,15 @@ class Settings(BaseSettings):
     DEV_ADMIN_PASSWORD: str = "admin123456"
     DEV_ADMIN_FIRST_NAME: str = "System"
     DEV_ADMIN_LAST_NAME: str = "Admin"
+
+    DEV_LIBRARIAN_EMAIL: str = "librarian@library.local"
+    DEV_LIBRARIAN_PASSWORD: str = "librarian123456"
+    DEV_LIBRARIAN_FIRST_NAME: str = "Dev"
+    DEV_LIBRARIAN_LAST_NAME: str = "Librarian"
+
+    LOAN_PERIOD_DAYS: int = 14
+    RESERVATION_EXPIRY_DAYS: int = 7
+    DAILY_OVERDUE_FINE_RATE: Decimal = Decimal("10.00")
 
 
 settings = Settings()

@@ -24,6 +24,12 @@ DEV_STUDENT_FIRST_NAME = "Dev"
 DEV_STUDENT_LAST_NAME = "Student"
 DEV_STUDENT_CODE = "STU-001"
 
+DEV_STUDENT2_EMAIL = "student2@library.local"
+DEV_STUDENT2_PASSWORD = "student123456"
+DEV_STUDENT2_FIRST_NAME = "Dev"
+DEV_STUDENT2_LAST_NAME = "Student Two"
+DEV_STUDENT2_CODE = "STU-002"
+
 SAMPLE_DEPARTMENTS = (
     {"name": "Computer Science", "code": "CSE", "description": "Computer Science and Engineering"},
     {
@@ -92,6 +98,29 @@ def seed_dev_admin(db: Session, admin_role: Role) -> None:
     logger.info("Created dev admin user: %s", settings.DEV_ADMIN_EMAIL)
 
 
+def seed_dev_librarian(db: Session, librarian_role: Role) -> None:
+    """Insert a default librarian user for local development and RBAC tests."""
+    existing = db.execute(
+        select(User).where(User.email == settings.DEV_LIBRARIAN_EMAIL)
+    ).scalar_one_or_none()
+    if existing is not None:
+        logger.info("Dev librarian user already exists: %s", settings.DEV_LIBRARIAN_EMAIL)
+        return
+
+    librarian = User(
+        role_id=librarian_role.id,
+        department_id=None,
+        first_name=settings.DEV_LIBRARIAN_FIRST_NAME,
+        last_name=settings.DEV_LIBRARIAN_LAST_NAME,
+        email=settings.DEV_LIBRARIAN_EMAIL,
+        password_hash=hash_password(settings.DEV_LIBRARIAN_PASSWORD),
+        semester=None,
+        is_active=True,
+    )
+    db.add(librarian)
+    logger.info("Created dev librarian user: %s", settings.DEV_LIBRARIAN_EMAIL)
+
+
 def seed_dev_student(db: Session, student_role: Role) -> None:
     """Insert a default student user for local development and RBAC tests."""
     existing = db.execute(
@@ -116,6 +145,31 @@ def seed_dev_student(db: Session, student_role: Role) -> None:
     )
     db.add(student)
     logger.info("Created dev student user: %s", DEV_STUDENT_EMAIL)
+
+
+def seed_dev_student_two(db: Session, student_role: Role) -> None:
+    """Insert a second student user for reservation queue tests."""
+    existing = db.execute(
+        select(User).where(User.email == DEV_STUDENT2_EMAIL)
+    ).scalar_one_or_none()
+    if existing is not None:
+        logger.info("Dev student two already exists: %s", DEV_STUDENT2_EMAIL)
+        return
+
+    department = db.execute(select(Department).where(Department.code == "CSE")).scalar_one_or_none()
+    student = User(
+        role_id=student_role.id,
+        department_id=department.id if department else None,
+        first_name=DEV_STUDENT2_FIRST_NAME,
+        last_name=DEV_STUDENT2_LAST_NAME,
+        email=DEV_STUDENT2_EMAIL,
+        student_code=DEV_STUDENT2_CODE,
+        password_hash=hash_password(DEV_STUDENT2_PASSWORD),
+        semester=3,
+        is_active=True,
+    )
+    db.add(student)
+    logger.info("Created dev student two: %s", DEV_STUDENT2_EMAIL)
 
 
 def seed_languages(db: Session) -> list[Language]:
@@ -143,7 +197,9 @@ def run_seed() -> None:
         seed_departments(db)
         seed_languages(db)
         seed_dev_admin(db, roles["ADMIN"])
+        seed_dev_librarian(db, roles["LIBRARIAN"])
         seed_dev_student(db, roles["STUDENT"])
+        seed_dev_student_two(db, roles["STUDENT"])
         db.commit()
         logger.info("Database seed completed successfully")
     except Exception:

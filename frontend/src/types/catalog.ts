@@ -84,7 +84,21 @@ export interface CategoryUpdate {
   description?: string | null;
 }
 
-export type BookCopyStatus = "AVAILABLE" | "BORROWED" | "RESERVED" | "LOST" | "DAMAGED";
+export type BookCopyStatus =
+  | "AVAILABLE"
+  | "BORROWED"
+  | "RESERVED"
+  | "LOST"
+  | "DAMAGED"
+  | "RETIRED";
+
+/** Status values staff can set from the catalog UI. */
+export const STAFF_MANAGEABLE_COPY_STATUSES: BookCopyStatus[] = [
+  "AVAILABLE",
+  "LOST",
+  "DAMAGED",
+  "RETIRED",
+];
 
 export interface BookCopy {
   id: string;
@@ -100,7 +114,7 @@ export interface BookCopy {
 
 export interface BookCopyCreate {
   book_id: string;
-  inventory_code: string;
+  inventory_code?: string | null;
   location?: string | null;
 }
 
