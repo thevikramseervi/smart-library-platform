@@ -17,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 ROLE_NAMES = ("ADMIN", "LIBRARIAN", "STUDENT")
 
+DEV_STUDENT_EMAIL = "student@library.local"
+DEV_STUDENT_PASSWORD = "student123456"
+DEV_STUDENT_FIRST_NAME = "Dev"
+DEV_STUDENT_LAST_NAME = "Student"
+DEV_STUDENT_CODE = "STU-001"
+
 SAMPLE_DEPARTMENTS = (
     {"name": "Computer Science", "code": "CSE", "description": "Computer Science and Engineering"},
     {
@@ -80,6 +86,32 @@ def seed_dev_admin(db: Session, admin_role: Role) -> None:
     logger.info("Created dev admin user: %s", settings.DEV_ADMIN_EMAIL)
 
 
+def seed_dev_student(db: Session, student_role: Role) -> None:
+    """Insert a default student user for local development and RBAC tests."""
+    existing = db.execute(
+        select(User).where(User.email == DEV_STUDENT_EMAIL)
+    ).scalar_one_or_none()
+    if existing is not None:
+        logger.info("Dev student user already exists: %s", DEV_STUDENT_EMAIL)
+        return
+
+    department = db.execute(select(Department).where(Department.code == "CSE")).scalar_one_or_none()
+
+    student = User(
+        role_id=student_role.id,
+        department_id=department.id if department else None,
+        first_name=DEV_STUDENT_FIRST_NAME,
+        last_name=DEV_STUDENT_LAST_NAME,
+        email=DEV_STUDENT_EMAIL,
+        student_code=DEV_STUDENT_CODE,
+        password_hash=hash_password(DEV_STUDENT_PASSWORD),
+        semester=3,
+        is_active=True,
+    )
+    db.add(student)
+    logger.info("Created dev student user: %s", DEV_STUDENT_EMAIL)
+
+
 def run_seed() -> None:
     """Run all seed operations."""
     setup_logging()
@@ -88,6 +120,7 @@ def run_seed() -> None:
         roles = seed_roles(db)
         seed_departments(db)
         seed_dev_admin(db, roles["ADMIN"])
+        seed_dev_student(db, roles["STUDENT"])
         db.commit()
         logger.info("Database seed completed successfully")
     except Exception:
