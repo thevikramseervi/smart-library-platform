@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface CirculationPageHeaderProps {
   title: string;
@@ -31,11 +32,17 @@ export function CirculationTable({ children }: CirculationTableProps) {
 
 interface CirculationTableHeadProps {
   columns: string[];
+  sticky?: boolean;
 }
 
-export function CirculationTableHead({ columns }: CirculationTableHeadProps) {
+export function CirculationTableHead({ columns, sticky = false }: CirculationTableHeadProps) {
   return (
-    <thead className="border-b bg-muted/50">
+    <thead
+      className={cn(
+        "border-b bg-muted/50",
+        sticky && "sticky top-0 z-10 bg-muted/95 backdrop-blur-sm",
+      )}
+    >
       <tr>
         {columns.map((column) => (
           <th key={column} className="px-4 py-3 text-left font-medium text-muted-foreground">
@@ -52,14 +59,16 @@ export function StatusBadge({
   variant = "default",
 }: {
   label: string;
-  variant?: "default" | "warning" | "success";
+  variant?: "default" | "warning" | "success" | "danger";
 }) {
   const classes =
     variant === "warning"
       ? "bg-amber-100 text-amber-900"
       : variant === "success"
         ? "bg-emerald-100 text-emerald-900"
-        : "bg-muted text-muted-foreground";
+        : variant === "danger"
+          ? "bg-red-100 text-red-900"
+          : "bg-muted text-muted-foreground";
 
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${classes}`}>

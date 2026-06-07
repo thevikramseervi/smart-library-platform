@@ -1,54 +1,97 @@
 import { formatInr } from "@/lib/formatCurrency";
 import {
-  DashboardPageHeader,
   DashboardQuickActions,
   DashboardSection,
   DashboardStatCard,
+  DashboardWelcomeHeader,
   formatDashboardDate,
   formatDashboardDateTime,
 } from "@/pages/dashboard/components/DashboardShared";
 import {
   CirculationTable,
   CirculationTableHead,
+  StatusBadge,
 } from "@/pages/circulation/components/CirculationShared";
 import type { StudentDashboardResponse } from "@/types/dashboard";
 
 interface StudentDashboardViewProps {
   data: StudentDashboardResponse;
+  firstName: string;
 }
 
-export function StudentDashboardView({ data }: StudentDashboardViewProps) {
+function getLoanStatusBadge(loan: StudentDashboardResponse["recent_loans"][number]) {
+  if (loan.is_overdue) {
+    return <StatusBadge label="Overdue" variant="danger" />;
+  }
+  if (loan.status === "RETURNED") {
+    return <StatusBadge label="Returned" variant="success" />;
+  }
+  return <StatusBadge label="On loan" variant="default" />;
+}
+
+export function StudentDashboardView({ data, firstName }: StudentDashboardViewProps) {
+  const unpaidFinesAmount = Number(data.unpaid_fines);
+  const hasUnpaidFines = !Number.isNaN(unpaidFinesAmount) && unpaidFinesAmount > 0;
+
   return (
     <section className="space-y-8">
-      <DashboardPageHeader
-        title="Student Dashboard"
-        description="Track your loans, reservations, and fines at a glance."
+      <DashboardWelcomeHeader
+        firstName={firstName}
+        subtitle="Track your loans, reservations, and fines."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardStatCard label="Active loans" value={data.active_loans} />
-        <DashboardStatCard label="Active reservations" value={data.active_reservations} />
-        <DashboardStatCard label="Unpaid fines" value={formatInr(data.unpaid_fines)} />
-        <DashboardStatCard label="Total books borrowed" value={data.total_books_borrowed} />
+        <DashboardStatCard
+          label="Active loans"
+          value={data.active_loans}
+          description={
+            data.active_loans === 0
+              ? "No books currently borrowed"
+              : `${data.active_loans} book${data.active_loans === 1 ? "" : "s"} on loan`
+          }
+        />
+        <DashboardStatCard
+          label="Active reservations"
+          value={data.active_reservations}
+          tone={data.active_reservations > 0 ? "warning" : "default"}
+          description={
+            data.active_reservations === 0
+              ? "No books waiting in queue"
+              : `${data.active_reservations} reservation${data.active_reservations === 1 ? "" : "s"} in queue`
+          }
+        />
+        <DashboardStatCard
+          label="Unpaid fines"
+          value={formatInr(data.unpaid_fines)}
+          tone={hasUnpaidFines ? "danger" : "success"}
+          description={
+            hasUnpaidFines ? "Outstanding balance to settle" : "Great! You have no outstanding fines."
+          }
+        />
+        <DashboardStatCard
+          label="Total books borrowed"
+          value={data.total_books_borrowed}
+          description="All-time circulation history"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <DashboardSection
           title="Recent loans"
           isEmpty={!data.recent_loans.length}
-          emptyMessage="You have no loan history yet."
+          emptyMessage="You're all caught up."
+          emptyActionLabel="Browse Catalog"
+          emptyActionTo="/catalog/books"
         >
           <CirculationTable>
-            <CirculationTableHead columns={["Book", "Issued", "Due", "Status"]} />
+            <CirculationTableHead columns={["Book", "Issued", "Due", "Status"]} sticky />
             <tbody>
               {data.recent_loans.map((loan, index) => (
                 <tr key={`${loan.book_title}-${loan.issued_at}-${index}`} className="border-b last:border-b-0">
                   <td className="px-4 py-3 font-medium">{loan.book_title}</td>
-                  <td className="px-4 py-3">{formatDashboardDate(loan.issued_at)}</td>
-                  <td className="px-4 py-3">{formatDashboardDate(loan.due_at)}</td>
-                  <td className="px-4 py-3">
-                    {loan.is_overdue ? "Overdue" : loan.status === "ISSUED" ? "On loan" : "Returned"}
-                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">{formatDashboardDate(loan.issued_at)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">{formatDashboardDate(loan.due_at)}</td>
+                  <td className="px-4 py-3">{getLoanStatusBadge(loan)}</td>
                 </tr>
               ))}
             </tbody>
@@ -58,10 +101,12 @@ export function StudentDashboardView({ data }: StudentDashboardViewProps) {
         <DashboardSection
           title="Recent reservations"
           isEmpty={!data.recent_reservations.length}
-          emptyMessage="You have no active reservations."
+          emptyMessage="No active reservations."
+          emptyActionLabel="Browse Catalog"
+          emptyActionTo="/catalog/books"
         >
           <CirculationTable>
-            <CirculationTableHead columns={["Book", "Queue", "Reserved"]} />
+            <CirculationTableHead columns={["Book", "Queue", "Reserved"]} sticky />
             <tbody>
               {data.recent_reservations.map((reservation, index) => (
                 <tr
@@ -69,8 +114,16 @@ export function StudentDashboardView({ data }: StudentDashboardViewProps) {
                   className="border-b last:border-b-0"
                 >
                   <td className="px-4 py-3 font-medium">{reservation.book_title}</td>
-                  <td className="px-4 py-3">{reservation.queue_position ?? "—"}</td>
-                  <td className="px-4 py-3">{formatDashboardDateTime(reservation.reservation_date)}</td>
+                  <td className="px-4 py-3">
+                    {reservation.queue_position != null ? (
+                      <StatusBadge label={`#${reservation.queue_position}`} variant="warning" />
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {formatDashboardDateTime(reservation.reservation_date)}
+                  </td>
                 </tr>
               ))}
             </tbody>

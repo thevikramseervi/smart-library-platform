@@ -13,6 +13,7 @@ import { useAuthStore } from "@/store/authStore";
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const roleName = user?.role.name.toUpperCase() ?? "";
+  const firstName = user?.first_name ?? "there";
 
   const studentQuery = useQuery({
     queryKey: ["dashboard", "student"],
@@ -48,18 +49,27 @@ export function DashboardPage() {
   }
 
   if (roleName === "ADMIN") {
-    return <AdminDashboardView data={activeQuery.data as Awaited<ReturnType<typeof getAdminDashboard>>} />;
+    return (
+      <AdminDashboardView
+        data={activeQuery.data as Awaited<ReturnType<typeof getAdminDashboard>>}
+        firstName={firstName}
+      />
+    );
   }
 
   if (roleName === "LIBRARIAN") {
     return (
       <LibrarianDashboardView
         data={activeQuery.data as Awaited<ReturnType<typeof getLibrarianDashboard>>}
+        firstName={firstName}
       />
     );
   }
 
   return (
-    <StudentDashboardView data={activeQuery.data as Awaited<ReturnType<typeof getStudentDashboard>>} />
+    <StudentDashboardView
+      data={activeQuery.data as Awaited<ReturnType<typeof getStudentDashboard>>}
+      firstName={firstName}
+    />
   );
 }

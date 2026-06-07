@@ -1,8 +1,20 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useIsAdmin } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+
+function formatRoleLabel(roleName: string): string {
+  const normalized = roleName.toLowerCase();
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "rounded-md px-2 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
+  );
 
 export function MainLayout() {
   const navigate = useNavigate();
@@ -20,58 +32,53 @@ export function MainLayout() {
   return (
     <div className="min-h-svh bg-background">
       <header className="border-b">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Smart Library Platform</p>
-              <h1 className="text-xl font-semibold tracking-tight">Library Management</h1>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-4 sm:gap-6">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-muted-foreground sm:text-sm">
+                Smart Library Platform
+              </p>
+              <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">
+                Library Management
+              </h1>
             </div>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link to="/dashboard" className="font-medium text-muted-foreground hover:text-foreground">
+            <nav className="flex flex-wrap items-center gap-1 text-sm sm:gap-2">
+              <NavLink to="/dashboard" className={navLinkClass}>
                 Dashboard
-              </Link>
+              </NavLink>
               {showNavLinks ? (
                 <>
-                  <Link
-                    to="/catalog"
-                    className="font-medium text-muted-foreground hover:text-foreground"
-                  >
+                  <NavLink to="/catalog" className={navLinkClass}>
                     Catalog
-                  </Link>
-                  <Link
-                    to="/circulation"
-                    className="font-medium text-muted-foreground hover:text-foreground"
-                  >
+                  </NavLink>
+                  <NavLink to="/circulation" className={navLinkClass}>
                     Circulation
-                  </Link>
+                  </NavLink>
                   {isAdmin ? (
-                    <Link
-                      to="/admin"
-                      className="font-medium text-muted-foreground hover:text-foreground"
-                    >
+                    <NavLink to="/admin" className={navLinkClass}>
                       Admin
-                    </Link>
+                    </NavLink>
                   ) : null}
                 </>
               ) : null}
             </nav>
           </div>
           {user ? (
-            <div className="flex items-center gap-4">
-              <div className="text-right text-sm">
-                <p className="font-medium">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="text-right text-sm leading-tight">
+                <p className="max-w-[10rem] truncate font-medium sm:max-w-none">
                   {user.first_name} {user.last_name}
                 </p>
-                <p className="text-muted-foreground">{user.role.name}</p>
+                <p className="text-xs text-muted-foreground">{formatRoleLabel(user.role.name)}</p>
               </div>
-              <Button variant="outline" onClick={handleLogout}>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
                 Logout
               </Button>
             </div>
           ) : null}
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <Outlet />
       </main>
     </div>

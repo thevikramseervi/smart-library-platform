@@ -1,15 +1,27 @@
+import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface DashboardPageHeaderProps {
-  title: string;
-  description: string;
+interface DashboardWelcomeHeaderProps {
+  firstName: string;
+  subtitle: string;
 }
 
-export function DashboardPageHeader({ title, description }: DashboardPageHeaderProps) {
+export function DashboardWelcomeHeader({ firstName, subtitle }: DashboardWelcomeHeaderProps) {
+  return (
+    <div className="space-y-1">
+      <h2 className="text-2xl font-semibold tracking-tight">Welcome back, {firstName}</h2>
+      <p className="text-sm text-muted-foreground">{subtitle}</p>
+    </div>
+  );
+}
+
+/** @deprecated Use DashboardWelcomeHeader instead. */
+export function DashboardPageHeader({ title, description }: { title: string; description: string }) {
   return (
     <div className="space-y-1">
       <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
@@ -18,24 +30,68 @@ export function DashboardPageHeader({ title, description }: DashboardPageHeaderP
   );
 }
 
+type StatTone = "default" | "success" | "warning" | "danger";
+
 interface DashboardStatCardProps {
   label: string;
   value: ReactNode;
-  hint?: string;
+  description?: string;
+  tone?: StatTone;
   className?: string;
 }
 
-export function DashboardStatCard({ label, value, hint, className }: DashboardStatCardProps) {
+const statToneClasses: Record<StatTone, string> = {
+  default: "",
+  success: "border-emerald-200/80",
+  warning: "border-amber-200/80",
+  danger: "border-destructive/30",
+};
+
+const statValueToneClasses: Record<StatTone, string> = {
+  default: "",
+  success: "text-emerald-700",
+  warning: "text-amber-700",
+  danger: "text-destructive",
+};
+
+export function DashboardStatCard({
+  label,
+  value,
+  description,
+  tone = "default",
+  className,
+}: DashboardStatCardProps) {
   return (
-    <Card className={cn("shadow-sm", className)}>
+    <Card className={cn("shadow-sm", statToneClasses[tone], className)}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-semibold tracking-tight">{value}</p>
-        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+      <CardContent className="space-y-1">
+        <p className={cn("text-2xl font-semibold tracking-tight", statValueToneClasses[tone])}>
+          {value}
+        </p>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </CardContent>
     </Card>
+  );
+}
+
+interface DashboardEmptyStateProps {
+  message: string;
+  actionLabel?: string;
+  actionTo?: string;
+}
+
+export function DashboardEmptyState({ message, actionLabel, actionTo }: DashboardEmptyStateProps) {
+  return (
+    <div className="flex flex-col items-start gap-3 py-2">
+      <p className="text-sm text-muted-foreground">{message}</p>
+      {actionLabel && actionTo ? (
+        <Button asChild variant="outline" size="sm">
+          <Link to={actionTo}>{actionLabel}</Link>
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -43,22 +99,36 @@ interface DashboardSectionProps {
   title: string;
   children: ReactNode;
   emptyMessage?: string;
+  emptyActionLabel?: string;
+  emptyActionTo?: string;
   isEmpty?: boolean;
+  compact?: boolean;
 }
 
 export function DashboardSection({
   title,
   children,
   emptyMessage = "No activity yet.",
+  emptyActionLabel,
+  emptyActionTo,
   isEmpty = false,
+  compact = false,
 }: DashboardSectionProps) {
   return (
     <Card className="shadow-sm">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {isEmpty ? <p className="text-sm text-muted-foreground">{emptyMessage}</p> : children}
+        {isEmpty ? (
+          <DashboardEmptyState
+            message={emptyMessage}
+            actionLabel={emptyActionLabel}
+            actionTo={emptyActionTo}
+          />
+        ) : (
+          <div className={cn(compact && "max-h-64 overflow-y-auto")}>{children}</div>
+        )}
       </CardContent>
     </Card>
   );
@@ -90,10 +160,16 @@ export function DashboardQuickActions({
             <Link
               key={action.to}
               to={action.to}
-              className="rounded-lg border bg-background p-4 transition-colors hover:bg-muted/50"
+              className="group flex cursor-pointer items-start justify-between gap-3 rounded-lg border bg-background p-4 transition-all hover:border-primary/30 hover:bg-muted/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <p className="font-medium">{action.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{action.description}</p>
+              <div>
+                <p className="font-medium">{action.label}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{action.description}</p>
+              </div>
+              <ArrowRight
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+                aria-hidden="true"
+              />
             </Link>
           ))}
         </div>
@@ -103,7 +179,7 @@ export function DashboardQuickActions({
 }
 
 export function formatDashboardDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-IN", {
+  return new Date(value).toLocaleDateString("en-GB", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -111,11 +187,16 @@ export function formatDashboardDate(value: string): string {
 }
 
 export function formatDashboardDateTime(value: string): string {
-  return new Date(value).toLocaleString("en-IN", {
-    year: "numeric",
-    month: "short",
+  const date = new Date(value);
+  const datePart = date.toLocaleDateString("en-GB", {
     day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    month: "short",
+    year: "numeric",
   });
+  const timePart = date.toLocaleTimeString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart}, ${timePart.replace(/\s(am|pm)$/i, (_, period) => ` ${period.toUpperCase()}`)}`;
 }
