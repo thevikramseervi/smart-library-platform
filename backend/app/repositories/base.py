@@ -1,5 +1,6 @@
 """Base repository with common database operations."""
 
+from datetime import UTC, datetime
 from typing import Generic, TypeVar
 from uuid import UUID
 
@@ -20,3 +21,9 @@ class BaseRepository(Generic[ModelType]):
     def get_by_id(self, entity_id: UUID) -> ModelType | None:
         """Fetch a single entity by primary key."""
         return self.db.get(self.model, entity_id)
+
+    def soft_delete(self, entity: ModelType) -> ModelType:
+        """Set deleted_at on an entity supporting soft delete."""
+        entity.deleted_at = datetime.now(UTC)  # type: ignore[attr-defined]
+        self.db.flush()
+        return entity

@@ -10,6 +10,7 @@ from app.core.database import SessionLocal
 from app.core.logging import setup_logging
 from app.core.security import hash_password
 from app.models.department import Department
+from app.models.language import Language
 from app.models.role import Role
 from app.models.user import User
 
@@ -30,6 +31,11 @@ SAMPLE_DEPARTMENTS = (
         "code": "ECE",
         "description": "Electronics and Communication Engineering",
     },
+)
+
+SAMPLE_LANGUAGES = (
+    {"name": "English", "code": "en"},
+    {"name": "Hindi", "code": "hi"},
 )
 
 
@@ -112,6 +118,22 @@ def seed_dev_student(db: Session, student_role: Role) -> None:
     logger.info("Created dev student user: %s", DEV_STUDENT_EMAIL)
 
 
+def seed_languages(db: Session) -> list[Language]:
+    """Insert default languages for local development."""
+    languages: list[Language] = []
+    for lang_data in SAMPLE_LANGUAGES:
+        language = db.execute(
+            select(Language).where(Language.code == lang_data["code"])
+        ).scalar_one_or_none()
+        if language is None:
+            language = Language(**lang_data)
+            db.add(language)
+            logger.info("Created language: %s", lang_data["code"])
+        languages.append(language)
+    db.flush()
+    return languages
+
+
 def run_seed() -> None:
     """Run all seed operations."""
     setup_logging()
@@ -119,6 +141,7 @@ def run_seed() -> None:
     try:
         roles = seed_roles(db)
         seed_departments(db)
+        seed_languages(db)
         seed_dev_admin(db, roles["ADMIN"])
         seed_dev_student(db, roles["STUDENT"])
         db.commit()
