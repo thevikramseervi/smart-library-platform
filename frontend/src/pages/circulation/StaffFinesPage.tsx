@@ -4,29 +4,32 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatInr } from "@/lib/formatCurrency";
+import { appToast } from "@/lib/toast";
 import {
   CirculationPageHeader,
   CirculationTable,
   CirculationTableHead,
+  FineStatusBadge,
   PaginationControls,
-  StatusBadge,
   formatDate,
 } from "@/pages/circulation/components/CirculationShared";
 import { listFines, markFinePaid } from "@/services/circulation";
 
 export function StaffFinesPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [payError, setPayError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["fines", page],
-    queryFn: () => listFines({ page, page_size: 20 }),
+    queryKey: ["fines", page, pageSize],
+    queryFn: () => listFines({ page, page_size: pageSize }),
   });
 
   const payMutation = useMutation({
     mutationFn: markFinePaid,
     onSuccess: () => {
+      appToast.paid();
       setPayError(null);
       queryClient.invalidateQueries({ queryKey: ["fines"] });
     },
@@ -56,10 +59,7 @@ export function StaffFinesPage() {
                   <td className="px-4 py-3">{fine.reason}</td>
                   <td className="px-4 py-3">{formatDate(fine.created_at)}</td>
                   <td className="px-4 py-3">
-                    <StatusBadge
-                      label={fine.paid ? "Paid" : "Unpaid"}
-                      variant={fine.paid ? "success" : "warning"}
-                    />
+                    <FineStatusBadge paid={fine.paid} />
                   </td>
                   <td className="px-4 py-3">
                     {!fine.paid ? (
@@ -84,7 +84,12 @@ export function StaffFinesPage() {
               page={data.page}
               totalPages={data.total_pages}
               total={data.total}
+              pageSize={pageSize}
               onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           ) : null}
         </>

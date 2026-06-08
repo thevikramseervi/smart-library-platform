@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { CircleDollarSign } from "lucide-react";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   CirculationPageHeader,
   CirculationTable,
   CirculationTableHead,
-  StatusBadge,
+  FineStatusBadge,
   formatDate,
 } from "@/pages/circulation/components/CirculationShared";
 import { formatInr } from "@/lib/formatCurrency";
@@ -28,7 +30,7 @@ export function MyFinesPage() {
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load fines.</p>
       ) : data?.length ? (
-        <CirculationTable>
+        <CirculationTable recordCount={data.length}>
           <CirculationTableHead columns={["Amount", "Reason", "Created", "Status"]} />
           <tbody>
             {data.map((fine) => (
@@ -37,17 +39,17 @@ export function MyFinesPage() {
                 <td className="px-4 py-3">{fine.reason}</td>
                 <td className="px-4 py-3">{formatDate(fine.created_at)}</td>
                 <td className="px-4 py-3">
-                  <StatusBadge
-                    label={fine.paid ? "Paid" : "Unpaid"}
-                    variant={fine.paid ? "success" : "warning"}
-                  />
+                  <FineStatusBadge paid={fine.paid} />
                 </td>
               </tr>
             ))}
           </tbody>
         </CirculationTable>
       ) : (
-        <p className="text-sm text-muted-foreground">No fines on your account.</p>
+        <EmptyState
+          message="Great! You have no outstanding fines."
+          icon={CircleDollarSign}
+        />
       )}
     </section>
   );

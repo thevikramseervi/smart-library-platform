@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
+import { EmptyState } from "@/components/ui/empty-state";
+import { BookOpen } from "lucide-react";
 import {
   CirculationPageHeader,
   CirculationTable,
   CirculationTableHead,
-  StatusBadge,
+  LoanStatusBadge,
   formatDate,
 } from "@/pages/circulation/components/CirculationShared";
 import { listMyActiveTransactions, listMyTransactions } from "@/services/circulation";
@@ -51,9 +53,9 @@ export function MyLoansPage() {
                   <td className="px-4 py-3">{formatDate(transaction.issued_at)}</td>
                   <td className="px-4 py-3">{formatDate(transaction.due_at)}</td>
                   <td className="px-4 py-3">
-                    <StatusBadge
-                      label={transaction.is_overdue ? "Overdue" : "Issued"}
-                      variant={transaction.is_overdue ? "warning" : "default"}
+                    <LoanStatusBadge
+                      status={transaction.status}
+                      isOverdue={transaction.is_overdue}
                     />
                   </td>
                 </tr>
@@ -61,7 +63,12 @@ export function MyLoansPage() {
             </tbody>
           </CirculationTable>
         ) : (
-          <p className="text-sm text-muted-foreground">No active loans.</p>
+          <EmptyState
+            message="You're all caught up — no active loans."
+            icon={BookOpen}
+            actionLabel="Browse Catalog"
+            actionTo="/catalog/books"
+          />
         )}
       </div>
 
@@ -89,13 +96,23 @@ export function MyLoansPage() {
                   <td className="px-4 py-3">
                     {transaction.returned_at ? formatDate(transaction.returned_at) : "—"}
                   </td>
-                  <td className="px-4 py-3">{transaction.status}</td>
+                  <td className="px-4 py-3">
+                    <LoanStatusBadge
+                      status={transaction.status}
+                      isOverdue={transaction.is_overdue}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </CirculationTable>
         ) : (
-          <p className="text-sm text-muted-foreground">No borrowing history yet.</p>
+          <EmptyState
+            message="No borrowing history yet."
+            icon={BookOpen}
+            actionLabel="Browse Catalog"
+            actionTo="/catalog/books"
+          />
         )}
       </div>
     </section>

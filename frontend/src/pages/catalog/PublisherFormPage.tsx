@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { appToast } from "@/lib/toast";
 import { createPublisher, getPublisher, updatePublisher } from "@/services/catalog";
 import { CatalogPageHeader } from "@/pages/catalog/components/CatalogShared";
 
@@ -47,6 +48,7 @@ export function PublisherFormPage() {
       return createPublisher(payload);
     },
     onSuccess: () => {
+      appToast[isEdit ? "updated" : "created"]("Publisher");
       queryClient.invalidateQueries({ queryKey: ["publishers"] });
       navigate("/catalog/publishers");
     },

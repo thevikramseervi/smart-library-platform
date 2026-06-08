@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import {
   CirculationPageHeader,
   CirculationTable,
   CirculationTableHead,
-  StatusBadge,
+  ReservationStatusBadge,
   formatDate,
 } from "@/pages/circulation/components/CirculationShared";
 import { cancelReservation, listMyReservations } from "@/services/circulation";
@@ -25,6 +27,7 @@ export function MyReservationsPage() {
   const cancelMutation = useMutation({
     mutationFn: cancelReservation,
     onSuccess: () => {
+      appToast.cancelled("Reservation cancelled");
       setCancelError(null);
       queryClient.invalidateQueries({ queryKey: ["reservations", "me"] });
     },
@@ -66,7 +69,7 @@ export function MyReservationsPage() {
                 <td className="px-4 py-3">{formatDate(reservation.reservation_date)}</td>
                 <td className="px-4 py-3">{formatDate(reservation.expiry_date)}</td>
                 <td className="px-4 py-3">
-                  <StatusBadge label={reservation.status} />
+                  <ReservationStatusBadge status={reservation.status} />
                 </td>
                 <td className="px-4 py-3">
                   {reservation.status === "ACTIVE" ? (
@@ -87,12 +90,11 @@ export function MyReservationsPage() {
           </tbody>
         </CirculationTable>
       ) : (
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <p className="text-sm text-muted-foreground">You have no reservations.</p>
-          <Button variant="outline" asChild className="mt-2">
-            <Link to="/catalog/books">Browse the catalog to reserve a book</Link>
-          </Button>
-        </div>
+        <EmptyState
+          message="You have no reservations."
+          actionLabel="Browse Catalog"
+          actionTo="/catalog/books"
+        />
       )}
     </section>
   );

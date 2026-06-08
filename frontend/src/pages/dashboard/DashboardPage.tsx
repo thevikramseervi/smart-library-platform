@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AdminDashboardView } from "@/pages/dashboard/AdminDashboardView";
 import { LibrarianDashboardView } from "@/pages/dashboard/LibrarianDashboardView";
 import { StudentDashboardView } from "@/pages/dashboard/StudentDashboardView";
+import { DashboardLoadingSkeleton } from "@/pages/dashboard/components/DashboardShared";
 import {
   getAdminDashboard,
   getLibrarianDashboard,
@@ -41,7 +42,31 @@ export function DashboardPage() {
   }
 
   if (activeQuery.isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading dashboard...</p>;
+    if (roleName === "ADMIN") {
+      return (
+        <DashboardLoadingSkeleton
+          statCount={6}
+          statGridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          sectionCount={2}
+        />
+      );
+    }
+    if (roleName === "LIBRARIAN") {
+      return (
+        <DashboardLoadingSkeleton
+          statCount={6}
+          statGridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          sectionCount={1}
+        />
+      );
+    }
+    return (
+      <DashboardLoadingSkeleton
+        statCount={4}
+        statGridClassName="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4"
+        sectionCount={2}
+      />
+    );
   }
 
   if (activeQuery.isError || !activeQuery.data) {

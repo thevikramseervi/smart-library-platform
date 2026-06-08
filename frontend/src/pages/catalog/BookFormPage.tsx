@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { appToast } from "@/lib/toast";
 import {
   createBook,
   getBook,
@@ -106,6 +107,7 @@ export function BookFormPage() {
       return createBook(payload);
     },
     onSuccess: (book) => {
+      appToast[isEdit ? "updated" : "created"]("Book");
       queryClient.invalidateQueries({ queryKey: ["books"] });
       navigate(isEdit ? `/catalog/books/${book.id}` : "/catalog/books");
     },

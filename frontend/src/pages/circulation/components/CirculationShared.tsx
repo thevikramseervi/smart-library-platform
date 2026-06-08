@@ -1,8 +1,34 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { PaginationControls } from "@/components/ui/pagination-controls";
+import {
+  BookCopyStatusBadge,
+  CirculationActionBadge,
+  FineStatusBadge,
+  LoanStatusBadge,
+  ReservationStatusBadge,
+  RoleBadge,
+  StatusBadge,
+  UserActivityBadge,
+} from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
+
+export const TABLE_HEAD_CELL_CLASS =
+  "px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+export const TABLE_BODY_CELL_CLASS = "px-5 py-3.5 align-middle";
+
+export {
+  BookCopyStatusBadge,
+  CirculationActionBadge,
+  FineStatusBadge,
+  LoanStatusBadge,
+  ReservationStatusBadge,
+  RoleBadge,
+  StatusBadge,
+  UserActivityBadge,
+};
 
 interface CirculationPageHeaderProps {
   title: string;
@@ -10,22 +36,25 @@ interface CirculationPageHeaderProps {
 }
 
 export function CirculationPageHeader({ title, description }: CirculationPageHeaderProps) {
-  return (
-    <div className="space-y-1">
-      <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-    </div>
-  );
+  return <PageHeader title={title} description={description} />;
 }
 
 interface CirculationTableProps {
   children: ReactNode;
+  recordCount?: number;
 }
 
-export function CirculationTable({ children }: CirculationTableProps) {
+export function CirculationTable({ children, recordCount }: CirculationTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">{children}</table>
+    <div className="space-y-2">
+      {recordCount != null ? (
+        <p className="text-xs text-muted-foreground">
+          {recordCount} record{recordCount === 1 ? "" : "s"}
+        </p>
+      ) : null}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">{children}</table>
+      </div>
     </div>
   );
 }
@@ -35,7 +64,7 @@ interface CirculationTableHeadProps {
   sticky?: boolean;
 }
 
-export function CirculationTableHead({ columns, sticky = false }: CirculationTableHeadProps) {
+export function CirculationTableHead({ columns, sticky = true }: CirculationTableHeadProps) {
   return (
     <thead
       className={cn(
@@ -45,7 +74,7 @@ export function CirculationTableHead({ columns, sticky = false }: CirculationTab
     >
       <tr>
         {columns.map((column) => (
-          <th key={column} className="px-4 py-3 text-left font-medium text-muted-foreground">
+          <th key={column} className={TABLE_HEAD_CELL_CLASS}>
             {column}
           </th>
         ))}
@@ -54,70 +83,14 @@ export function CirculationTableHead({ columns, sticky = false }: CirculationTab
   );
 }
 
-export function StatusBadge({
-  label,
-  variant = "default",
-}: {
-  label: string;
-  variant?: "default" | "warning" | "success" | "danger";
-}) {
-  const classes =
-    variant === "warning"
-      ? "bg-amber-100 text-amber-900"
-      : variant === "success"
-        ? "bg-emerald-100 text-emerald-900"
-        : variant === "danger"
-          ? "bg-red-100 text-red-900"
-          : "bg-muted text-muted-foreground";
-
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${classes}`}>
-      {label}
-    </span>
-  );
-}
-
-interface PaginationControlsProps {
-  page: number;
-  totalPages: number;
-  total: number;
-  onPageChange: (page: number) => void;
-}
-
-export function PaginationControls({
-  page,
-  totalPages,
-  total,
-  onPageChange,
-}: PaginationControlsProps) {
-  if (totalPages <= 1) {
-    return <p className="text-sm text-muted-foreground">{total} total</p>;
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <p className="text-sm text-muted-foreground">
-        Page {page} of {totalPages} ({total} total)
-      </p>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-  );
-}
+export { PaginationControls };
 
 export function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString();
+  return new Date(value).toLocaleDateString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function CirculationNavLink({ to, label }: { to: string; label: string }) {

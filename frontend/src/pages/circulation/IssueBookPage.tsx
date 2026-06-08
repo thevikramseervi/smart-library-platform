@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import { ReservationQueueWarning } from "@/pages/circulation/components/ReservationQueueWarning";
 import {
   formatReservationStudentLabel,
@@ -49,7 +50,6 @@ export function IssueBookPage() {
   const [selectedCopy, setSelectedCopy] = useState<AvailableCopyResult | null>(null);
   const [showIssueConfirm, setShowIssueConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const studentsQuery = useQuery({
     queryKey: ["circulation", "students", "all"],
@@ -128,8 +128,8 @@ export function IssueBookPage() {
         book_copy_id: selectedCopy!.id,
       }),
     onSuccess: (transaction) => {
-      setSuccessMessage(
-        `Issued ${transaction.book_copy.inventory_code} to ${transaction.student.first_name} ${transaction.student.last_name}. Due ${transaction.due_at}.`,
+      appToast.issued(
+        `Issued ${transaction.book_copy.inventory_code} to ${transaction.student.first_name} ${transaction.student.last_name}`,
       );
       setErrorMessage(null);
       setShowIssueConfirm(false);
@@ -142,7 +142,6 @@ export function IssueBookPage() {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
     },
     onError: (error) => {
-      setSuccessMessage(null);
       setShowIssueConfirm(false);
       setErrorMessage(getApiErrorMessage(error, "Unable to issue book."));
     },
@@ -267,7 +266,6 @@ export function IssueBookPage() {
           ) : null}
 
           {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
-          {successMessage ? <p className="text-sm text-emerald-700">{successMessage}</p> : null}
 
           <Button
             disabled={!selectedStudent || !selectedCopy || issueMutation.isPending}

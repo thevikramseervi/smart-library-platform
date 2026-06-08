@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/components/auth/StaffRoute";
+import { appToast } from "@/lib/toast";
 import { deleteCategory, listCategories } from "@/services/catalog";
 import {
   CatalogPageHeader,
@@ -39,7 +41,10 @@ export function CategoriesListPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteCategory,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => {
+      appToast.deleted("Category");
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
   });
 
   return (
@@ -54,7 +59,7 @@ export function CategoriesListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search categories..." />
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading categories...</p>
+        <TableListSkeleton columns={3} />
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load categories.</p>
       ) : (

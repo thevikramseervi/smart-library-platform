@@ -19,7 +19,11 @@ import {
   CatalogTable,
   CatalogTableHead,
 } from "@/pages/catalog/components/CatalogShared";
-import { StatusBadge } from "@/pages/circulation/components/CirculationShared";
+import { appToast } from "@/lib/toast";
+import {
+  BookCopyStatusBadge,
+  StatusBadge,
+} from "@/pages/circulation/components/CirculationShared";
 
 interface BookAvailability {
   status: string;
@@ -85,6 +89,7 @@ function CopyStatusCell({
   const updateStatusMutation = useMutation({
     mutationFn: (status: BookCopyStatus) => updateBookCopy(copy.id, { status }),
     onSuccess: () => {
+      appToast.updated("Copy status");
       onError("");
       queryClient.invalidateQueries({ queryKey: ["book-copies", bookId] });
       queryClient.invalidateQueries({ queryKey: ["books", bookId] });
@@ -96,7 +101,7 @@ function CopyStatusCell({
   });
 
   if (copy.status === "BORROWED" || copy.status === "RESERVED") {
-    return <span>{copy.status}</span>;
+    return <BookCopyStatusBadge status={copy.status} />;
   }
 
   return (
@@ -122,7 +127,6 @@ export function BookDetailPage() {
   const [inventoryCode, setInventoryCode] = useState("");
   const [location, setLocation] = useState("");
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [reservationMessage, setReservationMessage] = useState<string | null>(null);
   const [reservationError, setReservationError] = useState<string | null>(null);
 
   const bookQuery = useQuery({
@@ -152,14 +156,13 @@ export function BookDetailPage() {
   const reserveMutation = useMutation({
     mutationFn: () => createReservation({ book_id: id! }),
     onSuccess: (reservation) => {
-      setReservationError(null);
-      setReservationMessage(
-        `Reservation confirmed. You are #${reservation.queue_position ?? "—"} in the queue.`,
+      appToast.reserved(
+        `You are #${reservation.queue_position ?? "—"} in the queue`,
       );
+      setReservationError(null);
       queryClient.invalidateQueries({ queryKey: ["reservations", "me"] });
     },
     onError: (error) => {
-      setReservationMessage(null);
       setReservationError(getApiErrorMessage(error, "Unable to create reservation."));
     },
   });
@@ -172,6 +175,7 @@ export function BookDetailPage() {
         location: location || null,
       }),
     onSuccess: () => {
+      appToast.created("Book copy");
       setInventoryCode("");
       setLocation("");
       setCopyError(null);
@@ -327,17 +331,12 @@ export function BookDetailPage() {
             {reservationError ? (
               <p className="text-sm text-destructive">{reservationError}</p>
             ) : null}
-            {reservationMessage ? (
-              <p className="text-sm text-emerald-700">{reservationMessage}</p>
-            ) : null}
-
             <div className="flex flex-wrap gap-2">
               {availability.canReserve ? (
                 <Button
                   disabled={reserveMutation.isPending}
                   onClick={() => {
                     setReservationError(null);
-                    setReservationMessage(null);
                     reserveMutation.mutate();
                   }}
                 >

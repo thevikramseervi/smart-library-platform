@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { appToast } from "@/lib/toast";
 import { createAuthor, getAuthor, updateAuthor } from "@/services/catalog";
 import { CatalogPageHeader, FormTextarea } from "@/pages/catalog/components/CatalogShared";
 
@@ -41,6 +42,7 @@ export function AuthorFormPage() {
       return createAuthor(payload);
     },
     onSuccess: () => {
+      appToast[isEdit ? "updated" : "created"]("Author");
       queryClient.invalidateQueries({ queryKey: ["authors"] });
       navigate("/catalog/authors");
     },

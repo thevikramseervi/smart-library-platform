@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/components/auth/StaffRoute";
+import { appToast } from "@/lib/toast";
 import { deletePublisher, listPublishers } from "@/services/catalog";
 import {
   CatalogPageHeader,
@@ -40,7 +42,10 @@ export function PublishersListPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deletePublisher,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["publishers"] }),
+    onSuccess: () => {
+      appToast.deleted("Publisher");
+      queryClient.invalidateQueries({ queryKey: ["publishers"] });
+    },
   });
 
   return (
@@ -55,7 +60,7 @@ export function PublishersListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search publishers..." />
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading publishers...</p>
+        <TableListSkeleton columns={3} />
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load publishers.</p>
       ) : (

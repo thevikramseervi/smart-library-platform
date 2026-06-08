@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/components/auth/StaffRoute";
+import { appToast } from "@/lib/toast";
 import { deleteBook, listBooks } from "@/services/catalog";
 import {
   CatalogPageHeader,
@@ -15,18 +17,22 @@ import {
 
 export function BooksListPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["books", page, search],
-    queryFn: () => listBooks({ page, page_size: 20, search: search || undefined }),
+    queryKey: ["books", page, pageSize, search],
+    queryFn: () => listBooks({ page, page_size: pageSize, search: search || undefined }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteBook,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["books"] }),
+    onSuccess: () => {
+      appToast.deleted("Book");
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+    },
   });
 
   return (
@@ -43,12 +49,12 @@ export function BooksListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search books..." />
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading books...</p>
+        <TableListSkeleton columns={isStaff ? 6 : 5} />
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load books.</p>
       ) : (
         <>
-          <CatalogTable>
+          <CatalogTable recordCount={data?.items.length}>
             <CatalogTableHead
               columns={
                 isStaff
@@ -102,9 +108,14 @@ export function BooksListPage() {
           {data ? (
             <PaginationControls
               page={data.page}
-              pages={data.total_pages}
+              totalPages={data.total_pages}
               total={data.total}
+              pageSize={pageSize}
               onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           ) : null}
         </>

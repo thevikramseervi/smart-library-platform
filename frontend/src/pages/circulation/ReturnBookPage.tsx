@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import { ReturnReservationNoticeActions } from "@/pages/circulation/components/ReservationQueueWarning";
 import { CirculationPageHeader } from "@/pages/circulation/components/CirculationShared";
 import { getReservationQueue, listTransactions, returnBook } from "@/services/circulation";
@@ -62,6 +63,7 @@ export function ReturnBookPage() {
   const returnMutation = useMutation({
     mutationFn: (bookCopyId: string) => returnBook({ book_copy_id: bookCopyId }),
     onSuccess: async (transaction) => {
+      appToast.returned(`Returned ${transaction.book_copy.book.title}`);
       setErrorMessage(null);
       setPendingReturn(null);
       queryClient.invalidateQueries({ queryKey: ["transactions"] });

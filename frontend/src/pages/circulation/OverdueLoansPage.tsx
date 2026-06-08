@@ -13,10 +13,11 @@ import { listTransactions } from "@/services/circulation";
 
 export function OverdueLoansPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["transactions", "overdue", page],
-    queryFn: () => listTransactions({ page, page_size: 20, overdue: true }),
+    queryKey: ["transactions", "overdue", page, pageSize],
+    queryFn: () => listTransactions({ page, page_size: pageSize, overdue: true }),
   });
 
   return (
@@ -53,7 +54,7 @@ export function OverdueLoansPage() {
                     </td>
                     <td className="px-4 py-3">{formatDate(transaction.due_at)}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge label={`${daysOverdue} day(s)`} variant="warning" />
+                      <StatusBadge label={`${daysOverdue} day(s) overdue`} variant="danger" />
                     </td>
                   </tr>
                 );
@@ -65,7 +66,12 @@ export function OverdueLoansPage() {
               page={data.page}
               totalPages={data.total_pages}
               total={data.total}
+              pageSize={pageSize}
               onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           ) : null}
         </>

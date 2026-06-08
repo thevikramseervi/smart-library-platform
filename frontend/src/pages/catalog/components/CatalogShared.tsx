@@ -1,7 +1,14 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { PageHeader } from "@/components/ui/page-header";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export const TABLE_HEAD_CELL_CLASS =
+  "px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+export const TABLE_BODY_CELL_CLASS = "px-5 py-3.5 align-middle";
 
 interface CatalogPageHeaderProps {
   title: string;
@@ -17,42 +24,56 @@ export function CatalogPageHeader({
   newLabel = "Add new",
 }: CatalogPageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="space-y-1">
-        <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      </div>
-      {newTo ? (
-        <Button asChild>
-          <Link to={newTo}>{newLabel}</Link>
-        </Button>
-      ) : null}
-    </div>
+    <PageHeader
+      title={title}
+      description={description}
+      actions={
+        newTo ? (
+          <Button asChild>
+            <Link to={newTo}>{newLabel}</Link>
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 
 interface CatalogTableProps {
   children: ReactNode;
+  recordCount?: number;
 }
 
-export function CatalogTable({ children }: CatalogTableProps) {
+export function CatalogTable({ children, recordCount }: CatalogTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">{children}</table>
+    <div className="space-y-2">
+      {recordCount != null ? (
+        <p className="text-xs text-muted-foreground">
+          {recordCount} record{recordCount === 1 ? "" : "s"}
+        </p>
+      ) : null}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">{children}</table>
+      </div>
     </div>
   );
 }
 
 interface CatalogTableHeadProps {
   columns: string[];
+  sticky?: boolean;
 }
 
-export function CatalogTableHead({ columns }: CatalogTableHeadProps) {
+export function CatalogTableHead({ columns, sticky = true }: CatalogTableHeadProps) {
   return (
-    <thead className="border-b bg-muted/50">
+    <thead
+      className={cn(
+        "border-b bg-muted/50",
+        sticky && "sticky top-0 z-10 bg-muted/95 backdrop-blur-sm",
+      )}
+    >
       <tr>
         {columns.map((column) => (
-          <th key={column} className="px-4 py-3 text-left font-medium text-muted-foreground">
+          <th key={column} className={TABLE_HEAD_CELL_CLASS}>
             {column}
           </th>
         ))}
@@ -61,39 +82,7 @@ export function CatalogTableHead({ columns }: CatalogTableHeadProps) {
   );
 }
 
-interface PaginationControlsProps {
-  page: number;
-  pages: number;
-  total: number;
-  onPageChange: (page: number) => void;
-}
-
-export function PaginationControls({ page, pages, total, onPageChange }: PaginationControlsProps) {
-  if (pages <= 1) {
-    return <p className="text-sm text-muted-foreground">{total} total</p>;
-  }
-
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <p className="text-sm text-muted-foreground">
-        Page {page} of {pages} ({total} total)
-      </p>
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page >= pages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          Next
-        </Button>
-      </div>
-    </div>
-  );
-}
+export { PaginationControls };
 
 interface SearchInputProps {
   value: string;

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { appToast } from "@/lib/toast";
 import { createCategory, getCategory, updateCategory } from "@/services/catalog";
 import { CatalogPageHeader, FormTextarea } from "@/pages/catalog/components/CatalogShared";
 
@@ -41,6 +42,7 @@ export function CategoryFormPage() {
       return createCategory(payload);
     },
     onSuccess: () => {
+      appToast[isEdit ? "updated" : "created"]("Category");
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       navigate("/catalog/categories");
     },

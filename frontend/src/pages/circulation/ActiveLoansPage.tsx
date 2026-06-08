@@ -5,18 +5,19 @@ import {
   CirculationPageHeader,
   CirculationTable,
   CirculationTableHead,
+  LoanStatusBadge,
   PaginationControls,
-  StatusBadge,
   formatDate,
 } from "@/pages/circulation/components/CirculationShared";
 import { listTransactions } from "@/services/circulation";
 
 export function ActiveLoansPage() {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["transactions", "issued", page],
-    queryFn: () => listTransactions({ page, page_size: 20, status: "ISSUED" }),
+    queryKey: ["transactions", "issued", page, pageSize],
+    queryFn: () => listTransactions({ page, page_size: pageSize, status: "ISSUED" }),
   });
 
   return (
@@ -44,9 +45,9 @@ export function ActiveLoansPage() {
                   <td className="px-4 py-3">{formatDate(transaction.issued_at)}</td>
                   <td className="px-4 py-3">{formatDate(transaction.due_at)}</td>
                   <td className="px-4 py-3">
-                    <StatusBadge
-                      label={transaction.is_overdue ? "Overdue" : transaction.status}
-                      variant={transaction.is_overdue ? "warning" : "default"}
+                    <LoanStatusBadge
+                      status={transaction.status}
+                      isOverdue={transaction.is_overdue}
                     />
                   </td>
                 </tr>
@@ -58,7 +59,12 @@ export function ActiveLoansPage() {
               page={data.page}
               totalPages={data.total_pages}
               total={data.total}
+              pageSize={pageSize}
               onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           ) : null}
         </>

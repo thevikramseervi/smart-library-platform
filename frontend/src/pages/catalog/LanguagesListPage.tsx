@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/components/auth/StaffRoute";
+import { appToast } from "@/lib/toast";
 import { createLanguage, listLanguages } from "@/services/catalog";
 import {
   CatalogPageHeader,
@@ -44,6 +46,7 @@ export function LanguagesListPage() {
   const createMutation = useMutation({
     mutationFn: () => createLanguage({ name, code }),
     onSuccess: () => {
+      appToast.created("Language");
       setName("");
       setCode("");
       queryClient.invalidateQueries({ queryKey: ["languages"] });
@@ -105,7 +108,7 @@ export function LanguagesListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search languages..." />
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading languages...</p>
+        <TableListSkeleton columns={3} />
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load languages.</p>
       ) : (

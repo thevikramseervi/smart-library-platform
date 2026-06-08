@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createDepartment, getDepartment, updateDepartment } from "@/services/admin";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import { CatalogPageHeader } from "@/pages/catalog/components/CatalogShared";
 
 export function DepartmentFormPage() {
@@ -47,6 +48,7 @@ export function DepartmentFormPage() {
       return createDepartment(payload);
     },
     onSuccess: () => {
+      appToast[isEdit ? "updated" : "created"]("Department");
       queryClient.invalidateQueries({ queryKey: ["departments"] });
       navigate("/admin/departments");
     },

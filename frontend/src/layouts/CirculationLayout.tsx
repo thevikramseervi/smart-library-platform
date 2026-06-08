@@ -1,20 +1,31 @@
+import {
+  AlertCircle,
+  ArrowLeftRight,
+  Bookmark,
+  CircleDollarSign,
+  ClipboardList,
+  LogIn,
+  LogOut,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { useIsStaff } from "@/components/auth/StaffRoute";
+import { cn } from "@/lib/utils";
 
-const staffLinks = [
-  { to: "/circulation/issue", label: "Issue Book" },
-  { to: "/circulation/return", label: "Return Book" },
-  { to: "/circulation/loans", label: "Active Loans" },
-  { to: "/circulation/overdue", label: "Overdue Loans" },
-  { to: "/circulation/reservations", label: "Reservations" },
-  { to: "/circulation/fines", label: "Fines" },
+const staffLinks: Array<{ to: string; label: string; icon: LucideIcon }> = [
+  { to: "/circulation/issue", label: "Issue Book", icon: LogIn },
+  { to: "/circulation/return", label: "Return Book", icon: LogOut },
+  { to: "/circulation/loans", label: "Active Loans", icon: ClipboardList },
+  { to: "/circulation/overdue", label: "Overdue Loans", icon: AlertCircle },
+  { to: "/circulation/reservations", label: "Reservations", icon: Bookmark },
+  { to: "/circulation/fines", label: "Fines", icon: CircleDollarSign },
 ];
 
-const studentLinks = [
-  { to: "/circulation/my-loans", label: "My Loans" },
-  { to: "/circulation/my-reservations", label: "My Reservations" },
-  { to: "/circulation/my-fines", label: "My Fines" },
+const studentLinks: Array<{ to: string; label: string; icon: LucideIcon }> = [
+  { to: "/circulation/my-loans", label: "My Loans", icon: ClipboardList },
+  { to: "/circulation/my-reservations", label: "My Reservations", icon: Bookmark },
+  { to: "/circulation/my-fines", label: "My Fines", icon: CircleDollarSign },
 ];
 
 export function CirculationLayout() {
@@ -23,11 +34,18 @@ export function CirculationLayout() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Circulation</h1>
-        <p className="text-sm text-muted-foreground">
-          {isStaff ? "Manage library loans, returns, and reservations." : "View your loans, reservations, and fines."}
-        </p>
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <ArrowLeftRight className="size-5 text-primary" aria-hidden="true" />
+        </div>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Circulation</h1>
+          <p className="text-sm text-muted-foreground">
+            {isStaff
+              ? "Manage library loans, returns, and reservations."
+              : "View your loans, reservations, and fines."}
+          </p>
+        </div>
       </div>
       <nav className="flex flex-wrap gap-2 border-b pb-4">
         {links.map((link) => (
@@ -35,14 +53,15 @@ export function CirculationLayout() {
             key={link.to}
             to={link.to}
             className={({ isActive }) =>
-              [
-                "rounded-md px-3 py-2 text-sm font-medium",
+              cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              ].join(" ")
+              )
             }
           >
+            <link.icon className="size-4" aria-hidden="true" />
             {link.label}
           </NavLink>
         ))}

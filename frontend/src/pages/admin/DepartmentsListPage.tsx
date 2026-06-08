@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { deleteDepartment, listDepartments } from "@/services/admin";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import {
   CatalogPageHeader,
   CatalogTable,
@@ -51,6 +53,7 @@ export function DepartmentsListPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteDepartment,
     onSuccess: () => {
+      appToast.deleted("Department");
       setErrorMessage(null);
       setPendingDelete(null);
       queryClient.invalidateQueries({ queryKey: ["departments"] });
@@ -74,7 +77,7 @@ export function DepartmentsListPage() {
       {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading departments...</p>
+        <TableListSkeleton columns={4} showRecordCount={false} />
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load departments.</p>
       ) : (

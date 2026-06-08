@@ -1,18 +1,27 @@
+import {
+  ArrowLeftRight,
+  BookOpen,
+  LayoutDashboard,
+  LogOut,
+  Shield,
+} from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useIsAdmin } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
+import { RoleBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
-function formatRoleLabel(roleName: string): string {
-  const normalized = roleName.toLowerCase();
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-}
+const mainNavItems = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/catalog", label: "Catalog", icon: BookOpen },
+  { to: "/circulation", label: "Circulation", icon: ArrowLeftRight },
+] as const;
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "rounded-md px-2 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    "inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
   );
 
@@ -43,19 +52,17 @@ export function MainLayout() {
               </h1>
             </div>
             <nav className="flex flex-wrap items-center gap-1 text-sm sm:gap-2">
-              <NavLink to="/dashboard" className={navLinkClass}>
-                Dashboard
-              </NavLink>
               {showNavLinks ? (
                 <>
-                  <NavLink to="/catalog" className={navLinkClass}>
-                    Catalog
-                  </NavLink>
-                  <NavLink to="/circulation" className={navLinkClass}>
-                    Circulation
-                  </NavLink>
+                  {mainNavItems.map((item) => (
+                    <NavLink key={item.to} to={item.to} className={navLinkClass}>
+                      <item.icon className="size-4" aria-hidden="true" />
+                      {item.label}
+                    </NavLink>
+                  ))}
                   {isAdmin ? (
                     <NavLink to="/admin" className={navLinkClass}>
+                      <Shield className="size-4" aria-hidden="true" />
                       Admin
                     </NavLink>
                   ) : null}
@@ -65,13 +72,14 @@ export function MainLayout() {
           </div>
           {user ? (
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="text-right text-sm leading-tight">
+              <div className="flex flex-col items-end gap-1.5 text-sm leading-tight">
                 <p className="max-w-[10rem] truncate font-medium sm:max-w-none">
                   {user.first_name} {user.last_name}
                 </p>
-                <p className="text-xs text-muted-foreground">{formatRoleLabel(user.role.name)}</p>
+                <RoleBadge role={user.role.name} />
               </div>
               <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="size-4" aria-hidden="true" />
                 Logout
               </Button>
             </div>

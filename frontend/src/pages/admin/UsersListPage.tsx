@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RoleBadge } from "@/components/ui/status-badge";
 import { deactivateUser, listDepartments, listUsers } from "@/services/admin";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import {
   CatalogPageHeader,
   CatalogTable,
@@ -31,6 +34,7 @@ function formatUserLabel(user: UserResponse): string {
 export function UsersListPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
@@ -44,11 +48,11 @@ export function UsersListPage() {
   });
 
   const usersQuery = useQuery({
-    queryKey: ["users", page, search, roleFilter, departmentFilter, activeFilter],
+    queryKey: ["users", page, pageSize, search, roleFilter, departmentFilter, activeFilter],
     queryFn: () =>
       listUsers({
         page,
-        page_size: 20,
+        page_size: pageSize,
         q: search || undefined,
         role: roleFilter ? (roleFilter as UserResponse["role"]["name"]) : undefined,
         department_id: departmentFilter || undefined,
@@ -60,6 +64,7 @@ export function UsersListPage() {
   const deactivateMutation = useMutation({
     mutationFn: deactivateUser,
     onSuccess: () => {
+      appToast.success("User deactivated successfully");
       setErrorMessage(null);
       setPendingDeactivate(null);
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -119,7 +124,7 @@ export function UsersListPage() {
       {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
       {usersQuery.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading users...</p>
+        <TableListSkeleton columns={6} />
       ) : usersQuery.isError ? (
         <p className="text-sm text-destructive">Unable to load users.</p>
       ) : (
@@ -133,7 +138,9 @@ export function UsersListPage() {
                 <tr key={user.id} className="border-b last:border-b-0">
                   <td className="px-4 py-3 font-medium">{formatUserLabel(user)}</td>
                   <td className="px-4 py-3">{user.email}</td>
-                  <td className="px-4 py-3">{user.role.name}</td>
+                  <td className="px-4 py-3">
+                    <RoleBadge role={user.role.name} />
+                  </td>
                   <td className="px-4 py-3">
                     {user.department ? `${user.department.code} — ${user.department.name}` : "—"}
                   </td>
@@ -162,9 +169,14 @@ export function UsersListPage() {
           {usersQuery.data ? (
             <PaginationControls
               page={usersQuery.data.page}
-              pages={usersQuery.data.total_pages}
+              totalPages={usersQuery.data.total_pages}
               total={usersQuery.data.total}
+              pageSize={pageSize}
               onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           ) : null}
         </>

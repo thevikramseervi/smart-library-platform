@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/components/auth/StaffRoute";
+import { appToast } from "@/lib/toast";
 import { deleteAuthor, listAuthors } from "@/services/catalog";
 import {
   CatalogPageHeader,
@@ -39,7 +41,10 @@ export function AuthorsListPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteAuthor,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authors"] }),
+    onSuccess: () => {
+      appToast.deleted("Author");
+      queryClient.invalidateQueries({ queryKey: ["authors"] });
+    },
   });
 
   return (
@@ -54,7 +59,7 @@ export function AuthorsListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search authors..." />
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading authors...</p>
+        <TableListSkeleton columns={3} />
       ) : isError ? (
         <p className="text-sm text-destructive">Unable to load authors.</p>
       ) : (

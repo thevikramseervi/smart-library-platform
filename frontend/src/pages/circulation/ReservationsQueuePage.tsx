@@ -2,13 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BookMarked } from "lucide-react";
 import {
   CirculationPageHeader,
   CirculationTable,
   CirculationTableHead,
   PaginationControls,
+  ReservationStatusBadge,
   formatDate,
 } from "@/pages/circulation/components/CirculationShared";
 import { formatReservationStudentLabel } from "@/pages/circulation/components/reservationQueueUtils";
@@ -30,6 +33,7 @@ export function ReservationsQueuePage() {
   const locationState = (location.state as ReservationsLocationState | null) ?? null;
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [bookSearch, setBookSearch] = useState(locationState?.bookTitle ?? "");
   const [selectedBook, setSelectedBook] = useState<SelectedBook | null>(
     locationState?.bookId && locationState?.bookTitle
@@ -44,11 +48,11 @@ export function ReservationsQueuePage() {
   });
 
   const reservationsQuery = useQuery({
-    queryKey: ["reservations", page, selectedBook?.id],
+    queryKey: ["reservations", page, pageSize, selectedBook?.id],
     queryFn: () =>
       listReservations({
         page,
-        page_size: 20,
+        page_size: pageSize,
         book_id: selectedBook?.id,
         status: "ACTIVE",
       }),
@@ -141,13 +145,18 @@ export function ReservationsQueuePage() {
                     <td className="px-4 py-3">{formatReservationStudentLabel(reservation)}</td>
                     <td className="px-4 py-3">{formatDate(reservation.reservation_date)}</td>
                     <td className="px-4 py-3">{formatDate(reservation.expiry_date)}</td>
-                    <td className="px-4 py-3">{reservation.status}</td>
+                    <td className="px-4 py-3">
+                    <ReservationStatusBadge status={reservation.status} />
+                  </td>
                   </tr>
                 ))}
               </tbody>
             </CirculationTable>
           ) : (
-            <p className="text-sm text-muted-foreground">No active reservations in this queue.</p>
+            <EmptyState
+              message="No active reservations in this queue."
+              icon={BookMarked}
+            />
           )}
         </>
       ) : null}
@@ -181,7 +190,9 @@ export function ReservationsQueuePage() {
                   <td className="px-4 py-3">{reservation.queue_position ?? "—"}</td>
                   <td className="px-4 py-3">{formatDate(reservation.reservation_date)}</td>
                   <td className="px-4 py-3">{formatDate(reservation.expiry_date)}</td>
-                  <td className="px-4 py-3">{reservation.status}</td>
+                  <td className="px-4 py-3">
+                    <ReservationStatusBadge status={reservation.status} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -191,7 +202,12 @@ export function ReservationsQueuePage() {
               page={reservationsQuery.data.page}
               totalPages={reservationsQuery.data.total_pages}
               total={reservationsQuery.data.total}
+              pageSize={pageSize}
               onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
             />
           ) : null}
         </>

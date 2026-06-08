@@ -15,6 +15,7 @@ import {
   updateUser,
 } from "@/services/admin";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { appToast } from "@/lib/toast";
 import { CatalogPageHeader, FormSelect } from "@/pages/catalog/components/CatalogShared";
 
 export function UserFormPage() {
@@ -35,7 +36,6 @@ export function UserFormPage() {
   const [isActive, setIsActive] = useState(true);
   const [resetPassword, setResetPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const rolesQuery = useQuery({
     queryKey: ["roles"],
@@ -104,11 +104,11 @@ export function UserFormPage() {
       });
     },
     onSuccess: () => {
+      appToast[isEdit ? "updated" : "created"]("User");
       queryClient.invalidateQueries({ queryKey: ["users"] });
       navigate("/admin/users");
     },
     onError: (error) => {
-      setSuccessMessage(null);
       setErrorMessage(getApiErrorMessage(error, "Unable to save user."));
     },
   });
@@ -116,12 +116,11 @@ export function UserFormPage() {
   const resetPasswordMutation = useMutation({
     mutationFn: () => resetUserPassword(id!, { password: resetPassword }),
     onSuccess: () => {
+      appToast.success("Password reset successfully");
       setErrorMessage(null);
       setResetPassword("");
-      setSuccessMessage("Password reset successfully.");
     },
     onError: (error) => {
-      setSuccessMessage(null);
       setErrorMessage(getApiErrorMessage(error, "Unable to reset password."));
     },
   });
@@ -145,7 +144,6 @@ export function UserFormPage() {
               className="space-y-4"
               onSubmit={(event) => {
                 event.preventDefault();
-                setSuccessMessage(null);
                 saveMutation.mutate();
               }}
             >
@@ -278,7 +276,6 @@ export function UserFormPage() {
               </label>
 
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
-              {successMessage ? <p className="text-sm text-emerald-700">{successMessage}</p> : null}
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={saveMutation.isPending}>
@@ -303,7 +300,6 @@ export function UserFormPage() {
               className="space-y-4"
               onSubmit={(event) => {
                 event.preventDefault();
-                setSuccessMessage(null);
                 resetPasswordMutation.mutate();
               }}
             >
