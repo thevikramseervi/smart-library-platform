@@ -188,7 +188,7 @@ def seed_languages(db: Session) -> list[Language]:
     return languages
 
 
-def run_seed() -> None:
+def run_seed(*, import_catalog: bool = False) -> None:
     """Run all seed operations."""
     setup_logging()
     db = SessionLocal()
@@ -202,6 +202,27 @@ def run_seed() -> None:
         seed_dev_student_two(db, roles["STUDENT"])
         db.commit()
         logger.info("Database seed completed successfully")
+
+        if import_catalog:
+            from app.db.import_catalog import CatalogImporter
+
+            catalog_db = SessionLocal()
+            try:
+                importer = CatalogImporter(catalog_db)
+                stats = importer.import_catalog(clear_existing=True)
+                logger.info(
+                    "Catalog import: %s books, %s copies, %s authors, %s publishers",
+                    stats.books_imported,
+                    stats.copies_generated,
+                    stats.authors_created,
+                    stats.publishers_created,
+                )
+            except Exception:
+                catalog_db.rollback()
+                logger.exception("Catalog import failed")
+                raise
+            finally:
+                catalog_db.close()
     except Exception:
         db.rollback()
         logger.exception("Database seed failed")
@@ -211,4 +232,13 @@ def run_seed() -> None:
 
 
 if __name__ == "__main__":
-    run_seed()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Seed roles, users, and optional catalog")
+    parser.add_argument(
+        "--catalog",
+        action="store_true",
+        help="Import real library catalog from Open Library after seeding users",
+    )
+    args = parser.parse_args()
+    run_seed(import_catalog=args.catalog)

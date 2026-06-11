@@ -1,14 +1,15 @@
 """Reservation and fine payment circulation tests."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import timedelta
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.transaction import Transaction
-from tests.conftest_circulation import catalog_book_with_copy  # noqa: F401
+from tests.conftest_circulation import catalog_book_with_copy, utc_today  # noqa: F401
 
 
 def test_reservation_requires_no_available_copies(
@@ -138,12 +139,12 @@ def test_mark_fine_paid_unblocks_borrowing(
             "student_id": catalog_book_with_copy["student_id"],
         },
     )
-    transaction_id = issue.json()["id"]
+    transaction_id = UUID(issue.json()["id"])
     db: Session = SessionLocal()
     try:
         transaction = db.get(Transaction, transaction_id)
         assert transaction is not None
-        transaction.due_at = date.today() - timedelta(days=1)
+        transaction.due_at = utc_today() - timedelta(days=1)
         db.commit()
     finally:
         db.close()

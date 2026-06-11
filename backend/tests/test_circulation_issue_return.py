@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.transaction import Transaction, TransactionStatus
-from tests.conftest_circulation import catalog_book_with_copy  # noqa: F401
+from uuid import UUID
+
+from tests.conftest_circulation import catalog_book_with_copy, utc_today  # noqa: F401
 
 
 def test_issue_and_return_flow(
@@ -104,13 +106,13 @@ def test_issue_blocked_by_unpaid_fine(
             "student_id": catalog_book_with_copy["student_id"],
         },
     )
-    transaction_id = issue.json()["id"]
+    transaction_id = UUID(issue.json()["id"])
 
     db: Session = SessionLocal()
     try:
         transaction = db.get(Transaction, transaction_id)
         assert transaction is not None
-        transaction.due_at = date.today() - timedelta(days=3)
+        transaction.due_at = utc_today() - timedelta(days=3)
         db.commit()
     finally:
         db.close()
@@ -154,13 +156,13 @@ def test_overdue_return_creates_fine(
             "student_id": catalog_book_with_copy["student_id"],
         },
     )
-    transaction_id = issue.json()["id"]
+    transaction_id = UUID(issue.json()["id"])
 
     db: Session = SessionLocal()
     try:
         transaction = db.get(Transaction, transaction_id)
         assert transaction is not None
-        transaction.due_at = date.today() - timedelta(days=2)
+        transaction.due_at = utc_today() - timedelta(days=2)
         db.commit()
     finally:
         db.close()

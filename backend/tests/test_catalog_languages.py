@@ -6,6 +6,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
+from app.core.database import SessionLocal
+from app.db.seed import seed_languages
+
+
+@pytest.fixture(autouse=True)
+def ensure_seed_languages() -> None:
+    """Ensure default seed languages exist regardless of shared DB state."""
+    db = SessionLocal()
+    try:
+        seed_languages(db)
+        db.commit()
+    finally:
+        db.close()
 
 
 @pytest.fixture

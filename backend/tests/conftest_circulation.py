@@ -1,11 +1,17 @@
 """Shared circulation test fixtures."""
 
 import uuid
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
+
+
+def utc_today() -> date:
+    """Return the current date in UTC to match circulation timestamps."""
+    return datetime.now(UTC).date()
 
 
 @pytest.fixture(autouse=True)

@@ -95,6 +95,16 @@ Populates roles, departments, languages, and development users. **Intended for l
 uv run python -m app.db.seed
 ```
 
+Seed users and roles, then optionally import the real Open Library catalog:
+
+```bash
+uv run python -m app.db.seed --catalog
+uv run python -m app.db.import_catalog
+uv run python -m app.scripts.import_real_books
+```
+
+Catalog import clears books, authors, publishers, categories, and circulation rows, then loads ~190 curated CS/tech titles from `app/db/data/catalog_manifest.json` using cached Open Library metadata.
+
 Seed is idempotent — existing records are skipped.
 
 Default credentials are documented in the root [`README.md`](../README.md#development-credentials).
@@ -139,6 +149,7 @@ Tests use FastAPI's `TestClient` against the application with the configured dat
 | Run server | `uv run uvicorn app.main:app --reload` |
 | Migrate | `uv run alembic upgrade head` |
 | Seed dev data | `uv run python -m app.db.seed` |
+| Import catalog | `uv run python -m app.db.import_catalog` |
 | Test | `uv run pytest` |
 | Lint | `uv run ruff check .` |
 

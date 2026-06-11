@@ -1,0 +1,762 @@
+[
+  {
+    "isbn": "9781789809770",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9781617294433",
+    "category": "Machine Learning"
+  },
+  {
+    "isbn": "9780262033848",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780262046305",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780137081073",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9780201633610",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9780596007126",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9780135957059",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9780735619678",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134610993",
+    "category": "Artificial Intelligence"
+  },
+  {
+    "isbn": "9780136042594",
+    "category": "Artificial Intelligence"
+  },
+  {
+    "isbn": "9780132350884",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9780262035613",
+    "category": "Machine Learning"
+  },
+  {
+    "isbn": "9780078022159",
+    "category": "Databases"
+  },
+  {
+    "isbn": "9780133970777",
+    "category": "Databases"
+  },
+  {
+    "isbn": "9780136681557",
+    "category": "Computer Networks"
+  },
+  {
+    "isbn": "9781098125974",
+    "category": "Machine Learning"
+  },
+  {
+    "isbn": "9780262018029",
+    "category": "Machine Learning"
+  },
+  {
+    "isbn": "3897211297",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9783897211292",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781449355739",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596002817",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781565928213",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596554491",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1600330215",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1565924649",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781449379322",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1548987832",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596554494",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596513986",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781548987831",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1565928938",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1449355730",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596158064",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596516606",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596150280",
+    "category": "Programming"
+  },
+  {
+    "isbn": "8173667381",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596516800",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781098171308",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781322126661",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1565928210",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9788173667381",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1098171306",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781600330216",
+    "category": "Programming"
+  },
+  {
+    "isbn": "144937932X",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9788184048261",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596513984",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596516604",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1322126666",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596150288",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781449391751",
+    "category": "Programming"
+  },
+  {
+    "isbn": "8184048262",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596002815",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596516802",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781565928930",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781565924642",
+    "category": "Programming"
+  },
+  {
+    "isbn": "1449391753",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0596158068",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781491912058",
+    "category": "Data Science"
+  },
+  {
+    "isbn": "9780134687476",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781491939369",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781449373214",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780134685991",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596009205",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781305292758",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "1305292758",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "1337694193",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0534490964",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780495826163",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9781337694193",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780357035238",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0534096301",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9788131533024",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0495391328",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0534359450",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780534944469",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0495826162",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780534359454",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780534096304",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0534944469",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0534944493",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780534490966",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780534944490",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0357035232",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9781111775780",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "8131533026",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780495391326",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "1111775788",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0357114086",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780357114087",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780534981990",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "0534981992",
+    "category": "Mathematics"
+  },
+  {
+    "isbn": "9780135166307",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780596805524",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9781429215107",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781491950296",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780321486813",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0451062302",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "8401421225",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0091190509",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9788576571100",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "8576571102",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781617295348",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780735211292",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134093413",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134494166",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134092669",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780062674678",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780596005764",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781617293450",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781492041139",
+    "category": "Data Science"
+  },
+  {
+    "isbn": "9781449337711",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9783453053809",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "345305380X",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781473208056",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "147320805X",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780321125217",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780131465756",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134689487",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780596514921",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780131876712",
+    "category": "Computer Networks"
+  },
+  {
+    "isbn": "9780133128901",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "8804360410",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9788804360414",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "2221082494",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9782221082492",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "2253072311",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9782253072317",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9788498002812",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "8498002818",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781449390891",
+    "category": "Databases"
+  },
+  {
+    "isbn": "9780596004613",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780321797094",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134032832",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "8576572141",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9788576572145",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780321127426",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780596001735",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781491952962",
+    "category": "Data Science"
+  },
+  {
+    "isbn": "9781680502992",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780201657883",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780201485677",
+    "category": "Software Engineering"
+  },
+  {
+    "isbn": "9780062316097",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781617294945",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780201896831",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780307465351",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780062315007",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780596802295",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780131103627",
+    "category": "Programming"
+  },
+  {
+    "isbn": "9780131101630",
+    "category": "Programming"
+  },
+  {
+    "isbn": "0575099402",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0345532589",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780440423621",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780575600294",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9784047911918",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "057505073X",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0553070282",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780575047624",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780553294613",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0575047623",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781441890757",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "055329461X",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "057505297X",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "1441890750",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780575050730",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0575600292",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780553073461",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780575099401",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780575052970",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "1441890734",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781441890733",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "4047911917",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780553070286",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0440423627",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "055307346X",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780345532589",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780387848570",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780201021165",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780060555665",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9781119404507",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780201835953",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780143125082",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780201483956",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9780134277554",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9784150116774",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "4150116776",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9788835720010",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9788401434648",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "9756902019",
+    "category": "Computer Science"
+  },
+  {
+    "isbn": "0451457994",
+    "category": "Computer Science"
+  }
+]
