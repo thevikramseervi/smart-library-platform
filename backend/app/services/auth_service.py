@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.rate_limit import login_rate_limiter
 from app.core.security import create_access_token, decode_access_token, verify_password
 from app.models.user import User
 from app.repositories.auth_repository import AuthRepository
@@ -20,12 +21,13 @@ class AuthService:
     def __init__(self, db: Session) -> None:
         self.repository = AuthRepository(db)
 
-    def login(self, credentials: LoginRequest) -> TokenResponse:
+    def login(self, credentials: LoginRequest, *, client_ip: str = "unknown") -> TokenResponse:
         """Authenticate a user and return a JWT access token."""
-        # TODO: Add login rate limiting and account lockout protection.
+        login_rate_limiter.ensure_not_locked(email=credentials.email, ip=client_ip)
         user = self.repository.get_by_email(credentials.email)
         if user is None or not verify_password(credentials.password, user.password_hash):
             logger.info("Failed login attempt for email: %s", credentials.email)
+            login_rate_limiter.record_failure(email=credentials.email, ip=client_ip)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
@@ -38,6 +40,7 @@ class AuthService:
                 detail="Incorrect email or password",
             )
 
+        login_rate_limiter.record_success(email=credentials.email)
         access_token = create_access_token(user.id)
         return TokenResponse(access_token=access_token)
 

@@ -1,6 +1,6 @@
 """Authentication endpoints."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.api.deps import get_auth_service, get_current_user
 from app.models.user import User
@@ -10,13 +10,22 @@ from app.services.auth_service import AuthService
 router = APIRouter()
 
 
+def _client_ip(request: Request) -> str:
+    """Return the originating client IP, honoring proxy headers when present."""
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/login", response_model=TokenResponse)
 def login(
     credentials: LoginRequest,
+    request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
     """Authenticate a user and return a JWT access token."""
-    return auth_service.login(credentials)
+    return auth_service.login(credentials, client_ip=_client_ip(request))
 
 
 @router.get("/me", response_model=UserResponse)

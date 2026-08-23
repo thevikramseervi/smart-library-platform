@@ -40,5 +40,8 @@ class Settings(BaseSettings):
     RESERVATION_EXPIRY_DAYS: int = 7
     DAILY_OVERDUE_FINE_RATE: Decimal = Decimal("10.00")
 
+    LOGIN_RATE_LIMIT_ATTEMPTS: int = 5
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
+
 
 settings = Settings()

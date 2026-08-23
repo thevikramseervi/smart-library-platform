@@ -8,6 +8,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.rate_limit import login_rate_limiter
 from app.db.seed import (
     seed_departments,
     seed_dev_admin,
@@ -36,13 +37,22 @@ def db_connection() -> Generator[Connection, None, None]:
 
 
 @pytest.fixture
-def db_session(db_connection: Connection) -> Generator[Session, None, None]:
+def db_session(
+    _reset_login_rate_limiter: None,
+    db_connection: Connection,
+) -> Generator[Session, None, None]:
     """Provide a request-scoped SQLAlchemy session that never commits to the real database."""
     session = TestingSessionLocal(bind=db_connection)
     try:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_rate_limiter() -> None:
+    """Clear login lockout state between tests."""
+    login_rate_limiter.reset()
 
 
 @pytest.fixture(autouse=True)
