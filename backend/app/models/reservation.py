@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,6 +32,17 @@ class Reservation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Book title waitlist reservation."""
 
     __tablename__ = "reservations"
+    __table_args__ = (
+        Index("ix_reservations_book_id_status_date", "book_id", "status", "reservation_date"),
+        Index("ix_reservations_student_id_status", "student_id", "status"),
+        Index(
+            "uq_reservations_one_active_per_student_book",
+            "student_id",
+            "book_id",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVE'"),
+        ),
+    )
 
     student_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

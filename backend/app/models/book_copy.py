@@ -7,7 +7,7 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, Enum, ForeignKey, String
+from sqlalchemy import Date, Enum, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,6 +34,10 @@ class BookCopy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Physical inventory copy of a book."""
 
     __tablename__ = "book_copies"
+    __table_args__ = (
+        Index("ix_book_copies_book_id", "book_id"),
+        Index("ix_book_copies_status", "status"),
+    )
 
     book_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -52,4 +56,7 @@ class BookCopy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     acquired_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     book: Mapped["Book"] = relationship("Book", back_populates="copies")
-    transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="book_copy")
+    transactions: Mapped[list["Transaction"]] = relationship(
+        "Transaction",
+        back_populates="book_copy",
+    )

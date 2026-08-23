@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,11 +22,14 @@ class Fine(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Overdue fine linked to a circulation transaction."""
 
     __tablename__ = "fines"
+    __table_args__ = (
+        Index("ix_fines_paid", "paid"),
+        Index("uq_fines_transaction_id", "transaction_id", unique=True),
+    )
 
     transaction_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("transactions.id"),
-        unique=True,
         nullable=False,
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
