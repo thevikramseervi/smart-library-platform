@@ -44,7 +44,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables created by Alembic migrations `001` through `006`.
+Tables created by Alembic migrations `001` through `010`.
 
 ## Migration History
 
@@ -56,6 +56,10 @@ Tables created by Alembic migrations `001` through `006`.
 | `004_book_copy_retired_status` | Adds `RETIRED` to `BookCopyStatus` enum |
 | `005_enable_pgvector` | Enables PostgreSQL `vector` extension |
 | `006_search_schema` | `book_embeddings`, `books.search_vector`, FTS/trigram/HNSW indexes; enables `pg_trgm` |
+| `007_missing_fk_indexes` | Indexes `book_copies.book_id`, `reservations(student_id, status)`; UNIQUE index on `fines.transaction_id`; model metadata mirrors DB constraints |
+| `008_transaction_reservation_link` | `transactions.reservation_id` FK + index (which queued reservation an issue fulfilled) |
+| `009_user_token_version` | `users.token_version` for JWT session revocation on password reset/change |
+| `010_transaction_returned_by` | `transactions.returned_by` FK recording which staff member processed a return |
 
 ---
 
@@ -151,13 +155,16 @@ Used by `book_embeddings.embedding_status`. Only rows with `INDEXED` and a non-n
 | password_hash | TEXT         |
 | semester      | INTEGER      |
 | is_active     | BOOLEAN      |
+| token_version | INTEGER      |
 | created_at    | TIMESTAMPTZ  |
 | updated_at    | TIMESTAMPTZ  |
 | deleted_at    | TIMESTAMPTZ  |
 
-Constraints: `email` UNIQUE, `student_code` UNIQUE.
+Constraints: `email` UNIQUE, `student_code` UNIQUE. Default `token_version = 0`.
 
 Students require `semester` and `department_id`. Admins and librarians may have NULL `semester`.
+
+JWTs carry the `token_version` value at issue time; resetting or changing a password increments the column, invalidating all previously issued tokens for that user.
 
 ## publishers, languages, authors, categories
 
@@ -213,27 +220,31 @@ Many-to-many junction tables.
 
 ## transactions
 
-| Column       | Type              |
-| ------------ | ----------------- |
-| id           | UUID              |
-| book_copy_id | UUID              |
-| student_id   | UUID              |
-| issued_by    | UUID              |
-| issued_at    | TIMESTAMPTZ       |
-| due_at       | DATE              |
-| returned_at  | TIMESTAMPTZ       |
-| status       | TransactionStatus |
-| created_at   | TIMESTAMPTZ       |
-| updated_at   | TIMESTAMPTZ       |
+| Column         | Type              |
+| -------------- | ----------------- |
+| id             | UUID              |
+| book_copy_id   | UUID              |
+| student_id     | UUID              |
+| issued_by      | UUID              |
+| returned_by    | UUID (nullable)   |
+| reservation_id | UUID (nullable)   |
+| issued_at      | TIMESTAMPTZ       |
+| due_at         | DATE              |
+| returned_at    | TIMESTAMPTZ       |
+| status         | TransactionStatus |
+| created_at     | TIMESTAMPTZ       |
+| updated_at     | TIMESTAMPTZ       |
 
-Partial unique index: one open loan per copy (`status = ISSUED`).
+Indexes: `(student_id, status)`, `status`, `due_at`, `reservation_id`; partial unique index enforcing one open loan per copy (`status = ISSUED`).
 
 Business rules:
 
-* Issue only when copy status is `AVAILABLE`
-* Return sets transaction `RETURNED` and copy `AVAILABLE`
+* Issue only when copy status is `AVAILABLE` (or `RESERVED` for the head of the book's queue)
+* Return sets transaction `RETURNED` and copy `AVAILABLE`, or copy `RESERVED` when an active queue remains
 * `due_at` = issue date + `LOAN_PERIOD_DAYS` (default 14, env-configurable)
 * Students with unpaid fines cannot borrow (HTTP 409)
+* Students cannot exceed `MAX_ACTIVE_LOANS` concurrent loans (default 5)
+* Issue/return serialize on row locks: the student and copy rows are locked `FOR UPDATE` before status checks
 
 ## reservations
 
@@ -248,11 +259,14 @@ Business rules:
 | created_at       | TIMESTAMPTZ       |
 | updated_at       | TIMESTAMPTZ       |
 
+Indexes: `(book_id, status, reservation_date)`, `(student_id, status)`; partial UNIQUE `(student_id, book_id) WHERE status = 'ACTIVE'`.
+
 Business rules:
 
 * Allowed only when no `AVAILABLE` copies exist for the book
 * FIFO queue by `reservation_date`; position computed at query time
-* One active reservation per student per book
+* One active reservation per student per book (DB-enforced by the partial unique index)
+* Cancelling or expiring the last active reservation releases copies held as `RESERVED` back to `AVAILABLE`
 
 ## fines
 
@@ -267,11 +281,14 @@ Business rules:
 | created_at     | TIMESTAMPTZ   |
 | updated_at     | TIMESTAMPTZ   |
 
+Constraints: `transaction_id` UNIQUE (enforced since migration `007`).
+
 Business rules:
 
-* Created on late return: `(return_date - due_at)` **calendar days** × `DAILY_OVERDUE_FINE_RATE` (default ₹10.00/day)
+* Created on late return: `(return_date - due_at)` **calendar days** × `DAILY_OVERDUE_FINE_RATE` (default ₹10.00/day), clamped to `MAX_FINE_AMOUNT` (default ₹500.00)
 * One fine per transaction
 * Unpaid fines block new issues
+* Payment is exactly-once: a conditional update on `paid = false` makes concurrent double-pays return 409
 
 ---
 
@@ -279,9 +296,11 @@ Business rules:
 
 | Topic | Current behaviour | Future |
 |-------|-------------------|--------|
-| Overdue detection | Derived (`ISSUED` + past `due_at`) | — |
-| Fine calculation | Calendar days late × daily rate | Working-day calculation via `library_calendar` (planned) |
-| Reservation queue | FIFO by `reservation_date` | — |
+| Overdue detection | Derived (`ISSUED` + past `due_at`, UTC calendar) | — |
+| Fine calculation | Calendar days late × daily rate, clamped to `MAX_FINE_AMOUNT` | Working-day calculation via `library_calendar` (planned) |
+| Loan limit | Max `MAX_ACTIVE_LOANS` (default 5) concurrent loans per student | — |
+| Reservation queue | FIFO by `reservation_date`; returns hold copies `RESERVED` for queue head; issues honor queue unless `bypass_reservation` | — |
+| Session revocation | Password reset/change bumps `users.token_version`; old JWTs rejected immediately | Token refresh endpoint (planned) |
 | Copy QR | `qr_code_value` stored; no QR API yet | Sprint 5+ QR endpoints |
 | Book renewal | Not implemented | Future sprint |
 

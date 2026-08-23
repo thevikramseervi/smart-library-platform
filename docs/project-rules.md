@@ -261,12 +261,19 @@ Never manually modify production tables.
 Authentication:
 
 * JWT
-* python-jose
+* PyJWT (HS256; `sub`, `ver`, `iat`, `exp` required at decode)
 
 Password Storage:
 
-* Passlib
-* bcrypt
+* bcrypt directly (cost 12)
+
+Session Revocation:
+
+* `users.token_version` is embedded in tokens; password resets and changes bump it, invalidating old JWTs
+
+Login Abuse Prevention:
+
+* Failed logins rate limited per account and per IP (`LOGIN_RATE_LIMIT_*` settings)
 
 Never:
 

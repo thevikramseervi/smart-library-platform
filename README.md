@@ -22,14 +22,14 @@ Smart Library Platform is a web application for managing a physical library cata
 
 | Module | Capabilities |
 |--------|--------------|
-| **Authentication & RBAC** | JWT login, role-based route and API protection (Admin, Librarian, Student) |
+| **Authentication & RBAC** | JWT login with login-attempt lockout, session revocation on password change, role-based route and API protection (Admin, Librarian, Student) |
 | **User Management** | Admin CRUD for users, password reset, soft delete, role/department assignment |
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
-| **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `LOST`, `DAMAGED`, `RETIRED`) |
-| **Circulation** | Issue, return, active/overdue loans, student loan history |
-| **Reservations** | FIFO reservation queue, reservation-aware issue/return UX |
-| **Fines** | Automatic overdue fines (calendar days), unpaid-fine borrowing block, staff mark-paid |
+| **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
+| **Circulation** | Issue, return, active/overdue loans (UTC calendar), student loan history, per-student loan limit, queue-aware issue/return |
+| **Reservations** | FIFO reservation queue enforced at issue and return time; returns hold copies for the queue head |
+| **Fines** | Automatic overdue fines (calendar days, capped), unpaid-fine borrowing block, exactly-once staff mark-paid |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
@@ -52,7 +52,7 @@ The following are **design targets** documented in architecture materials but **
 | Ratings & Reviews | Future |
 | Library calendar / working-day fines | Future |
 | Book renewal | Future |
-| Token refresh / server-side logout | Future |
+| Token refresh / server-side logout | Server-side revocation on password reset/change is live (`users.token_version`); refresh endpoint is Future |
 
 ---
 
@@ -161,6 +161,7 @@ smart-library-platform/
 │   ├── setup.md
 │   ├── deployment.md
 │   └── sprint-4-summary.md
+├── .github/workflows/          # CI: backend (ruff + pytest), frontend (eslint + build)
 ├── docker-compose.yml          # Local PostgreSQL (pgvector image)
 └── README.md
 ```
@@ -264,7 +265,7 @@ cd frontend && pnpm build
 | Layer | Technologies |
 |-------|--------------|
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, Zustand, TanStack Query, Axios |
-| Backend | Python 3.12+, FastAPI, Uvicorn, SQLAlchemy, Alembic, Psycopg, Pydantic, python-jose, Passlib |
+| Backend | Python 3.12+, FastAPI, Uvicorn, SQLAlchemy, Alembic, Psycopg, Pydantic, PyJWT, bcrypt |
 | Database | PostgreSQL 16 (Docker Compose or Neon) |
 | Tooling | uv, pnpm, Git |
 

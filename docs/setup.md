@@ -39,7 +39,7 @@ The compose file (`docker-compose.yml`) runs `pgvector/pgvector:pg16` on port **
 - Password: `smart_library`
 - Database: `smart_library`
 
-> **Note:** The current application migrations only require standard PostgreSQL + `pgcrypto`. The pgvector image is used for future AI features.
+> **Note:** Migrations `005`–`006` require the PostgreSQL `vector` extension (`pgvector`), which is why the compose file uses a `pgvector/pgvector` image. Plain PostgreSQL images will fail on those revisions.
 
 ### 2. Backend setup
 

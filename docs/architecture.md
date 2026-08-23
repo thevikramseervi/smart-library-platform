@@ -116,7 +116,7 @@ Alembic-managed PostgreSQL schema. See [`database.md`](database.md) for implemen
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, Zustand, TanStack Query, Axios |
 | Backend | Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic, Psycopg |
 | Database | PostgreSQL 16 (Docker or Neon) |
-| Auth | JWT (python-jose), Passlib/bcrypt |
+| Auth | JWT (PyJWT), bcrypt |
 | Tooling | uv, pnpm, Git |
 
 ### Planned (Not Integrated)
@@ -171,7 +171,13 @@ Roles: `ADMIN`, `LIBRARIAN`, `STUDENT`.
 
 Frontend route guards (`AdminRoute`, `StaffRoute`, `ProtectedRoute`) improve UX; **backend RBAC is authoritative**.
 
-**Not implemented:** token refresh, server-side logout.
+Session security:
+
+* JWTs carry a `token_version` claim checked against `users.token_version`; password resets and changes invalidate outstanding tokens immediately
+* Failed logins are locked out per account and per IP after `LOGIN_RATE_LIMIT_ATTEMPTS` failures within the window
+* Startup validation rejects weak or default `JWT_SECRET_KEY` values
+
+**Not implemented:** token refresh endpoint, explicit server-side logout (revocation currently happens on credential changes).
 
 ---
 
@@ -202,14 +208,14 @@ Books, authors, categories, publishers, languages, physical copies with lifecycl
 
 ### Circulation Module (Sprint 4)
 
-* Issue and return transactions
-* Active/overdue loan tracking
-* Fine creation on late return
-* Unpaid fine borrowing block
+* Issue and return transactions with row-level locking (`SELECT ... FOR UPDATE` on student and copy rows)
+* Active/overdue loan tracking on the UTC calendar
+* Fine creation on late return, capped at `MAX_FINE_AMOUNT`
+* Unpaid fine borrowing block and per-student concurrent loan limit (`MAX_ACTIVE_LOANS`)
 
 ### Reservations Module (Sprint 4)
 
-* FIFO queue per book
+* FIFO queue per book, one active reservation per student per book (DB-enforced partial unique index)
 * Student reserve when unavailable
 * Staff queue visibility
 
@@ -221,9 +227,15 @@ Staff issue/return workflows surface active reservation queues:
 * Return page shows queue dialog for fulfillment awareness
 * Reservation responses include nested `student` summary
 
+Server-side enforcement:
+
+* Returns hold the copy as `RESERVED` while a queue is waiting; the first queued student fulfills it on issue
+* Issues to a queued book require the borrower to be first in the queue or an explicit `bypass_reservation=true`
+* Cancelling/expiring the last reservation releases held copies back to `AVAILABLE`
+
 ### Fine Workflow (Sprint 4)
 
-Calendar-day overdue calculation. Staff mark fines paid. INR display in frontend.
+Calendar-day overdue calculation clamped to `MAX_FINE_AMOUNT`. Payment is exactly-once via a conditional update. Staff mark fines paid. INR display in frontend.
 
 ---
 

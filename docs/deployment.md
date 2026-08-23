@@ -68,7 +68,23 @@ The dev seed uses known passwords (`admin123456`, etc.) and must not be used in 
 
 ## Backend Deployment
 
-Compatible with any platform that runs a Python web service.
+Compatible with any platform that runs a Python web service, or via the
+provided Docker image.
+
+### Docker (backend/Dockerfile)
+
+```bash
+cd backend
+docker build -t smart-library-backend .
+docker run -p 8000:8000 \
+  -e DATABASE_URL='postgresql+psycopg://...' \
+  -e JWT_SECRET_KEY='...' \
+  smart-library-backend
+```
+
+The image runs Uvicorn as a non-root user and includes a healthcheck on
+`/api/v1/health`. Run `alembic upgrade head` as a separate release step
+against the same image.
 
 ### Build & start (generic)
 
@@ -125,7 +141,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg://...@neon.tech/db?sslmode=require` |
-| `JWT_SECRET_KEY` | Secret for signing JWTs | Strong random string |
+| `JWT_SECRET_KEY` | Secret for signing JWTs — must be ≥ 32 chars and not a known default; startup fails otherwise | Strong random string (`python3 -c "import secrets; print(secrets.token_urlsafe(48))"`) |
 | `CORS_ORIGINS` | JSON array of allowed frontend origins | `["https://app.example.com"]` |
 
 ### Backend (optional)
@@ -134,9 +150,14 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 |----------|---------|-------------|
 | `JWT_ALGORITHM` | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Token lifetime |
+| `ALLOW_INSECURE_SECRETS` | `false` | Escape hatch permitting weak JWT secrets (local dev/testing only) |
 | `LOAN_PERIOD_DAYS` | `14` | Loan duration |
 | `RESERVATION_EXPIRY_DAYS` | `7` | Reservation expiry |
 | `DAILY_OVERDUE_FINE_RATE` | `10.00` | INR per calendar day overdue |
+| `MAX_FINE_AMOUNT` | `500.00` | Upper clamp on a single overdue fine |
+| `MAX_ACTIVE_LOANS` | `5` | Concurrent loans allowed per student |
+| `LOGIN_RATE_LIMIT_ATTEMPTS` | `5` | Failed logins before lockout |
+| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Lockout window |
 | `DEV_ADMIN_*` | see `.env.example` | Dev seed overrides (local only) |
 | `DEV_LIBRARIAN_*` | see `config.py` defaults | Dev seed overrides (local only) |
 | `CLOUD_STORAGE_*` | empty | Reserved for future digital resources (Sprint 5+) |
@@ -152,11 +173,12 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 ## Post-Deploy Checklist
 
 - [ ] `DATABASE_URL` set with `sslmode=require` (Neon)
-- [ ] `uv run alembic upgrade head` succeeded
-- [ ] `JWT_SECRET_KEY` is a strong unique value (not the example default)
+- [ ] `uv run alembic upgrade head` succeeded (through revision `010`)
+- [ ] `JWT_SECRET_KEY` is a strong unique value — the server **refuses to start** on known defaults or secrets under 32 characters
 - [ ] `CORS_ORIGINS` includes the exact Vercel frontend URL (scheme + host, no trailing slash)
 - [ ] `VITE_API_BASE_URL` points to the deployed backend `/api/v1`
 - [ ] Frontend redeployed after setting `VITE_API_BASE_URL`
+- [ ] Dev seed never run against production (`SEED_ALLOWED=true` is required even to attempt it)
 - [ ] `GET /api/v1/health` returns `{ "status": "ok", "database": "connected" }`
 - [ ] Production admin account created (not dev seed passwords)
 - [ ] Dev seed **not** run on production (or passwords rotated immediately)

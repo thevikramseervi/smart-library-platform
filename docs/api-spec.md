@@ -6,7 +6,7 @@
 
 The backend exposes REST APIs using FastAPI.
 
-Authentication is JWT-based. Only `POST /auth/login` and `GET /auth/me` are implemented today.
+Authentication is JWT-based. Only `POST /auth/login` and `GET /auth/me` are implemented today. Login is rate limited (429 after repeated failures) and tokens are revoked server-side when a user's password changes.
 
 Authorization uses Role-Based Access Control (RBAC).
 
@@ -46,6 +46,16 @@ Purpose:
 Authenticate user and return JWT token.
 ```
 
+Business rules:
+
+* Failed attempts are rate limited per account and per source IP: after
+  `LOGIN_RATE_LIMIT_ATTEMPTS` failures within
+  `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (defaults 5 / 300s) the account returns
+  `429 Too Many Requests` until the window elapses. A successful login
+  clears the account's failure history.
+* Password resets and password changes revoke all previously issued tokens
+  for that user; the next request with an old token returns 401.
+
 ---
 
 ## Current User
@@ -66,7 +76,7 @@ Purpose:
 Get current user profile.
 ```
 
-> **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are planned for a future sprint. Clients currently store the JWT locally and clear it on logout.
+> **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are planned for a future sprint. Clients currently store the JWT locally and clear it on logout; server-side revocation already happens automatically when a user's password is reset or changed.
 
 ---
 
@@ -739,6 +749,12 @@ Behavior:
 Soft Delete
 ```
 
+Business rules:
+
+* Blocked with 409 while any copy of the book is `AVAILABLE` or `BORROWED`.
+* Copies whose book is soft-deleted can no longer be issued; they are hidden
+  from available-copy listings.
+
 ---
 
 # Book Copies
@@ -828,12 +844,26 @@ Request body (UUID pair **or** code pair — do not mix):
 }
 ```
 
+Optional flags:
+
+* `bypass_reservation` (bool, default `false`) — staff-only escape hatch that
+  allows issuing a copy of a book whose reservation queue is non-empty to a
+  borrower who is not first in the queue.
+
 Business rules:
 
-* Copy must have status `AVAILABLE`.
+* Copy must have status `AVAILABLE`, or `RESERVED` when the borrower is
+  first in the book's reservation queue.
+* Copies with status `LOST`, `DAMAGED`, or `RETIRED` can never be issued.
+* If the book has an active reservation queue and the borrower is not the
+  head of it, the request returns 409 unless `bypass_reservation` is true.
 * Student must not have any unpaid fines (409).
+* Student cannot exceed `MAX_ACTIVE_LOANS` concurrent loans (default 5).
 * Sets `due_at` to issue date + `LOAN_PERIOD_DAYS` (default 14).
-* Overdue is derived at read time (`status=ISSUED` and `due_at < today`); there is no persisted `OVERDUE` status.
+* Overdue is derived at read time (`status=ISSUED` and `due_at < today`
+  on the UTC calendar); there is no persisted `OVERDUE` status.
+* When the borrower has an active reservation for the book, it is marked
+  `FULFILLED` and its id is recorded as `reservation_id` on the transaction.
 
 ---
 
@@ -863,8 +893,15 @@ or
 
 Business rules:
 
-* Marks transaction `RETURNED`, sets copy back to `AVAILABLE`.
-* If returned after `due_at`, creates an unpaid fine linked to the transaction.
+* Marks transaction `RETURNED` and records `returned_by` (the staff member
+  processing the return).
+* Copy status after return:
+  * `RESERVED` when the book has an active reservation queue — the copy is
+    held for the first queued student, who fulfills it on their next issue.
+  * `AVAILABLE` otherwise.
+* If returned after `due_at` (UTC calendar), creates an unpaid fine linked
+  to the transaction: `days_late × DAILY_OVERDUE_FINE_RATE`, clamped to a
+  maximum of `MAX_FINE_AMOUNT`.
 
 ---
 
@@ -1016,6 +1053,14 @@ Access:
 Student (own), Librarian, Admin
 ```
 
+Business rules:
+
+* Only `ACTIVE` reservations can be cancelled (409 otherwise).
+* Ownership is verified before state checks: students probing foreign
+  reservation ids get 403/404, never queue-state information.
+* Cancelling the last active reservation for a book releases any copy held
+  as `RESERVED` for the queue back to `AVAILABLE`.
+
 ---
 
 ## My Reservations
@@ -1131,7 +1176,9 @@ Librarian, Admin
 
 Business rules:
 
-* Marks fine as paid and records `paid_at`.
+* Marks fine as paid and records `paid_at`; the update is conditional on
+  `paid = false`, so concurrent double-pay attempts return 409 instead of
+  silently overwriting `paid_at`.
 * Unpaid fines block new book issues for that student (409 on issue).
 
 ---

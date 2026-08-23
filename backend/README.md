@@ -24,8 +24,10 @@ Minimum required variables:
 
 ```text
 DATABASE_URL=postgresql+psycopg://smart_library:smart_library@localhost:5432/smart_library
-JWT_SECRET_KEY=change-me-in-production
+JWT_SECRET_KEY=<strong random value, ≥ 32 chars — see .env.example for a generation command>
 ```
+
+The server refuses to start with the documented example secret; set `ALLOW_INSECURE_SECRETS=true` only for throwaway local runs.
 
 Install dependencies:
 
