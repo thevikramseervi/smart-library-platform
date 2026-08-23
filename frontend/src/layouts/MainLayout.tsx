@@ -5,11 +5,12 @@ import {
   LogOut,
   Shield,
 } from "lucide-react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 
 import { useIsAdmin } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/status-badge";
+import { logout } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
@@ -26,14 +27,11 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   );
 
 export function MainLayout() {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
   const isAdmin = useIsAdmin();
 
   const handleLogout = () => {
-    clearAuth();
-    navigate("/login", { replace: true });
+    logout();
   };
 
   const showNavLinks = Boolean(user);
