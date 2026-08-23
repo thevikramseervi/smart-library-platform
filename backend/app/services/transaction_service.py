@@ -129,11 +129,16 @@ class TransactionService:
         copy.status = BookCopyStatus.BORROWED
         self.repository.create(transaction)
 
-        active_reservation = self.reservation_repository.get_active_for_student_book(
+        active_reservation = self.reservation_repository.get_active_for_student_book_for_update(
             student_id,
             copy.book_id,
         )
         if active_reservation is not None:
+            if active_reservation.status != ReservationStatus.ACTIVE:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Reservation is no longer active",
+                )
             active_reservation.status = ReservationStatus.FULFILLED
 
         commit_or_raise_conflict(

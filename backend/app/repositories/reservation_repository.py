@@ -6,7 +6,6 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.book import Book
 from app.models.reservation import Reservation, ReservationStatus
 from app.repositories.base import BaseRepository
 
@@ -29,6 +28,15 @@ class ReservationRepository(BaseRepository[Reservation]):
         statement = self._with_relations().where(Reservation.id == reservation_id)
         return self.db.execute(statement).unique().scalar_one_or_none()
 
+    def get_by_id_with_relations_for_update(self, reservation_id: UUID) -> Reservation | None:
+        """Fetch a reservation with row lock held until the transaction ends."""
+        statement = (
+            self._with_relations()
+            .where(Reservation.id == reservation_id)
+            .with_for_update(of=Reservation)
+        )
+        return self.db.execute(statement).unique().scalar_one_or_none()
+
     def get_active_for_student_book(
         self,
         student_id: UUID,
@@ -39,6 +47,23 @@ class ReservationRepository(BaseRepository[Reservation]):
             Reservation.student_id == student_id,
             Reservation.book_id == book_id,
             Reservation.status == ReservationStatus.ACTIVE,
+        )
+        return self.db.execute(statement).scalar_one_or_none()
+
+    def get_active_for_student_book_for_update(
+        self,
+        student_id: UUID,
+        book_id: UUID,
+    ) -> Reservation | None:
+        """Return an active reservation with row lock held until commit."""
+        statement = (
+            select(Reservation)
+            .where(
+                Reservation.student_id == student_id,
+                Reservation.book_id == book_id,
+                Reservation.status == ReservationStatus.ACTIVE,
+            )
+            .with_for_update(of=Reservation)
         )
         return self.db.execute(statement).scalar_one_or_none()
 

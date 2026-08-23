@@ -14,7 +14,11 @@ from app.repositories.circulation_repository import CirculationRepository
 from app.repositories.reservation_repository import ReservationRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.pagination import PaginatedResponse
-from app.schemas.reservation import ReservationCreate, ReservationResponse, ReservationStudentSummary
+from app.schemas.reservation import (
+    ReservationCreate,
+    ReservationResponse,
+    ReservationStudentSummary,
+)
 
 
 class ReservationService:
@@ -94,16 +98,19 @@ class ReservationService:
         is_staff: bool,
     ) -> None:
         """Cancel an active reservation."""
-        reservation = self.repository.get_by_id_with_relations(reservation_id)
+        reservation = self.repository.get_by_id_with_relations_for_update(reservation_id)
         if reservation is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reservation not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reservation not found",
+            )
+        if not is_staff and reservation.student_id != actor.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
         if reservation.status != ReservationStatus.ACTIVE:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Only active reservations can be cancelled",
             )
-        if not is_staff and reservation.student_id != actor.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
         reservation.status = ReservationStatus.CANCELLED
         self.db.commit()
