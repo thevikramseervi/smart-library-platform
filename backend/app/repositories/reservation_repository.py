@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.reservation import Reservation, ReservationStatus
@@ -67,39 +67,25 @@ class ReservationRepository(BaseRepository[Reservation]):
         )
         return self.db.execute(statement).scalar_one_or_none()
 
-    def expire_stale(self) -> bool:
-        """Mark active reservations past expiry as expired."""
-        now = datetime.now(UTC)
-        statement = select(Reservation).where(
-            Reservation.status == ReservationStatus.ACTIVE,
-            Reservation.expiry_date < now,
-        )
-        stale = list(self.db.execute(statement).scalars().all())
-        for reservation in stale:
-            reservation.status = ReservationStatus.EXPIRED
-        if stale:
-            self.db.flush()
-            return True
-        return False
-
     def expire_stale_returning_book_ids(self) -> list[UUID]:
-        """Expire stale active reservations and return their distinct book ids."""
+        """Expire stale active reservations in one statement.
+
+        Returns the distinct book ids whose queues shrank so callers can
+        release RESERVED copies when no active reservations remain.
+        """
         now = datetime.now(UTC)
         statement = (
-            select(Reservation)
+            update(Reservation)
             .where(
                 Reservation.status == ReservationStatus.ACTIVE,
                 Reservation.expiry_date < now,
             )
-            .with_for_update(of=Reservation)
+            .values(status=ReservationStatus.EXPIRED)
+            .returning(Reservation.book_id)
         )
-        stale = list(self.db.execute(statement).scalars().all())
-        for reservation in stale:
-            reservation.status = ReservationStatus.EXPIRED
-        if not stale:
-            return []
-        self.db.flush()
-        return sorted({reservation.book_id for reservation in stale})
+        result = self.db.execute(statement)
+        book_ids = {row[0] for row in result}
+        return sorted(book_ids)
 
     def list_for_student(self, student_id: UUID) -> list[Reservation]:
         """Return reservations for a student."""
