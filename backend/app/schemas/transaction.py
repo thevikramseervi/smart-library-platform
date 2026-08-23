@@ -13,6 +13,7 @@ class TransactionIssueRequest(BaseModel):
     student_id: UUID | None = None
     inventory_code: str | None = Field(default=None, max_length=100)
     student_code: str | None = Field(default=None, max_length=100)
+    bypass_reservation: bool = False
 
     @model_validator(mode="after")
     def validate_identifier_pairs(self) -> "TransactionIssueRequest":
@@ -86,6 +87,7 @@ class TransactionResponse(BaseModel):
     returned_at: datetime | None
     status: str
     is_overdue: bool
+    reservation_id: UUID | None = None
     book_copy: TransactionCopySummary
     student: TransactionUserSummary
     issuer: TransactionUserSummary

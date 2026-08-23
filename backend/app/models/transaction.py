@@ -65,6 +65,11 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Enum(TransactionStatus, name="transactionstatus", create_type=False),
         nullable=False,
     )
+    reservation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reservations.id"),
+        nullable=True,
+    )
 
     book_copy: Mapped["BookCopy"] = relationship("BookCopy", back_populates="transactions")
     student: Mapped["User"] = relationship("User", foreign_keys=[student_id])

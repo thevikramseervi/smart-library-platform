@@ -46,8 +46,12 @@ class ReservationService:
 
     def _expire_stale(self) -> None:
         """Expire reservations past their expiry date and persist changes."""
-        if self.repository.expire_stale():
-            commit_or_raise_conflict(self.db, detail="Failed to expire stale reservations")
+        expired_books = self.repository.expire_stale_returning_book_ids()
+        if not expired_books:
+            return
+        for book_id in expired_books:
+            self.circulation_repository.release_reserved_copies_without_queue(book_id)
+        commit_or_raise_conflict(self.db, detail="Failed to expire stale reservations")
 
     def create_reservation(self, student: User, payload: ReservationCreate) -> ReservationResponse:
         """Create a reservation when no copies are available."""
@@ -113,6 +117,8 @@ class ReservationService:
             )
 
         reservation.status = ReservationStatus.CANCELLED
+        self.db.flush()
+        self.circulation_repository.release_reserved_copies_without_queue(reservation.book_id)
         self.db.commit()
 
     def list_my_reservations(self, student: User) -> list[ReservationResponse]:

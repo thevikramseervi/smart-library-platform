@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.book import Book
 from app.models.book_copy import BookCopy, BookCopyStatus
+from app.models.reservation import Reservation, ReservationStatus
 from app.models.role import Role
 from app.models.user import User
 
@@ -182,3 +183,26 @@ class CirculationRepository:
             )
         )
         return self.db.execute(statement).scalar_one()
+
+    def release_reserved_copies_without_queue(self, book_id: UUID) -> None:
+        """Flip RESERVED copies back to AVAILABLE when no active queue remains."""
+        from sqlalchemy import update
+
+        has_active_queue = (
+            select(Reservation.id)
+            .where(
+                Reservation.book_id == book_id,
+                Reservation.status == ReservationStatus.ACTIVE,
+            )
+            .exists()
+        )
+        statement = (
+            update(BookCopy)
+            .where(
+                BookCopy.book_id == book_id,
+                BookCopy.status == BookCopyStatus.RESERVED,
+                ~has_active_queue,
+            )
+            .values(status=BookCopyStatus.AVAILABLE)
+        )
+        self.db.execute(statement)

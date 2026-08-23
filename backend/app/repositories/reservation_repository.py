@@ -82,6 +82,25 @@ class ReservationRepository(BaseRepository[Reservation]):
             return True
         return False
 
+    def expire_stale_returning_book_ids(self) -> list[UUID]:
+        """Expire stale active reservations and return their distinct book ids."""
+        now = datetime.now(UTC)
+        statement = (
+            select(Reservation)
+            .where(
+                Reservation.status == ReservationStatus.ACTIVE,
+                Reservation.expiry_date < now,
+            )
+            .with_for_update(of=Reservation)
+        )
+        stale = list(self.db.execute(statement).scalars().all())
+        for reservation in stale:
+            reservation.status = ReservationStatus.EXPIRED
+        if not stale:
+            return []
+        self.db.flush()
+        return sorted({reservation.book_id for reservation in stale})
+
     def list_for_student(self, student_id: UUID) -> list[Reservation]:
         """Return reservations for a student."""
         statement = (

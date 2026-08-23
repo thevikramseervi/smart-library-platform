@@ -90,7 +90,7 @@ class TransactionService:
         return copy.id
 
     def issue_copy(self, payload: TransactionIssueRequest, issued_by: User) -> TransactionResponse:
-        """Issue an available copy to a student."""
+        """Issue an available copy to a student, honoring the reservation queue."""
         copy_id, student_id = self._resolve_issue_targets(payload)
 
         if self.fine_repository.has_unpaid_for_student(student_id):
@@ -106,11 +106,46 @@ class TransactionService:
         copy = self.circulation_repository.get_copy_for_update(copy_id)
         if copy is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book copy not found")
-        if copy.status != BookCopyStatus.AVAILABLE:
+
+        queue = self.reservation_repository.list_queue_for_book(copy.book_id)
+        head_student_id = queue[0].student_id if queue else None
+        is_head = head_student_id == student_id
+
+        if copy.status not in (BookCopyStatus.AVAILABLE, BookCopyStatus.RESERVED):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Book copy is not available for issue",
             )
+        if copy.status == BookCopyStatus.RESERVED and not is_head:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This copy is held for the first student in the reservation queue",
+            )
+        if (
+            copy.status == BookCopyStatus.AVAILABLE
+            and queue
+            and not is_head
+            and not payload.bypass_reservation
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Students are waiting in the reservation queue for this book; "
+                    "retry with bypass_reservation to override"
+                ),
+            )
+
+        active_reservation = self.reservation_repository.get_active_for_student_book_for_update(
+            student_id,
+            copy.book_id,
+        )
+        if active_reservation is not None:
+            if active_reservation.status != ReservationStatus.ACTIVE:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Reservation is no longer active",
+                )
+
         if self.repository.count_active_for_student(student_id) >= settings.MAX_ACTIVE_LOANS:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -134,20 +169,12 @@ class TransactionService:
             issued_at=issued_at,
             due_at=due_at,
             status=TransactionStatus.ISSUED,
+            reservation_id=active_reservation.id if active_reservation else None,
         )
         copy.status = BookCopyStatus.BORROWED
         self.repository.create(transaction)
 
-        active_reservation = self.reservation_repository.get_active_for_student_book_for_update(
-            student_id,
-            copy.book_id,
-        )
         if active_reservation is not None:
-            if active_reservation.status != ReservationStatus.ACTIVE:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Reservation is no longer active",
-                )
             active_reservation.status = ReservationStatus.FULFILLED
 
         commit_or_raise_conflict(
@@ -180,7 +207,10 @@ class TransactionService:
         returned_at = utc_now()
         transaction.returned_at = returned_at
         transaction.status = TransactionStatus.RETURNED
-        copy.status = BookCopyStatus.AVAILABLE
+        queue_waiting = self.reservation_repository.list_queue_for_book(copy.book_id)
+        copy.status = (
+            BookCopyStatus.RESERVED if queue_waiting else BookCopyStatus.AVAILABLE
+        )
 
         if returned_at.date() > transaction.due_at:
             self.fine_service.create_overdue_fine(transaction, returned_at)
