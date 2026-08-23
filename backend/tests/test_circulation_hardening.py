@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal
 from app.models.reservation import Reservation, ReservationStatus
 from tests.conftest_circulation import catalog_book_with_copy  # noqa: F401
 
@@ -105,6 +104,7 @@ def test_stale_reservation_expires_on_list(
     client: TestClient,
     admin_token: str,
     student2_token: str,
+    db_session: Session,
 ) -> None:
     """Expired reservations are persisted when listing reservations."""
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
@@ -145,24 +145,16 @@ def test_stale_reservation_expires_on_list(
     assert created.status_code == 201
     reservation_id = created.json()["id"]
 
-    db: Session = SessionLocal()
-    try:
-        reservation = db.get(Reservation, reservation_id)
-        assert reservation is not None
-        reservation.expiry_date = datetime.now(UTC) - timedelta(days=1)
-        db.commit()
-    finally:
-        db.close()
+    reservation = db_session.get(Reservation, reservation_id)
+    assert reservation is not None
+    reservation.expiry_date = datetime.now(UTC) - timedelta(days=1)
+    db_session.flush()
 
     listed = client.get("/api/v1/reservations/me", headers=student_headers)
     assert listed.status_code == 200
     expired = next(item for item in listed.json() if item["id"] == reservation_id)
     assert expired["status"] == "EXPIRED"
 
-    db = SessionLocal()
-    try:
-        persisted = db.get(Reservation, reservation_id)
-        assert persisted is not None
-        assert persisted.status == ReservationStatus.EXPIRED
-    finally:
-        db.close()
+    persisted = db_session.get(Reservation, reservation_id)
+    assert persisted is not None
+    assert persisted.status == ReservationStatus.EXPIRED

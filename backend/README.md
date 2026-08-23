@@ -139,6 +139,19 @@ uv run pytest -q
 
 Tests use FastAPI's `TestClient` against the application with the configured database. Use a dedicated test database in CI/production pipelines.
 
+**Test isolation:** Pytest uses `TEST_DATABASE_URL` when set, otherwise `DATABASE_URL`. Each test runs inside a rolled-back SQLAlchemy transaction (`join_transaction_mode="create_savepoint"`) so API commits never persist. Override `get_db` routes all requests through the test session.
+
+```bash
+# Optional: create and migrate a dedicated test database
+createdb smart_library_test
+DATABASE_URL=postgresql+psycopg://.../smart_library_test uv run alembic upgrade head
+DATABASE_URL=postgresql+psycopg://.../smart_library uv run python -m app.db.seed
+# Add to .env:
+# TEST_DATABASE_URL=postgresql+psycopg://.../smart_library_test
+```
+
+Without `TEST_DATABASE_URL`, tests still roll back all writes against `DATABASE_URL` and leave the catalog unchanged after a full run.
+
 ---
 
 ## Common Commands

@@ -2,15 +2,13 @@
 
 from datetime import UTC, date, datetime, timedelta
 
-import pytest
+from uuid import UUID
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import SessionLocal
-from app.models.transaction import Transaction, TransactionStatus
-from uuid import UUID
-
+from app.models.transaction import Transaction
 from tests.conftest_circulation import catalog_book_with_copy, utc_today  # noqa: F401
 
 
@@ -95,6 +93,7 @@ def test_issue_blocked_by_unpaid_fine(
     librarian_token: str,
     admin_token: str,
     catalog_book_with_copy: dict,
+    db_session: Session,
 ) -> None:
     """Students with unpaid fines cannot receive additional loans."""
     lib_headers = {"Authorization": f"Bearer {librarian_token}"}
@@ -108,14 +107,10 @@ def test_issue_blocked_by_unpaid_fine(
     )
     transaction_id = UUID(issue.json()["id"])
 
-    db: Session = SessionLocal()
-    try:
-        transaction = db.get(Transaction, transaction_id)
-        assert transaction is not None
-        transaction.due_at = utc_today() - timedelta(days=3)
-        db.commit()
-    finally:
-        db.close()
+    transaction = db_session.get(Transaction, transaction_id)
+    assert transaction is not None
+    transaction.due_at = utc_today() - timedelta(days=3)
+    db_session.flush()
 
     client.post(
         "/api/v1/transactions/return",
@@ -145,6 +140,7 @@ def test_overdue_return_creates_fine(
     client: TestClient,
     librarian_token: str,
     catalog_book_with_copy: dict,
+    db_session: Session,
 ) -> None:
     """Returning late creates an unpaid fine."""
     headers = {"Authorization": f"Bearer {librarian_token}"}
@@ -158,14 +154,10 @@ def test_overdue_return_creates_fine(
     )
     transaction_id = UUID(issue.json()["id"])
 
-    db: Session = SessionLocal()
-    try:
-        transaction = db.get(Transaction, transaction_id)
-        assert transaction is not None
-        transaction.due_at = utc_today() - timedelta(days=2)
-        db.commit()
-    finally:
-        db.close()
+    transaction = db_session.get(Transaction, transaction_id)
+    assert transaction is not None
+    transaction.due_at = utc_today() - timedelta(days=2)
+    db_session.flush()
 
     client.post(
         "/api/v1/transactions/return",

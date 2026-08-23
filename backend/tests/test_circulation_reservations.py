@@ -7,7 +7,6 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal
 from app.models.transaction import Transaction
 from tests.conftest_circulation import catalog_book_with_copy, utc_today  # noqa: F401
 
@@ -127,6 +126,7 @@ def test_mark_fine_paid_unblocks_borrowing(
     admin_token: str,
     student_token: str,
     catalog_book_with_copy: dict,
+    db_session: Session,
 ) -> None:
     """Paying a fine allows the student to borrow again."""
     lib_headers = {"Authorization": f"Bearer {librarian_token}"}
@@ -140,14 +140,10 @@ def test_mark_fine_paid_unblocks_borrowing(
         },
     )
     transaction_id = UUID(issue.json()["id"])
-    db: Session = SessionLocal()
-    try:
-        transaction = db.get(Transaction, transaction_id)
-        assert transaction is not None
-        transaction.due_at = utc_today() - timedelta(days=1)
-        db.commit()
-    finally:
-        db.close()
+    transaction = db_session.get(Transaction, transaction_id)
+    assert transaction is not None
+    transaction.due_at = utc_today() - timedelta(days=1)
+    db_session.flush()
 
     client.post(
         "/api/v1/transactions/return",

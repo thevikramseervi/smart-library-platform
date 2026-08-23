@@ -8,32 +8,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import func, select
 
-from app.core.database import SessionLocal, engine
 from app.db.import_catalog import CatalogImporter, ImportStats
 from app.db.open_library_client import InMemoryBookMetadataClient, OpenLibraryBookRecord
 from app.models.author import Author
 from app.models.book import Book
 from app.models.book_copy import BookCopy, BookCopyStatus
 from app.models.category import Category
-from app.models.language import Language
 from app.models.publisher import Publisher
-from app.db.seed import seed_languages
-
-
-@pytest.fixture
-def db_session():
-    """Provide a database session rolled back after each test."""
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = SessionLocal(bind=connection)
-    seed_languages(session)
-    session.flush()
-    try:
-        yield session
-    finally:
-        session.close()
-        transaction.rollback()
-        connection.close()
 
 
 def _write_manifest(path: Path, entries: list[dict[str, str]]) -> None:

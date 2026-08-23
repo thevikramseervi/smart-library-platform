@@ -1,19 +1,52 @@
 """Authentication endpoint tests."""
 
+from collections.abc import Generator
 from datetime import timedelta
 from uuid import UUID
 
 import pytest
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, HTTPException
 from fastapi.testclient import TestClient
 from jose import jwt
+from sqlalchemy.orm import Session
 
-from app.api.deps import require_roles
-from app.api.v1.router import api_router
+from app.api.deps import get_db, require_roles
 from app.core.config import settings
 from app.core.security import create_access_token
+from app.main import app as application
 from app.models.user import User
 from app.services.auth_service import AuthService
+
+RBAC_TEST_PATH = "/api/v1/rbac-admin-test"
+
+
+@pytest.fixture
+def rbac_client(
+    _seed_reference_data: None,
+    db_session: Session,
+) -> Generator[TestClient, None, None]:
+    """Test client with a temporary admin-only route for RBAC checks.
+
+    Registers the route on the shared application so the isolated test session
+    override applies; the route is removed afterwards to keep tests hermetic.
+    """
+
+    @application.get(RBAC_TEST_PATH)
+    def admin_only(current_user: User = Depends(require_roles("ADMIN"))) -> dict[str, bool]:
+        return {"ok": True}
+
+    def override_get_db() -> Generator[Session, None, None]:
+        yield db_session
+
+    application.dependency_overrides[get_db] = override_get_db
+    with TestClient(application) as test_client:
+        yield test_client
+    application.dependency_overrides.clear()
+    application.router.routes = [
+        route
+        for route in application.router.routes
+        if getattr(route, "path", None) != RBAC_TEST_PATH
+    ]
 
 
 @pytest.fixture
@@ -36,20 +69,6 @@ def student_token(client: TestClient) -> str:
     )
     assert response.status_code == 200
     return response.json()["access_token"]
-
-
-@pytest.fixture
-def rbac_client() -> TestClient:
-    """Test client with a temporary admin-only route for RBAC checks."""
-    rbac_app = FastAPI()
-    rbac_app.include_router(api_router, prefix="/api/v1")
-
-    @rbac_app.get("/api/v1/rbac-admin-test")
-    def admin_only(current_user: User = Depends(require_roles("ADMIN"))) -> dict[str, bool]:
-        return {"ok": True}
-
-    with TestClient(rbac_app) as test_client:
-        yield test_client
 
 
 def test_login_success(client: TestClient) -> None:
@@ -155,16 +174,10 @@ def test_require_roles_rejects_student(rbac_client: TestClient, student_token: s
     assert response.status_code == 403
 
 
-def test_ensure_user_has_role_forbidden(client: TestClient, student_token: str) -> None:
+def test_ensure_user_has_role_forbidden(client: TestClient, student_token: str, db_session) -> None:
     """Service-level role check should raise for insufficient role."""
-    from app.core.database import SessionLocal
-
-    db = SessionLocal()
-    try:
-        auth_service = AuthService(db)
-        user = auth_service.authenticate_token(student_token)
-        with pytest.raises(HTTPException) as exc_info:
-            auth_service.ensure_user_has_role(user, "ADMIN")
-        assert exc_info.value.status_code == 403
-    finally:
-        db.close()
+    auth_service = AuthService(db_session)
+    user = auth_service.authenticate_token(student_token)
+    with pytest.raises(HTTPException) as exc_info:
+        auth_service.ensure_user_has_role(user, "ADMIN")
+    assert exc_info.value.status_code == 403
