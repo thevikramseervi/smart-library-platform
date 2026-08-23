@@ -137,3 +137,15 @@ class BookRepository(BaseRepository[Book]):
         total = self.db.execute(total_stmt).scalar_one()
         available = self.db.execute(available_stmt).scalar_one()
         return total, available
+
+    def count_circulating_copies(self, book_id: UUID) -> int:
+        """Return count of copies that are available or currently on loan."""
+        statement = (
+            select(func.count())
+            .select_from(BookCopy)
+            .where(
+                BookCopy.book_id == book_id,
+                BookCopy.status.in_([BookCopyStatus.AVAILABLE, BookCopyStatus.BORROWED]),
+            )
+        )
+        return self.db.execute(statement).scalar_one()

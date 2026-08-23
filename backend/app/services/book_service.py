@@ -218,9 +218,18 @@ class BookService:
         return self._to_response(refreshed)
 
     def delete_book(self, book_id: UUID) -> None:
-        """Soft delete a book."""
+        """Soft delete a book when no copy is available or on loan."""
         book = self.repository.get_active_by_id(book_id)
         if book is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+        circulating = self.repository.count_circulating_copies(book_id)
+        if circulating > 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Book still has available or borrowed copies "
+                    "and cannot be deleted"
+                ),
+            )
         self.repository.soft_delete(book)
         self.db.commit()

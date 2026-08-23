@@ -18,21 +18,26 @@ class CirculationRepository:
         self.db = db
 
     def get_copy_for_update(self, copy_id: UUID) -> BookCopy | None:
-        """Lock a book copy row for update."""
+        """Lock a book copy row for update, excluding copies of deleted books."""
         statement = (
             select(BookCopy)
             .options(selectinload(BookCopy.book))
-            .where(BookCopy.id == copy_id)
-            .with_for_update()
+            .join(Book, BookCopy.book_id == Book.id)
+            .where(BookCopy.id == copy_id, Book.deleted_at.is_(None))
+            .with_for_update(of=BookCopy)
         )
         return self.db.execute(statement).scalar_one_or_none()
 
     def get_copy_by_inventory_code(self, inventory_code: str) -> BookCopy | None:
-        """Fetch a book copy by inventory code."""
+        """Fetch a book copy by inventory code, excluding deleted books."""
         statement = (
             select(BookCopy)
             .options(selectinload(BookCopy.book))
-            .where(BookCopy.inventory_code == inventory_code)
+            .join(Book, BookCopy.book_id == Book.id)
+            .where(
+                BookCopy.inventory_code == inventory_code,
+                Book.deleted_at.is_(None),
+            )
         )
         return self.db.execute(statement).scalar_one_or_none()
 
@@ -120,6 +125,7 @@ class CirculationRepository:
                 .join(Book, BookCopy.book_id == Book.id)
                 .options(selectinload(BookCopy.book))
                 .where(
+                    Book.deleted_at.is_(None),
                     BookCopy.status == BookCopyStatus.AVAILABLE,
                     or_(
                         BookCopy.inventory_code.ilike(pattern),
@@ -130,8 +136,12 @@ class CirculationRepository:
         else:
             statement = (
                 select(BookCopy)
+                .join(Book, BookCopy.book_id == Book.id)
                 .options(selectinload(BookCopy.book))
-                .where(BookCopy.status == BookCopyStatus.AVAILABLE)
+                .where(
+                    Book.deleted_at.is_(None),
+                    BookCopy.status == BookCopyStatus.AVAILABLE,
+                )
             )
         if book_id is not None:
             statement = statement.where(BookCopy.book_id == book_id)
