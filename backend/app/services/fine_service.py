@@ -1,6 +1,6 @@
 """Fine business logic."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -25,14 +25,18 @@ class FineService:
 
     def create_overdue_fine(self, transaction: Transaction, returned_at: datetime) -> Fine | None:
         """Create an overdue fine when a book is returned late."""
-        if self.repository.get_by_transaction_id(transaction.id) is not None:
-            return self.repository.get_by_transaction_id(transaction.id)
+        existing = self.repository.get_by_transaction_id(transaction.id)
+        if existing is not None:
+            return existing
 
         days_late = (returned_at.date() - transaction.due_at).days
         if days_late <= 0:
             return None
 
-        amount = Decimal(days_late) * settings.DAILY_OVERDUE_FINE_RATE
+        amount = min(
+            Decimal(days_late) * settings.DAILY_OVERDUE_FINE_RATE,
+            settings.MAX_FINE_AMOUNT,
+        )
         fine = Fine(
             transaction_id=transaction.id,
             amount=amount,
@@ -65,15 +69,10 @@ class FineService:
         return PaginatedResponse.create(responses, total, page, page_size)
 
     def mark_paid(self, fine_id: UUID) -> FineResponse:
-        """Mark a fine as paid."""
-        fine = self.repository.get_by_id(fine_id)
-        if fine is None:
+        """Mark a fine as paid exactly once, even under concurrent requests."""
+        updated_rows = self.repository.mark_paid_if_unpaid(fine_id)
+        if updated_rows is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fine not found")
-        if fine.paid:
+        if updated_rows == 0:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Fine already paid")
-
-        fine.paid = True
-        fine.paid_at = datetime.now(UTC)
-        self.db.commit()
-        self.db.refresh(fine)
-        return FineResponse.model_validate(fine)
+        return FineResponse.model_validate(self.repository.get_by_id(fine_id))

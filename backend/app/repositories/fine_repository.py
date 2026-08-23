@@ -1,8 +1,9 @@
 """Fine repository."""
 
+from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.fine import Fine
@@ -20,6 +21,25 @@ class FineRepository(BaseRepository[Fine]):
         """Return a fine for a transaction, if any."""
         statement = select(Fine).where(Fine.transaction_id == transaction_id)
         return self.db.execute(statement).scalar_one_or_none()
+
+    def mark_paid_if_unpaid(self, fine_id: UUID) -> int | None:
+        """Atomically mark an unpaid fine paid.
+
+        Returns the number of rows updated (0 when already paid), or None
+        when the fine does not exist. The conditional UPDATE makes concurrent
+        double-pay attempts deterministic instead of last-writer-wins.
+        """
+        exists = self.db.execute(select(Fine.id).where(Fine.id == fine_id)).scalar_one_or_none()
+        if exists is None:
+            return None
+        statement = (
+            update(Fine)
+            .where(Fine.id == fine_id, Fine.paid.is_(False))
+            .values(paid=True, paid_at=datetime.now(UTC))
+        )
+        result = self.db.execute(statement)
+        self.db.commit()
+        return result.rowcount
 
     def has_unpaid_for_student(self, student_id: UUID) -> bool:
         """Return True if the student has any unpaid fine."""
