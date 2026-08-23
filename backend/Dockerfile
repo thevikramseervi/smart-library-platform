@@ -1,0 +1,34 @@
+# Build stage: resolve dependencies into a virtual environment with uv.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
+
+# Runtime stage: copy the prepared environment, run as non-root.
+FROM python:3.12-slim-bookworm AS runtime
+
+WORKDIR /app
+
+RUN groupadd --system app && useradd --system --gid app --create-home app
+
+COPY --from=builder /app/.venv /app/.venv
+COPY alembic.ini pyproject.toml uv.lock ./
+COPY alembic ./alembic
+COPY app ./app
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+USER app
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -2,11 +2,11 @@ services:
   db:
     image: pgvector/pgvector:pg16
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
-      POSTGRES_USER: smart_library
-      POSTGRES_PASSWORD: smart_library
-      POSTGRES_DB: smart_library
+      POSTGRES_USER: ${POSTGRES_USER:-smart_library}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smart_library}
+      POSTGRES_DB: ${POSTGRES_DB:-smart_library}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
