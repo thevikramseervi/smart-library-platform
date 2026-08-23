@@ -2,7 +2,17 @@
 
 from decimal import Decimal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+INSECURE_JWT_SECRETS = frozenset(
+    {
+        "change-me-in-production",
+        "dev-secret-key-change-in-production",
+        "secret",
+        "secretkey",
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -19,6 +29,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ALLOW_INSECURE_SECRETS: bool = False
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
     CLOUD_STORAGE_BUCKET: str = ""
@@ -42,6 +53,19 @@ class Settings(BaseSettings):
 
     LOGIN_RATE_LIMIT_ATTEMPTS: int = 5
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
+
+    @model_validator(mode="after")
+    def _reject_insecure_jwt_secret(self) -> "Settings":
+        """Fail startup when the JWT secret is missing, weak, or a known default."""
+        if self.ALLOW_INSECURE_SECRETS:
+            return self
+        secret = self.JWT_SECRET_KEY.strip()
+        if not secret or secret.lower() in INSECURE_JWT_SECRETS or len(secret) < 32:
+            raise ValueError(
+                "JWT_SECRET_KEY must be a strong unique value of at least 32 characters. "
+                "Set ALLOW_INSECURE_SECRETS=true only for local development/testing."
+            )
+        return self
 
 
 settings = Settings()
