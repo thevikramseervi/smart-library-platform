@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.sql import contains_pattern
 from app.models.author import Author
 from app.models.book import Book
 from app.models.book_copy import BookCopy, BookCopyStatus
@@ -66,7 +67,7 @@ class BookRepository(BaseRepository[Book]):
             id_query = id_query.where(Book.authors.any(id=author_id))
 
         if q:
-            pattern = f"%{q}%"
+            pattern = contains_pattern(q)
             id_query = (
                 id_query.outerjoin(Book.authors)
                 .outerjoin(Book.publisher)

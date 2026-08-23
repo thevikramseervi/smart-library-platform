@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.sql import contains_pattern
 from app.models.role import Role
 from app.models.user import User
 from app.repositories.base import BaseRepository
@@ -72,7 +73,7 @@ class UserRepository(BaseRepository[User]):
         if is_active is not None:
             filters.append(User.is_active.is_(is_active))
         if q:
-            pattern = f"%{q.strip()}%"
+            pattern = contains_pattern(q)
             filters.append(
                 or_(
                     User.email.ilike(pattern),

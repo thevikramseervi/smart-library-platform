@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.sql import contains_pattern
 from app.models.book import Book
 from app.models.book_copy import BookCopy, BookCopyStatus
 from app.models.reservation import Reservation, ReservationStatus
@@ -106,7 +107,7 @@ class CirculationRepository:
 
     def search_students(self, query: str, *, limit: int = 20) -> list[User]:
         """Search active students by code, email, or name."""
-        pattern = f"%{query.strip()}%"
+        pattern = contains_pattern(query)
         statement = (
             select(User)
             .options(selectinload(User.role))
@@ -136,7 +137,7 @@ class CirculationRepository:
     ) -> list[BookCopy]:
         """Return available copies optionally filtered by book or inventory code."""
         if query:
-            pattern = f"%{query.strip()}%"
+            pattern = contains_pattern(query)
             statement = (
                 select(BookCopy)
                 .join(Book, BookCopy.book_id == Book.id)
