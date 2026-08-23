@@ -188,7 +188,7 @@ class TransactionService:
     def return_copy(
         self,
         payload: TransactionReturnRequest,
-        _returned_by: User,
+        returned_by: User,
     ) -> TransactionResponse:
         """Return a borrowed copy and create an overdue fine when applicable."""
         copy_id = self._resolve_copy_id(payload)
@@ -207,6 +207,7 @@ class TransactionService:
         returned_at = utc_now()
         transaction.returned_at = returned_at
         transaction.status = TransactionStatus.RETURNED
+        transaction.returned_by = returned_by.id
         queue_waiting = self.reservation_repository.list_queue_for_book(copy.book_id)
         copy.status = (
             BookCopyStatus.RESERVED if queue_waiting else BookCopyStatus.AVAILABLE

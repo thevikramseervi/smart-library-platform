@@ -88,6 +88,7 @@ class TransactionResponse(BaseModel):
     status: str
     is_overdue: bool
     reservation_id: UUID | None = None
+    returned_by: UUID | None = None
     book_copy: TransactionCopySummary
     student: TransactionUserSummary
     issuer: TransactionUserSummary

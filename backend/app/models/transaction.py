@@ -70,6 +70,11 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("reservations.id"),
         nullable=True,
     )
+    returned_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
 
     book_copy: Mapped["BookCopy"] = relationship("BookCopy", back_populates="transactions")
     student: Mapped["User"] = relationship("User", foreign_keys=[student_id])
