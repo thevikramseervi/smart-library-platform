@@ -4,10 +4,10 @@ from collections.abc import Generator
 from datetime import timedelta
 from uuid import UUID
 
+import jwt
 import pytest
 from fastapi import Depends, HTTPException
 from fastapi.testclient import TestClient
-from jose import jwt
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
@@ -142,7 +142,12 @@ def test_me_expired_token(client: TestClient) -> None:
         "/api/v1/auth/login",
         json={"email": settings.DEV_ADMIN_EMAIL, "password": settings.DEV_ADMIN_PASSWORD},
     )
-    user_id = UUID(jwt.get_unverified_claims(login_response.json()["access_token"])["sub"])
+    user_id = UUID(
+        jwt.decode(
+            login_response.json()["access_token"],
+            options={"verify_signature": False},
+        )["sub"]
+    )
     expired_token = create_access_token(user_id, expires_delta=timedelta(seconds=-1))
 
     response = client.get(
