@@ -5,11 +5,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.book import Book
-from tests.conftest_circulation import (  # noqa: F401
-    admin_token,
-    catalog_book_with_copy,
-    student_token,
-)
 
 
 def test_cannot_delete_book_with_available_copy(

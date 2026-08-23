@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.reservation import Reservation, ReservationStatus
-from tests.conftest_circulation import catalog_book_with_copy  # noqa: F401
 
 
 def test_student_cannot_list_transactions(

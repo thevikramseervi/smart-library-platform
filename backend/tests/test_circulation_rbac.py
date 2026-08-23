@@ -2,8 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-from tests.conftest_circulation import catalog_book_with_copy  # noqa: F401
-
 
 def test_student_cannot_issue(
     client: TestClient,

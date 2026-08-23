@@ -27,7 +27,10 @@ class DepartmentService:
         """Return a department by id."""
         department = self.repository.get_by_id(department_id)
         if department is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Department not found",
+            )
         return DepartmentResponse.model_validate(department)
 
     def create_department(self, payload: DepartmentCreate) -> DepartmentResponse:
@@ -56,7 +59,10 @@ class DepartmentService:
         """Update a department."""
         department = self.repository.get_by_id(department_id)
         if department is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Department not found",
+            )
 
         if payload.code is not None and payload.code != department.code:
             existing = self.repository.get_by_code(payload.code, exclude_id=department.id)
@@ -80,7 +86,10 @@ class DepartmentService:
         """Hard delete a department when no users reference it."""
         department = self.repository.get_by_id(department_id)
         if department is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Department not found",
+            )
 
         if self.repository.count_users(department_id) > 0:
             raise HTTPException(

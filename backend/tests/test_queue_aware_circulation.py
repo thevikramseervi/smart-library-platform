@@ -7,12 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.models.book_copy import BookCopy
 from app.models.transaction import Transaction
-from tests.conftest_circulation import (  # noqa: F401
-    admin_token,
-    catalog_book_with_copy,
-    student2_token,
-    student_token,
-)
 
 
 def _headers(token: str) -> dict:

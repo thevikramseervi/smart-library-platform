@@ -10,11 +10,6 @@ from sqlalchemy.orm import Session
 from app.core.clock import utc_now, utc_today
 from app.core.config import settings
 from app.models.transaction import Transaction
-from tests.conftest_circulation import (  # noqa: F401,F811
-    admin_token,
-    catalog_book_with_copy,
-    student_token,
-)
 
 
 def _issue(client: TestClient, token: str, copy: dict, student_id: str) -> UUID:

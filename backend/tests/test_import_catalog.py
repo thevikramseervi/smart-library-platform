@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 from sqlalchemy import func, select
 
 from app.db.import_catalog import CatalogImporter, ImportStats
@@ -69,7 +68,10 @@ def test_successful_import(db_session, tmp_path: Path) -> None:
     assert stats.books_imported == 2
     assert stats.copies_generated >= 4
     assert db_session.execute(select(func.count()).select_from(Book)).scalar_one() == 2
-    assert db_session.execute(select(func.count()).select_from(BookCopy)).scalar_one() == stats.copies_generated
+    copy_count = db_session.execute(
+        select(func.count()).select_from(BookCopy)
+    ).scalar_one()
+    assert copy_count == stats.copies_generated
 
 
 def test_author_and_publisher_reuse(db_session, tmp_path: Path) -> None:

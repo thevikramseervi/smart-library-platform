@@ -3,7 +3,6 @@
 from fastapi.testclient import TestClient
 
 from app.db.seed import DEV_STUDENT_EMAIL
-from tests.conftest_circulation import admin_token, student_token  # noqa: F401
 
 
 def test_reset_password_revokes_existing_token(

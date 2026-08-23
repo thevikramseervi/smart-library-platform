@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.transaction import Transaction
-from tests.conftest_circulation import catalog_book_with_copy, utc_today  # noqa: F401
+from tests.conftest_circulation import utc_today
 
 
 def test_reservation_requires_no_available_copies(

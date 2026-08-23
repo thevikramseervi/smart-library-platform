@@ -5,7 +5,6 @@ import uuid
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from tests.conftest_circulation import admin_token, student_token  # noqa: F401
 
 
 def _create_book_with_copy(client: TestClient, headers: dict) -> str:

@@ -89,7 +89,10 @@ class CatalogImporter:
     def load_manifest(self) -> list[dict[str, str]]:
         """Load curated ISBN manifest."""
         entries = json.loads(self.manifest_path.read_text(encoding="utf-8"))
-        return [{"isbn": normalize_isbn(item["isbn"]), "category": item["category"]} for item in entries]
+        return [
+            {"isbn": normalize_isbn(item["isbn"]), "category": item["category"]}
+            for item in entries
+        ]
 
     def clear_catalog_tables(self) -> None:
         """Remove catalog and circulation data while preserving users and languages."""
@@ -113,7 +116,8 @@ class CatalogImporter:
         book_count = self.db.execute(select(func.count()).select_from(Book)).scalar_one()
         if book_count > 0:
             raise RuntimeError(
-                "Catalog tables are not empty. Run a fresh import with clear_catalog_tables() first.",
+                "Catalog tables are not empty. "
+                "Run a fresh import with clear_catalog_tables() first.",
             )
 
     def _seed_categories(self, stats: ImportStats) -> None:

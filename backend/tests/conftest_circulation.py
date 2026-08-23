@@ -9,8 +9,20 @@ from app.core.clock import utc_today  # noqa: F401 (re-exported to circulation t
 from app.core.config import settings
 
 
+def _student_login_token(client: TestClient) -> str:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "student@library.local", "password": "student123456"},
+    )
+    return response.json()["access_token"]
+
+
 @pytest.fixture(autouse=True)
-def clean_student_circulation_state(client: TestClient, admin_token: str, student_token: str) -> None:
+def clean_student_circulation_state(
+    client: TestClient,
+    admin_token: str,
+    student_token: str,
+) -> None:
     """Return active loans and pay fines so circulation tests start clean."""
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     student_headers = {"Authorization": f"Bearer {student_token}"}
@@ -105,9 +117,7 @@ def catalog_book_with_copy(client: TestClient, admin_token: str) -> dict:
     ).json()
     me = client.get(
         "/api/v1/auth/me",
-        headers={
-            "Authorization": f"Bearer {client.post('/api/v1/auth/login', json={'email': 'student@library.local', 'password': 'student123456'}).json()['access_token']}"
-        },
+        headers={"Authorization": f"Bearer {_student_login_token(client)}"},
     ).json()
     return {
         "book_id": book["id"],

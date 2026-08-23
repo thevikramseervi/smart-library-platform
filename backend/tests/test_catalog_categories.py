@@ -65,7 +65,11 @@ def test_category_get_update_and_soft_delete_hidden(client: TestClient, admin_to
     assert get_after_delete.status_code == 404
 
 
-def test_get_category_student_allowed(client: TestClient, admin_token: str, student_token: str) -> None:
+def test_get_category_student_allowed(
+    client: TestClient,
+    admin_token: str,
+    student_token: str,
+) -> None:
     """Student can read a category by id."""
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     suffix = uuid.uuid4().hex[:8]

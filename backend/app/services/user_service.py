@@ -42,7 +42,10 @@ class UserService:
             return None
         department = self.department_repository.get_by_id(department_id)
         if department is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Department not found",
+            )
         return department
 
     def _validate_role_fields(
@@ -147,7 +150,10 @@ class UserService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email already exists",
             )
-        if payload.student_code and self.repository.get_by_student_code(payload.student_code) is not None:
+        student_code_taken = payload.student_code is not None and (
+            self.repository.get_by_student_code(payload.student_code) is not None
+        )
+        if student_code_taken:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Student code already exists",
@@ -181,13 +187,12 @@ class UserService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         next_role = self._get_role(payload.role_id) if payload.role_id is not None else user.role
-        next_department_id = (
-            payload.department_id if "department_id" in payload.model_fields_set else user.department_id
-        )
-        next_student_code = (
-            payload.student_code if "student_code" in payload.model_fields_set else user.student_code
-        )
-        next_semester = payload.semester if "semester" in payload.model_fields_set else user.semester
+        uses_field_semantics = "department_id" in payload.model_fields_set
+        next_department_id = payload.department_id if uses_field_semantics else user.department_id
+        sets_student_code = "student_code" in payload.model_fields_set
+        next_student_code = payload.student_code if sets_student_code else user.student_code
+        sets_semester = "semester" in payload.model_fields_set
+        next_semester = payload.semester if sets_semester else user.semester
 
         if payload.role_id is not None and next_role.name != "ADMIN" and user.role.name == "ADMIN":
             self._ensure_last_admin_guard(user, action="demote the last active admin from")

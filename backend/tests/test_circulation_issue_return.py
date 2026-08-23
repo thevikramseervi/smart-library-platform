@@ -1,7 +1,6 @@
 """Circulation issue and return tests."""
 
-from datetime import UTC, date, datetime, timedelta
-
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 from fastapi.testclient import TestClient
@@ -9,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.transaction import Transaction
-from tests.conftest_circulation import catalog_book_with_copy, utc_today  # noqa: F401
+from tests.conftest_circulation import utc_today
 
 
 def test_issue_and_return_flow(
