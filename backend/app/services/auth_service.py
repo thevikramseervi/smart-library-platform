@@ -41,7 +41,7 @@ class AuthService:
             )
 
         login_rate_limiter.record_success(email=credentials.email)
-        access_token = create_access_token(user.id)
+        access_token = create_access_token(user.id, token_version=user.token_version)
         return TokenResponse(access_token=access_token)
 
     def authenticate_token(self, token: str) -> User:
@@ -61,6 +61,11 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials",
+            )
+        if payload.ver != user.token_version:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session revoked; please sign in again",
             )
 
         return user

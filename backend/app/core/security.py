@@ -16,6 +16,7 @@ class TokenPayload(BaseModel):
     """Decoded JWT payload."""
 
     sub: str
+    ver: int
 
 
 def hash_password(password: str) -> str:
@@ -35,8 +36,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(subject: UUID, *, expires_delta: timedelta | None = None) -> str:
-    """Create a signed JWT containing only sub, iat, and exp claims."""
+def create_access_token(
+    subject: UUID,
+    *,
+    token_version: int = 0,
+    expires_delta: timedelta | None = None,
+) -> str:
+    """Create a signed JWT carrying sub, ver, iat, and exp claims."""
     now = datetime.now(UTC)
     expire_at = now + (
         expires_delta if expires_delta is not None
@@ -44,6 +50,7 @@ def create_access_token(subject: UUID, *, expires_delta: timedelta | None = None
     )
     payload = {
         "sub": str(subject),
+        "ver": token_version,
         "iat": now,
         "exp": expire_at,
     }
@@ -57,7 +64,7 @@ def decode_access_token(token: str) -> TokenPayload:
             token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
-            options={"require": ["sub", "exp"]},
+            options={"require": ["sub", "exp", "ver"]},
         )
     except jwt.PyJWTError as exc:
         raise ValueError("Invalid or expired token") from exc
@@ -66,4 +73,4 @@ def decode_access_token(token: str) -> TokenPayload:
     if subject is None:
         raise ValueError("Invalid token payload")
 
-    return TokenPayload(sub=subject)
+    return TokenPayload(sub=subject, ver=int(payload["ver"]))

@@ -216,6 +216,7 @@ class UserService:
             user.phone = payload.phone
         if payload.password is not None:
             user.password_hash = hash_password(payload.password)
+            user.token_version = (user.token_version or 0) + 1
         if "student_code" in payload.model_fields_set:
             if next_student_code and self.repository.get_by_student_code(
                 next_student_code,
@@ -253,12 +254,13 @@ class UserService:
         *,
         actor_id: UUID,
     ) -> None:
-        """Reset a user's password without an email workflow."""
+        """Reset a user's password and revoke their outstanding sessions."""
         user = self.repository.get_by_id_with_relations(user_id)
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user.password_hash = hash_password(payload.password)
+        user.token_version = (user.token_version or 0) + 1
         self.db.commit()
 
     def deactivate_user(self, user_id: UUID, *, actor_id: UUID) -> None:

@@ -40,6 +40,12 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+    )
 
     role: Mapped["Role"] = relationship("Role", back_populates="users")
     department: Mapped["Department | None"] = relationship(
