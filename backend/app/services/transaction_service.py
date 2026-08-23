@@ -99,7 +99,7 @@ class TransactionService:
                 detail="Student has unpaid fines and cannot borrow books",
             )
 
-        student = self.circulation_repository.get_student_by_id(student_id)
+        student = self.circulation_repository.get_student_for_update(student_id)
         if student is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
 
@@ -110,6 +110,14 @@ class TransactionService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Book copy is not available for issue",
+            )
+        if self.repository.count_active_for_student(student_id) >= settings.MAX_ACTIVE_LOANS:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Student has reached the limit of "
+                    f"{settings.MAX_ACTIVE_LOANS} concurrent loans"
+                ),
             )
         if self.repository.get_open_for_copy(copy_id) is not None:
             raise HTTPException(
@@ -192,7 +200,10 @@ class TransactionService:
         """Return a transaction if the caller is allowed to view it."""
         transaction = self.repository.get_by_id_with_relations(transaction_id)
         if transaction is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Transaction not found",
+            )
         if not is_staff and transaction.student_id != current_user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
         return self._to_response(transaction)

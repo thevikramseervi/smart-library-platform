@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     RESERVATION_EXPIRY_DAYS: int = 7
     DAILY_OVERDUE_FINE_RATE: Decimal = Decimal("10.00")
     MAX_FINE_AMOUNT: Decimal = Decimal("500.00")
+    MAX_ACTIVE_LOANS: int = 5
 
     LOGIN_RATE_LIMIT_ATTEMPTS: int = 5
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300

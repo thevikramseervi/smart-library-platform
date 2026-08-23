@@ -113,6 +113,18 @@ class TransactionRepository(BaseRepository[Transaction]):
         )
         return list(self.db.execute(statement).unique().scalars().all())
 
+    def count_active_for_student(self, student_id: UUID) -> int:
+        """Count a student's open loans."""
+        statement = (
+            select(func.count())
+            .select_from(Transaction)
+            .where(
+                Transaction.student_id == student_id,
+                Transaction.status == TransactionStatus.ISSUED,
+            )
+        )
+        return self.db.execute(statement).scalar_one()
+
     def create(self, transaction: Transaction) -> Transaction:
         """Persist a new transaction."""
         self.db.add(transaction)

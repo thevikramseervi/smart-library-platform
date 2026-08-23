@@ -56,6 +56,22 @@ class CirculationRepository:
         )
         return self.db.execute(statement).scalar_one_or_none()
 
+    def get_student_for_update(self, student_id: UUID) -> User | None:
+        """Lock an active student row so concurrent issues to them serialize."""
+        statement = (
+            select(User)
+            .options(selectinload(User.role))
+            .join(Role, User.role_id == Role.id)
+            .where(
+                User.id == student_id,
+                User.deleted_at.is_(None),
+                User.is_active.is_(True),
+                Role.name == "STUDENT",
+            )
+            .with_for_update(of=User)
+        )
+        return self.db.execute(statement).scalar_one_or_none()
+
     def get_student_by_code(self, student_code: str) -> User | None:
         """Fetch an active student by student code."""
         statement = (
