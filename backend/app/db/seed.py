@@ -233,6 +233,8 @@ def run_seed(*, import_catalog: bool = False) -> None:
 
 if __name__ == "__main__":
     import argparse
+    import os
+    import sys
 
     parser = argparse.ArgumentParser(description="Seed roles, users, and optional catalog")
     parser.add_argument(
@@ -241,4 +243,13 @@ if __name__ == "__main__":
         help="Import real library catalog from Open Library after seeding users",
     )
     args = parser.parse_args()
+
+    if os.environ.get("SEED_ALLOWED", "").lower() != "true":
+        sys.stderr.write(
+            "Refusing to seed: this script creates weak-credential development "
+            "accounts. Re-run with SEED_ALLOWED=true if DATABASE_URL really "
+            "points at a disposable local database.\n",
+        )
+        sys.exit(1)
+
     run_seed(import_catalog=args.catalog)

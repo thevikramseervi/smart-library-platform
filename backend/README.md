@@ -92,13 +92,13 @@ Migration files live in `alembic/versions/`:
 Populates roles, departments, languages, and development users. **Intended for local development and testing only.**
 
 ```bash
-uv run python -m app.db.seed
+SEED_ALLOWED=true uv run python -m app.db.seed
 ```
 
 Seed users and roles, then optionally import the real Open Library catalog:
 
 ```bash
-uv run python -m app.db.seed --catalog
+SEED_ALLOWED=true SEED_ALLOWED=true uv run python -m app.db.seed --catalog
 uv run python -m app.db.import_catalog
 uv run python -m app.scripts.import_real_books
 ```
@@ -145,7 +145,7 @@ Tests use FastAPI's `TestClient` against the application with the configured dat
 # Optional: create and migrate a dedicated test database
 createdb smart_library_test
 DATABASE_URL=postgresql+psycopg://.../smart_library_test uv run alembic upgrade head
-DATABASE_URL=postgresql+psycopg://.../smart_library uv run python -m app.db.seed
+DATABASE_URL=postgresql+psycopg://.../smart_library SEED_ALLOWED=true uv run python -m app.db.seed
 # Add to .env:
 # TEST_DATABASE_URL=postgresql+psycopg://.../smart_library_test
 ```
@@ -161,7 +161,7 @@ Without `TEST_DATABASE_URL`, tests still roll back all writes against `DATABASE_
 | Install deps | `uv sync` |
 | Run server | `uv run uvicorn app.main:app --reload` |
 | Migrate | `uv run alembic upgrade head` |
-| Seed dev data | `uv run python -m app.db.seed` |
+| Seed dev data | `SEED_ALLOWED=true uv run python -m app.db.seed` |
 | Import catalog | `uv run python -m app.db.import_catalog` |
 | Test | `uv run pytest` |
 | Lint | `uv run ruff check .` |

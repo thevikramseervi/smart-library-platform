@@ -48,7 +48,7 @@ cd backend
 cp .env.example .env
 uv sync
 uv run alembic upgrade head
-uv run python -m app.db.seed
+SEED_ALLOWED=true uv run python -m app.db.seed
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
@@ -110,7 +110,7 @@ You do **not** need `docker compose` when using Neon.
 ```bash
 uv sync
 uv run alembic upgrade head
-uv run python -m app.db.seed
+SEED_ALLOWED=true uv run python -m app.db.seed
 ```
 
 > **Production warning:** The seed script creates default admin/librarian/student accounts with known passwords. Run seed only in local/staging environments, or create production admin accounts manually.
@@ -148,7 +148,7 @@ If migrations fail on a fresh Neon database, verify:
 
 ```bash
 cd backend
-uv run python -m app.db.seed
+SEED_ALLOWED=true uv run python -m app.db.seed
 ```
 
 Creates:
@@ -242,7 +242,7 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 
 ```bash
 cd backend
-uv run python -m app.db.seed
+SEED_ALLOWED=true uv run python -m app.db.seed
 ```
 
 Confirm users exist (optional):

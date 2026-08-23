@@ -53,7 +53,7 @@ uv run alembic upgrade head
 
 | Environment | Recommendation |
 |-------------|----------------|
-| Local / staging | Run `uv run python -m app.db.seed` |
+| Local / staging | Run `SEED_ALLOWED=true uv run python -m app.db.seed` |
 | Production | **Do not** run the dev seed script |
 
 For production, create the initial admin account via:

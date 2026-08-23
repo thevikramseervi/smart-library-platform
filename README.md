@@ -78,7 +78,7 @@ cd backend
 cp .env.example .env
 uv sync
 uv run alembic upgrade head
-uv run python -m app.db.seed
+SEED_ALLOWED=true uv run python -m app.db.seed
 uv run uvicorn app.main:app --reload --port 8000
 
 cd ../frontend
@@ -106,7 +106,7 @@ pnpm dev
    ```bash
    uv sync
    uv run alembic upgrade head
-   uv run python -m app.db.seed    # local/dev only — see docs/setup.md
+   SEED_ALLOWED=true uv run python -m app.db.seed    # local/dev only — see docs/setup.md
    uv run uvicorn app.main:app --reload --port 8000
    ```
 
@@ -118,7 +118,7 @@ See [`docs/setup.md`](docs/setup.md) for Neon SSL notes, CORS, and troubleshooti
 
 ## Development Credentials
 
-Created by `uv run python -m app.db.seed` (local development only):
+Created by `SEED_ALLOWED=true uv run python -m app.db.seed` (local development only):
 
 | Role | Email | Password | Notes |
 |------|-------|----------|-------|
