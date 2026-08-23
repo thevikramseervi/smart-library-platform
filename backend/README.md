@@ -143,14 +143,17 @@ Tests use FastAPI's `TestClient` against the application with the configured dat
 
 **Test isolation:** Pytest uses `TEST_DATABASE_URL` when set, otherwise `DATABASE_URL`. Each test runs inside a rolled-back SQLAlchemy transaction (`join_transaction_mode="create_savepoint"`) so API commits never persist. Override `get_db` routes all requests through the test session.
 
+Recommended local setup — the compose file ships an isolated throwaway test database:
+
 ```bash
-# Optional: create and migrate a dedicated test database
-createdb smart_library_test
-DATABASE_URL=postgresql+psycopg://.../smart_library_test uv run alembic upgrade head
-DATABASE_URL=postgresql+psycopg://.../smart_library SEED_ALLOWED=true uv run python -m app.db.seed
-# Add to .env:
-# TEST_DATABASE_URL=postgresql+psycopg://.../smart_library_test
+docker compose up -d testdb          # pgvector Postgres on 127.0.0.1:5433
+DATABASE_URL='postgresql+psycopg://smart_library:smart_library@127.0.0.1:5433/smart_library_test' \
+  uv run alembic upgrade head
+# Add to backend/.env:
+# TEST_DATABASE_URL=postgresql+psycopg://smart_library:smart_library@127.0.0.1:5433/smart_library_test
 ```
+
+Reference data (roles, dev users, languages) is seeded automatically inside each test's transaction; never run the seed script against the test database.
 
 Without `TEST_DATABASE_URL`, tests still roll back all writes against `DATABASE_URL` and leave the catalog unchanged after a full run.
 

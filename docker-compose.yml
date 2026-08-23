@@ -15,5 +15,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Isolated throwaway database for pytest (TEST_DATABASE_URL).
+  # Start with: docker compose up -d testdb
+  testdb:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: smart_library
+      POSTGRES_PASSWORD: smart_library
+      POSTGRES_DB: smart_library_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smart_library -d smart_library_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   pgdata:
