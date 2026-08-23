@@ -1,6 +1,6 @@
 # Smart Library Platform - Database Design
 
-**Version:** Sprint 4.8
+**Version:** Sprint 5.1
 
 ## Overview
 
@@ -44,7 +44,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables created by Alembic migrations `001` through `004`.
+Tables created by Alembic migrations `001` through `006`.
 
 ## Migration History
 
@@ -54,6 +54,8 @@ Tables created by Alembic migrations `001` through `004`.
 | `002_catalog_schema` | `publishers`, `languages`, `authors`, `categories`, `books`, `book_authors`, `book_categories`, `book_copies` |
 | `003_circulation_schema` | `transactions`, `reservations`, `fines` |
 | `004_book_copy_retired_status` | Adds `RETIRED` to `BookCopyStatus` enum |
+| `005_enable_pgvector` | Enables PostgreSQL `vector` extension |
+| `006_search_schema` | `book_embeddings`, `books.search_vector`, FTS/trigram/HNSW indexes; enables `pg_trgm` |
 
 ---
 
@@ -99,6 +101,16 @@ FULFILLED
 CANCELLED
 EXPIRED
 ```
+
+### EmbeddingStatus
+
+```text
+PENDING
+INDEXED
+FAILED
+```
+
+Used by `book_embeddings.embedding_status`. Only rows with `INDEXED` and a non-null embedding participate in semantic search.
 
 ---
 
@@ -154,6 +166,30 @@ Standard catalog reference tables with soft delete on publishers, authors, categ
 ## books
 
 Core bibliographic record with optional ISBN, publisher, language, edition, cover URL, `is_digital` flag (no digital resource storage yet).
+
+| Column | Type | Notes |
+| ------ | ---- | ----- |
+| search_vector | TSVECTOR | Nullable; populated by indexing pipeline (Sprint 5.2+) |
+
+GIN index `ix_books_search_vector` (partial: `deleted_at IS NULL`). Trigram index `ix_books_title_trgm` for autocomplete.
+
+## book_embeddings
+
+1:1 semantic search metadata per book. Canonical embed text is rebuilt from catalog metadata at index time (not stored).
+
+| Column | Type | Notes |
+| ------ | ---- | ----- |
+| book_id | UUID | PK, FK → `books.id` ON DELETE CASCADE |
+| embedding | vector(1024) | NULL while `PENDING` or `FAILED` |
+| embedding_status | EmbeddingStatus | Default `PENDING` |
+| content_hash | CHAR(64) | SHA-256 of canonical text |
+| model_name | VARCHAR(100) | Set on successful index |
+| model_version | VARCHAR(50) | Model pin for migration |
+| last_error | TEXT | Populated when `FAILED` |
+| indexed_at | TIMESTAMPTZ | Set when status → `INDEXED` |
+| created_at / updated_at | TIMESTAMPTZ | Standard |
+
+Indexes: HNSW on `embedding` (`vector_cosine_ops`), partial btree `ix_book_embeddings_indexed` for indexed rows.
 
 ## book_authors, book_categories
 
@@ -267,10 +303,6 @@ One rating (1–5) per student per book.
 
 One review text per student per book.
 
-## book_embeddings
-
-Vector embeddings for semantic search (requires pgvector extension on PostgreSQL).
-
 ## notifications
 
 In-app notification records per user.
@@ -287,9 +319,7 @@ Holiday and closure dates for working-day fine calculation.
 
 # AI Design Notes (Future)
 
-When implemented, recommendations will use borrow history, ratings, department, and semester. Semantic search will use Sentence Transformers + pgvector cosine similarity over book metadata embeddings.
-
-These features require planned tables and infrastructure not present in Sprint 4.
+When implemented, recommendations will use borrow history, ratings, department, and semester. Semantic search uses BGE-M3 embeddings (1024-dim) stored in `book_embeddings` with pgvector cosine similarity. Search analytics (`search_query_logs`) is planned for Sprint 5.5.
 
 ---
 
@@ -297,13 +327,13 @@ These features require planned tables and infrastructure not present in Sprint 4
 
 ## Local development
 
-Docker Compose (`docker-compose.yml`) uses `pgvector/pgvector:pg16`. Current migrations only require `pgcrypto`.
+Docker Compose (`docker-compose.yml`) uses `pgvector/pgvector:pg16`. Migrations enable `pgcrypto`, `vector`, and `pg_trgm` as required.
 
 ## Neon
 
 Use connection string with `sslmode=require`. Run `uv run alembic upgrade head` from `backend/`.
 
-Enable `pgvector` on Neon when semantic search is implemented.
+Enable `vector` and `pg_trgm` extensions via migrations `005` and `006` (supported on Neon PostgreSQL 16).
 
 ---
 

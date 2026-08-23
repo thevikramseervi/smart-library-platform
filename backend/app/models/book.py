@@ -6,7 +6,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -15,6 +15,7 @@ from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 if TYPE_CHECKING:
     from app.models.author import Author
     from app.models.book_copy import BookCopy
+    from app.models.book_embedding import BookEmbedding
     from app.models.category import Category
     from app.models.language import Language
     from app.models.publisher import Publisher
@@ -43,6 +44,7 @@ class Book(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     cover_image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_digital: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    search_vector: Mapped[str | None] = mapped_column(TSVECTOR, nullable=True)
 
     publisher: Mapped["Publisher"] = relationship("Publisher", back_populates="books")
     language: Mapped["Language"] = relationship("Language", back_populates="books")
@@ -58,3 +60,8 @@ class Book(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     )
     copies: Mapped[list["BookCopy"]] = relationship("BookCopy", back_populates="book")
     reservations: Mapped[list["Reservation"]] = relationship("Reservation", back_populates="book")
+    embedding: Mapped["BookEmbedding | None"] = relationship(
+        "BookEmbedding",
+        back_populates="book",
+        uselist=False,
+    )

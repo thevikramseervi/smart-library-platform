@@ -5,6 +5,7 @@ from app.models.book import Book
 from app.models.book_author import BookAuthor
 from app.models.book_category import BookCategory
 from app.models.book_copy import BookCopy, BookCopyStatus
+from app.models.book_embedding import BookEmbedding, EmbeddingStatus
 from app.models.category import Category
 from app.models.department import Department
 from app.models.fine import Fine
@@ -22,6 +23,8 @@ __all__ = [
     "BookCategory",
     "BookCopy",
     "BookCopyStatus",
+    "BookEmbedding",
+    "EmbeddingStatus",
     "Category",
     "Department",
     "Fine",

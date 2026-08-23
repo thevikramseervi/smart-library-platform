@@ -13,6 +13,7 @@ from app.models import (  # noqa: F401
     BookAuthor,
     BookCategory,
     BookCopy,
+    BookEmbedding,
     Category,
     Department,
     Fine,
