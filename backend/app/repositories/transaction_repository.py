@@ -1,11 +1,11 @@
 """Transaction repository."""
 
-from datetime import date
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.clock import utc_today
 from app.models.book_copy import BookCopy
 from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
@@ -85,7 +85,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         if overdue:
             statement = statement.where(
                 Transaction.status == TransactionStatus.ISSUED,
-                Transaction.due_at < date.today(),
+                Transaction.due_at < utc_today(),
             )
         if book_id is not None:
             statement = statement.join(BookCopy).where(BookCopy.book_id == book_id)

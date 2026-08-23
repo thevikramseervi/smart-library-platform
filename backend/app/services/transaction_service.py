@@ -1,11 +1,12 @@
 """Circulation transaction business logic."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.clock import utc_now, utc_today
 from app.core.config import settings
 from app.core.db_errors import commit_or_raise_conflict
 from app.models.book_copy import BookCopyStatus
@@ -41,7 +42,7 @@ class TransactionService:
         """Return True when an issued loan is past its due date."""
         return (
             transaction.status == TransactionStatus.ISSUED
-            and transaction.due_at < date.today()
+            and transaction.due_at < utc_today()
         )
 
     def _to_response(self, transaction: Transaction) -> TransactionResponse:
@@ -116,7 +117,7 @@ class TransactionService:
                 detail="Book copy already has an open loan",
             )
 
-        issued_at = datetime.now(UTC)
+        issued_at = utc_now()
         due_at = issued_at.date() + timedelta(days=settings.LOAN_PERIOD_DAYS)
         transaction = Transaction(
             book_copy_id=copy_id,
@@ -168,7 +169,7 @@ class TransactionService:
                 detail="No open loan found for this copy",
             )
 
-        returned_at = datetime.now(UTC)
+        returned_at = utc_now()
         transaction.returned_at = returned_at
         transaction.status = TransactionStatus.RETURNED
         copy.status = BookCopyStatus.AVAILABLE

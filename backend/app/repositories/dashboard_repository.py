@@ -1,12 +1,13 @@
 """Dashboard aggregate queries."""
 
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.clock import utc_today
 from app.models.book import Book
 from app.models.book_copy import BookCopy
 from app.models.department import Department
@@ -128,7 +129,7 @@ class DashboardRepository:
             .select_from(Transaction)
             .where(
                 Transaction.status == TransactionStatus.ISSUED,
-                Transaction.due_at < date.today(),
+                Transaction.due_at < utc_today(),
             )
         )
         return int(self.db.execute(statement).scalar_one())
@@ -231,5 +232,5 @@ class DashboardRepository:
         """Return True when an issued loan is overdue."""
         return (
             transaction.status == TransactionStatus.ISSUED
-            and transaction.due_at < date.today()
+            and transaction.due_at < utc_today()
         )
