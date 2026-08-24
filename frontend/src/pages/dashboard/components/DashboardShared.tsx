@@ -1,8 +1,6 @@
 import {
   ArrowRight,
-  BookMarked,
   BookOpen,
-  CircleDollarSign,
   ClipboardList,
   LayoutDashboard,
   type LucideIcon,
@@ -16,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export const DASHBOARD_TABLE_CELL_CLASS = "px-5 py-3.5 align-middle";
-
 interface DashboardWelcomeHeaderProps {
   firstName: string;
   subtitle: string;
@@ -369,27 +366,4 @@ export function DashboardQuickActions({
   );
 }
 
-export { BookMarked, BookOpen, CircleDollarSign, ClipboardList };
 
-export function formatDashboardDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-export function formatDashboardDateTime(value: string): string {
-  const date = new Date(value);
-  const datePart = date.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  const timePart = date.toLocaleTimeString("en-GB", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-  return `${datePart}, ${timePart.replace(/\s(am|pm)$/i, (_, period) => ` ${period.toUpperCase()}`)}`;
-}

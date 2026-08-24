@@ -8,13 +8,13 @@ import {
   Users,
 } from "lucide-react";
 
+import { formatDashboardDateTime } from "@/lib/format";
 import {
   DASHBOARD_TABLE_CELL_CLASS,
   DashboardQuickActions,
   DashboardSection,
   DashboardStatCard,
   DashboardWelcomeHeader,
-  formatDashboardDateTime,
 } from "@/pages/dashboard/components/DashboardShared";
 import {
   CirculationActionBadge,

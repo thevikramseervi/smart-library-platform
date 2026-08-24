@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -53,19 +53,19 @@ export function UserFormPage() {
     enabled: isEdit,
   });
 
-  useEffect(() => {
-    if (userQuery.data) {
-      setRoleId(userQuery.data.role.id);
-      setDepartmentId(userQuery.data.department?.id ?? "");
-      setFirstName(userQuery.data.first_name);
-      setLastName(userQuery.data.last_name);
-      setEmail(userQuery.data.email);
-      setPhone(userQuery.data.phone ?? "");
-      setStudentCode(userQuery.data.student_code ?? "");
-      setSemester(userQuery.data.semester ? String(userQuery.data.semester) : "");
-      setIsActive(userQuery.data.is_active);
-    }
-  }, [userQuery.data]);
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  if (userQuery.data && hydratedId !== userQuery.data.id) {
+    setHydratedId(userQuery.data.id);
+        setRoleId(userQuery.data.role.id);
+        setDepartmentId(userQuery.data.department?.id ?? "");
+        setFirstName(userQuery.data.first_name);
+        setLastName(userQuery.data.last_name);
+        setEmail(userQuery.data.email);
+        setPhone(userQuery.data.phone ?? "");
+        setStudentCode(userQuery.data.student_code ?? "");
+        setSemester(userQuery.data.semester ? String(userQuery.data.semester) : "");
+        setIsActive(userQuery.data.is_active);
+  }
 
   const selectedRoleName = useMemo(() => {
     return rolesQuery.data?.find((role) => role.id === roleId)?.name ?? "";

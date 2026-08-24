@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 
-import { useIsStaff } from "@/components/auth/StaffRoute";
+import { useIsStaff } from "@/lib/roles";
 
 export function CirculationIndexRedirect() {
   const isStaff = useIsStaff();

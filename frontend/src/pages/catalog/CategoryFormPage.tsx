@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,12 @@ export function CategoryFormPage() {
     enabled: isEdit,
   });
 
-  useEffect(() => {
-    if (categoryQuery.data) {
-      setName(categoryQuery.data.name);
-      setDescription(categoryQuery.data.description ?? "");
-    }
-  }, [categoryQuery.data]);
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  if (categoryQuery.data && hydratedId !== categoryQuery.data.id) {
+    setHydratedId(categoryQuery.data.id);
+        setName(categoryQuery.data.name);
+        setDescription(categoryQuery.data.description ?? "");
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {

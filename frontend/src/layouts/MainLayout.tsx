@@ -7,9 +7,9 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
-import { useIsAdmin } from "@/components/auth/AdminRoute";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/status-badge";
+import { useIsAdmin } from "@/lib/roles";
 import { logout } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";

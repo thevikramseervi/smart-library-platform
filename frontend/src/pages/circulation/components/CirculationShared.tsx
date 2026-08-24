@@ -85,14 +85,6 @@ export function CirculationTableHead({ columns, sticky = true }: CirculationTabl
 
 export { PaginationControls };
 
-export function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 export function CirculationNavLink({ to, label }: { to: string; label: string }) {
   return (
     <Link

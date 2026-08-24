@@ -12,8 +12,8 @@ import {
   CirculationTableHead,
   PaginationControls,
   ReservationStatusBadge,
-  formatDate,
 } from "@/pages/circulation/components/CirculationShared";
+import { formatDate } from "@/lib/format";
 import { formatReservationStudentLabel } from "@/pages/circulation/components/reservationQueueUtils";
 import { listBooks } from "@/services/catalog/books";
 import { getReservationQueue, listReservations } from "@/services/circulation";

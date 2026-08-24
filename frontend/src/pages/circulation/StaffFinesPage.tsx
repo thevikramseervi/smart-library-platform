@@ -11,8 +11,8 @@ import {
   CirculationTableHead,
   FineStatusBadge,
   PaginationControls,
-  formatDate,
 } from "@/pages/circulation/components/CirculationShared";
+import { formatDate } from "@/lib/format";
 import { listFines, markFinePaid } from "@/services/circulation";
 
 export function StaffFinesPage() {

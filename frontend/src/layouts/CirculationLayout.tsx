@@ -10,7 +10,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
-import { useIsStaff } from "@/components/auth/StaffRoute";
+import { useIsStaff } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const staffLinks: Array<{ to: string; label: string; icon: LucideIcon }> = [

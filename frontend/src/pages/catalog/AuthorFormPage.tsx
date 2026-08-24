@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,12 @@ export function AuthorFormPage() {
     enabled: isEdit,
   });
 
-  useEffect(() => {
-    if (authorQuery.data) {
-      setName(authorQuery.data.name);
-      setBio(authorQuery.data.bio ?? "");
-    }
-  }, [authorQuery.data]);
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  if (authorQuery.data && hydratedId !== authorQuery.data.id) {
+    setHydratedId(authorQuery.data.id);
+        setName(authorQuery.data.name);
+        setBio(authorQuery.data.bio ?? "");
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {

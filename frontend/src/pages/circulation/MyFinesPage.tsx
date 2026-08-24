@@ -7,8 +7,8 @@ import {
   CirculationTable,
   CirculationTableHead,
   FineStatusBadge,
-  formatDate,
 } from "@/pages/circulation/components/CirculationShared";
+import { formatDate } from "@/lib/format";
 import { formatInr } from "@/lib/formatCurrency";
 import { listMyFines } from "@/services/circulation";
 

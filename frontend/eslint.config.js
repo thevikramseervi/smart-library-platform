@@ -13,10 +13,20 @@ export default defineConfig([
       js.configs.recommended,
       tseslint.configs.recommended,
       reactHooks.configs.flat.recommended,
-      reactRefresh.configs.vite,
     ],
     languageOptions: {
       globals: globals.browser,
+    },
+    plugins: {
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      // Allow constant/helper exports alongside components (shadcn pattern,
+      // e.g. buttonVariants in button.tsx).
+      'react-refresh/only-export-components': [
+        'error',
+        { allowConstantExport: true, allowExportNames: ['buttonVariants'] },
+      ],
     },
   },
 ])

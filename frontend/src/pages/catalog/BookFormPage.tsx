@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -69,22 +69,22 @@ export function BookFormPage() {
     queryFn: listCategories,
   });
 
-  useEffect(() => {
-    if (bookQuery.data) {
-      const book = bookQuery.data;
-      setTitle(book.title);
-      setIsbn(book.isbn ?? "");
-      setPublisherId(book.publisher_id);
-      setLanguageId(book.language_id);
-      setEdition(book.edition ?? "");
-      setPublicationYear(book.publication_year?.toString() ?? "");
-      setDescription(book.description ?? "");
-      setCoverImageUrl(book.cover_image_url ?? "");
-      setIsDigital(book.is_digital);
-      setAuthorIds(book.authors?.map((author) => author.id) ?? []);
-      setCategoryIds(book.categories?.map((category) => category.id) ?? []);
-    }
-  }, [bookQuery.data]);
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  if (bookQuery.data && hydratedId !== bookQuery.data.id) {
+    const book = bookQuery.data;
+    setHydratedId(book.id);
+    setTitle(book.title);
+    setIsbn(book.isbn ?? "");
+    setPublisherId(book.publisher_id);
+    setLanguageId(book.language_id);
+    setEdition(book.edition ?? "");
+    setPublicationYear(book.publication_year?.toString() ?? "");
+    setDescription(book.description ?? "");
+    setCoverImageUrl(book.cover_image_url ?? "");
+    setIsDigital(book.is_digital);
+    setAuthorIds(book.authors?.map((author) => author.id) ?? []);
+    setCategoryIds(book.categories?.map((category) => category.id) ?? []);
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {

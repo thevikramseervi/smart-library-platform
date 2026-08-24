@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -27,13 +27,13 @@ export function DepartmentFormPage() {
     enabled: isEdit,
   });
 
-  useEffect(() => {
-    if (departmentQuery.data) {
-      setName(departmentQuery.data.name);
-      setCode(departmentQuery.data.code);
-      setDescription(departmentQuery.data.description ?? "");
-    }
-  }, [departmentQuery.data]);
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  if (departmentQuery.data && hydratedId !== departmentQuery.data.id) {
+    setHydratedId(departmentQuery.data.id);
+        setName(departmentQuery.data.name);
+        setCode(departmentQuery.data.code);
+        setDescription(departmentQuery.data.description ?? "");
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {

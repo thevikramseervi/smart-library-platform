@@ -7,8 +7,8 @@ import {
   CirculationTableHead,
   LoanStatusBadge,
   PaginationControls,
-  formatDate,
 } from "@/pages/circulation/components/CirculationShared";
+import { formatDate } from "@/lib/format";
 import { listTransactions } from "@/services/circulation";
 
 export function ActiveLoansPage() {

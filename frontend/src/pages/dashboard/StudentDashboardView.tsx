@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  BookMarked,
   BookOpen,
   CircleDollarSign,
   History,
@@ -7,16 +8,14 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { formatDashboardDate, formatDashboardDateTime } from "@/lib/format";
 import { formatInr } from "@/lib/formatCurrency";
 import {
-  BookMarked,
   DASHBOARD_TABLE_CELL_CLASS,
   DashboardQuickActions,
   DashboardSection,
   DashboardStatCard,
   DashboardWelcomeHeader,
-  formatDashboardDate,
-  formatDashboardDateTime,
 } from "@/pages/dashboard/components/DashboardShared";
 import { cn } from "@/lib/utils";
 import {

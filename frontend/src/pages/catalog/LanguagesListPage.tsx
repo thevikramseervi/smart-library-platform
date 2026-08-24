@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
-import { useIsStaff } from "@/components/auth/StaffRoute";
+import { useIsStaff } from "@/lib/roles";
 import { appToast } from "@/lib/toast";
 import { createLanguage, listLanguages } from "@/services/catalog";
 import {

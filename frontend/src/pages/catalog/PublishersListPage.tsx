@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
-import { useIsStaff } from "@/components/auth/StaffRoute";
+import { useIsStaff } from "@/lib/roles";
 import { appToast } from "@/lib/toast";
 import { deletePublisher, listPublishers } from "@/services/catalog";
 import {

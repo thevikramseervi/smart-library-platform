@@ -11,8 +11,8 @@ import {
   CirculationTable,
   CirculationTableHead,
   ReservationStatusBadge,
-  formatDate,
 } from "@/pages/circulation/components/CirculationShared";
+import { formatDate } from "@/lib/format";
 import { cancelReservation, listMyReservations } from "@/services/circulation";
 
 export function MyReservationsPage() {
