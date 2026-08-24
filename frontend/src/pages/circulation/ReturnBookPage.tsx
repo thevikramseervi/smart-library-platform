@@ -157,8 +157,9 @@ export function ReturnBookPage() {
           <DialogHeader>
             <DialogTitle>Confirm return</DialogTitle>
             <DialogDescription>
-              This will mark the copy as returned and make it available for circulation again unless
-              it is overdue.
+              This will mark the copy as returned. If the book has an active reservation queue, the
+              copy is held as RESERVED for the first student in line; otherwise it becomes available
+              for circulation again.
             </DialogDescription>
           </DialogHeader>
           {pendingReturn ? (

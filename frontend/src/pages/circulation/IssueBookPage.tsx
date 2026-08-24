@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -67,11 +67,14 @@ export function IssueBookPage() {
     enabled: Boolean(selectedCopy?.book_id),
   });
 
-  useEffect(() => {
-    if (!locationState || !copiesQuery.data || !studentsQuery.data) {
-      return;
-    }
-
+  const [lastAppliedLocationState, setLastAppliedLocationState] =
+    useState<IssuePageLocationState | null>(null);
+  if (
+    locationState &&
+    locationState !== lastAppliedLocationState &&
+    copiesQuery.data &&
+    studentsQuery.data
+  ) {
     if (locationState.copyId) {
       const copy = copiesQuery.data.find((item) => item.id === locationState.copyId);
       if (copy) {
@@ -87,7 +90,9 @@ export function IssueBookPage() {
         setStudentSearch(student.student_code ?? student.email);
       }
     }
-  }, [locationState, copiesQuery.data, studentsQuery.data]);
+
+    setLastAppliedLocationState(locationState);
+  }
 
   const filteredStudents = useMemo(() => {
     const term = studentSearch.trim().toLowerCase();
@@ -122,10 +127,11 @@ export function IssueBookPage() {
   }, [copySearch, copiesQuery.data]);
 
   const issueMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: ({ bypass }: { bypass: boolean }) =>
       issueBook({
         student_id: selectedStudent!.id,
         book_copy_id: selectedCopy!.id,
+        bypass_reservation: bypass || undefined,
       }),
     onSuccess: (transaction) => {
       appToast.issued(
@@ -149,16 +155,19 @@ export function IssueBookPage() {
 
   const activeQueue = queueQuery.data ?? [];
   const nextReservation = activeQueue[0];
+  const selectedStudentIsQueueHead = Boolean(
+    selectedStudent && nextReservation && nextReservation.student.id === selectedStudent.id,
+  );
 
   const handleIssueClick = () => {
     if (!selectedStudent || !selectedCopy) {
       return;
     }
-    if (activeQueue.length) {
+    if (activeQueue.length && !selectedStudentIsQueueHead) {
       setShowIssueConfirm(true);
       return;
     }
-    issueMutation.mutate();
+    issueMutation.mutate({ bypass: false });
   };
 
   return (
@@ -302,7 +311,10 @@ export function IssueBookPage() {
             <Button variant="outline" onClick={() => setShowIssueConfirm(false)}>
               Cancel
             </Button>
-            <Button disabled={issueMutation.isPending} onClick={() => issueMutation.mutate()}>
+            <Button
+              disabled={issueMutation.isPending}
+              onClick={() => issueMutation.mutate({ bypass: true })}
+            >
               {issueMutation.isPending ? "Issuing..." : "Issue Anyway"}
             </Button>
           </DialogFooter>

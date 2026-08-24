@@ -46,6 +46,7 @@ export interface TransactionIssueRequest {
   student_id?: string;
   inventory_code?: string;
   student_code?: string;
+  bypass_reservation?: boolean;
 }
 
 export interface TransactionReturnRequest {
