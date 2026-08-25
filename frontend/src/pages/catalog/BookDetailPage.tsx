@@ -14,6 +14,7 @@ import { STAFF_MANAGEABLE_COPY_STATUSES } from "@/types/catalog";
 import { createReservation, listMyReservations } from "@/services/circulation";
 import type { Book } from "@/types/catalog";
 import type { Reservation } from "@/types/circulation";
+import { BookRatingCard } from "@/pages/catalog/components/BookRatingCard";
 import {
   CatalogPageHeader,
   CatalogTable,
@@ -294,6 +295,8 @@ export function BookDetailPage() {
           </dl>
         </CardContent>
       </Card>
+
+      {!isStaff ? <BookRatingCard bookId={book.id} /> : null}
 
       {!isStaff && book.total_copies > 0 ? (
         <Card>

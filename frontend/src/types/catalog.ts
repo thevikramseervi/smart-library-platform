@@ -203,3 +203,15 @@ export interface SemanticSearchResponse {
   used_semantic: boolean;
   results: SemanticSearchResult[];
 }
+
+export interface RatingSummaryResponse {
+  book_id: string;
+  average: number | null;
+  count: number;
+}
+
+export interface MyRatingResponse {
+  book_id: string;
+  score: number;
+  updated_at: string;
+}
