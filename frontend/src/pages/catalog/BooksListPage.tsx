@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { useDebouncedValue } from "@/lib/hooks";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -32,10 +36,12 @@ export function BooksListPage() {
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [smartSearch, setSmartSearch] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
-  const trimmedSearch = search.trim();
+  const rawSearch = search.trim();
+  const trimmedSearch = useDebouncedValue(rawSearch);
   const semanticActive = smartSearch && trimmedSearch.length > 0;
 
   const listQuery = useQuery({
@@ -88,7 +94,7 @@ export function BooksListPage() {
       {isLoading ? (
         <TableListSkeleton columns={isStaff ? 6 : 5} />
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load books.</p>
+        <QueryErrorState message="Unable to load books." />
       ) : semanticActive ? (
         <>
           {semanticQuery.data && !semanticQuery.data.used_semantic ? (
@@ -158,11 +164,7 @@ export function BooksListPage() {
                           variant="outline"
                           size="sm"
                           disabled={deleteMutation.isPending}
-                          onClick={() => {
-                            if (window.confirm(`Delete book "${book.title}"?`)) {
-                              deleteMutation.mutate(book.id);
-                            }
-                          }}
+                          onClick={() => setPendingDelete({ id: book.id, title: book.title })}
                         >
                           Delete
                         </Button>
@@ -188,6 +190,25 @@ export function BooksListPage() {
           ) : null}
         </>
       )}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+          }
+        }}
+        title="Delete book?"
+        description={`"${pendingDelete?.title ?? ""}" will be soft-deleted and removed from circulation.`}
+        confirmLabel="Delete"
+        destructive
+        pending={deleteMutation.isPending}
+        onConfirm={() => {
+          if (pendingDelete) {
+            deleteMutation.mutate(pendingDelete.id);
+            setPendingDelete(null);
+          }
+        }}
+      />
     </section>
   );
 }

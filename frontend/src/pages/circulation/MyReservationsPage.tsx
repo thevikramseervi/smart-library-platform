@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { appToast } from "@/lib/toast";
 import {
@@ -48,7 +49,7 @@ export function MyReservationsPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading reservations...</p>
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load reservations.</p>
+        <QueryErrorState message="Unable to load reservations." />
       ) : data?.length ? (
         <CirculationTable>
           <CirculationTableHead

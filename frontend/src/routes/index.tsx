@@ -1,38 +1,89 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { StaffRoute } from "@/components/auth/StaffRoute";
+import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
+import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { CatalogLayout } from "@/layouts/CatalogLayout";
-import { MainLayout } from "@/layouts/MainLayout";
-import { DepartmentFormPage } from "@/pages/admin/DepartmentFormPage";
-import { DepartmentsListPage } from "@/pages/admin/DepartmentsListPage";
-import { UserFormPage } from "@/pages/admin/UserFormPage";
-import { UsersListPage } from "@/pages/admin/UsersListPage";
-import { AuthorFormPage } from "@/pages/catalog/AuthorFormPage";
-import { AuthorsListPage } from "@/pages/catalog/AuthorsListPage";
-import { BookDetailPage } from "@/pages/catalog/BookDetailPage";
-import { BookFormPage } from "@/pages/catalog/BookFormPage";
-import { BooksListPage } from "@/pages/catalog/BooksListPage";
-import { CategoriesListPage } from "@/pages/catalog/CategoriesListPage";
-import { CategoryFormPage } from "@/pages/catalog/CategoryFormPage";
-import { LanguagesListPage } from "@/pages/catalog/LanguagesListPage";
-import { PublisherFormPage } from "@/pages/catalog/PublisherFormPage";
-import { PublishersListPage } from "@/pages/catalog/PublishersListPage";
 import { CirculationLayout } from "@/layouts/CirculationLayout";
-import { DashboardPage } from "@/pages/dashboard/DashboardPage";
-import { ActiveLoansPage } from "@/pages/circulation/ActiveLoansPage";
+import { MainLayout } from "@/layouts/MainLayout";
 import { CirculationIndexRedirect } from "@/pages/circulation/CirculationIndexRedirect";
-import { IssueBookPage } from "@/pages/circulation/IssueBookPage";
-import { MyFinesPage } from "@/pages/circulation/MyFinesPage";
-import { MyLoansPage } from "@/pages/circulation/MyLoansPage";
-import { MyReservationsPage } from "@/pages/circulation/MyReservationsPage";
-import { OverdueLoansPage } from "@/pages/circulation/OverdueLoansPage";
-import { ReservationsQueuePage } from "@/pages/circulation/ReservationsQueuePage";
-import { ReturnBookPage } from "@/pages/circulation/ReturnBookPage";
-import { StaffFinesPage } from "@/pages/circulation/StaffFinesPage";
 import { LoginPage } from "@/pages/LoginPage";
+
+const ActiveLoansPage = lazy(() =>
+  import("@/pages/circulation/ActiveLoansPage").then((m) => ({ default: m.ActiveLoansPage })));
+
+const AuthorFormPage = lazy(() =>
+  import("@/pages/catalog/AuthorFormPage").then((m) => ({ default: m.AuthorFormPage })));
+
+const AuthorsListPage = lazy(() =>
+  import("@/pages/catalog/AuthorsListPage").then((m) => ({ default: m.AuthorsListPage })));
+
+const BookDetailPage = lazy(() =>
+  import("@/pages/catalog/BookDetailPage").then((m) => ({ default: m.BookDetailPage })));
+
+const BookFormPage = lazy(() =>
+  import("@/pages/catalog/BookFormPage").then((m) => ({ default: m.BookFormPage })));
+
+const BooksListPage = lazy(() =>
+  import("@/pages/catalog/BooksListPage").then((m) => ({ default: m.BooksListPage })));
+
+const CategoriesListPage = lazy(() =>
+  import("@/pages/catalog/CategoriesListPage").then((m) => ({ default: m.CategoriesListPage })));
+
+const CategoryFormPage = lazy(() =>
+  import("@/pages/catalog/CategoryFormPage").then((m) => ({ default: m.CategoryFormPage })));
+
+const DashboardPage = lazy(() =>
+  import("@/pages/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+
+const DepartmentFormPage = lazy(() =>
+  import("@/pages/admin/DepartmentFormPage").then((m) => ({ default: m.DepartmentFormPage })));
+
+const DepartmentsListPage = lazy(() =>
+  import("@/pages/admin/DepartmentsListPage").then((m) => ({ default: m.DepartmentsListPage })));
+
+const IssueBookPage = lazy(() =>
+  import("@/pages/circulation/IssueBookPage").then((m) => ({ default: m.IssueBookPage })));
+
+const LanguagesListPage = lazy(() =>
+  import("@/pages/catalog/LanguagesListPage").then((m) => ({ default: m.LanguagesListPage })));
+
+const MyFinesPage = lazy(() =>
+  import("@/pages/circulation/MyFinesPage").then((m) => ({ default: m.MyFinesPage })));
+
+const MyLoansPage = lazy(() =>
+  import("@/pages/circulation/MyLoansPage").then((m) => ({ default: m.MyLoansPage })));
+
+const MyReservationsPage = lazy(() =>
+  import("@/pages/circulation/MyReservationsPage").then((m) => ({ default: m.MyReservationsPage })));
+
+const OverdueLoansPage = lazy(() =>
+  import("@/pages/circulation/OverdueLoansPage").then((m) => ({ default: m.OverdueLoansPage })));
+
+const PublisherFormPage = lazy(() =>
+  import("@/pages/catalog/PublisherFormPage").then((m) => ({ default: m.PublisherFormPage })));
+
+const PublishersListPage = lazy(() =>
+  import("@/pages/catalog/PublishersListPage").then((m) => ({ default: m.PublishersListPage })));
+
+const ReservationsQueuePage = lazy(() =>
+  import("@/pages/circulation/ReservationsQueuePage").then((m) => ({ default: m.ReservationsQueuePage })));
+
+const ReturnBookPage = lazy(() =>
+  import("@/pages/circulation/ReturnBookPage").then((m) => ({ default: m.ReturnBookPage })));
+
+const StaffFinesPage = lazy(() =>
+  import("@/pages/circulation/StaffFinesPage").then((m) => ({ default: m.StaffFinesPage })));
+
+const UserFormPage = lazy(() =>
+  import("@/pages/admin/UserFormPage").then((m) => ({ default: m.UserFormPage })));
+
+const UsersListPage = lazy(() =>
+  import("@/pages/admin/UsersListPage").then((m) => ({ default: m.UsersListPage })));
 
 export const router = createBrowserRouter([
   {
@@ -52,7 +103,11 @@ export const router = createBrowserRouter([
           },
           {
             path: "dashboard",
-            element: <DashboardPage />,
+            element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <DashboardPage />
+              </Suspense>
+            ),
           },
           {
             path: "catalog",
@@ -64,62 +119,118 @@ export const router = createBrowserRouter([
               },
               {
                 path: "languages",
-                element: <LanguagesListPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <LanguagesListPage />
+              </Suspense>
+            ),
               },
               {
                 path: "publishers",
-                element: <PublishersListPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <PublishersListPage />
+              </Suspense>
+            ),
               },
               {
                 path: "authors",
-                element: <AuthorsListPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <AuthorsListPage />
+              </Suspense>
+            ),
               },
               {
                 path: "categories",
-                element: <CategoriesListPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <CategoriesListPage />
+              </Suspense>
+            ),
               },
               {
                 path: "books",
-                element: <BooksListPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <BooksListPage />
+              </Suspense>
+            ),
               },
               {
                 path: "books/:id",
-                element: <BookDetailPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <BookDetailPage />
+              </Suspense>
+            ),
               },
               {
                 element: <StaffRoute />,
                 children: [
                   {
                     path: "publishers/new",
-                    element: <PublisherFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <PublisherFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "publishers/:id/edit",
-                    element: <PublisherFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <PublisherFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "authors/new",
-                    element: <AuthorFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <AuthorFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "authors/:id/edit",
-                    element: <AuthorFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <AuthorFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "categories/new",
-                    element: <CategoryFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <CategoryFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "categories/:id/edit",
-                    element: <CategoryFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <CategoryFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "books/new",
-                    element: <BookFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <BookFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "books/:id/edit",
-                    element: <BookFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <BookFormPage />
+              </Suspense>
+            ),
                   },
                 ],
               },
@@ -135,46 +246,86 @@ export const router = createBrowserRouter([
               },
               {
                 path: "my-loans",
-                element: <MyLoansPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <MyLoansPage />
+              </Suspense>
+            ),
               },
               {
                 path: "my-reservations",
-                element: <MyReservationsPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <MyReservationsPage />
+              </Suspense>
+            ),
               },
               {
                 path: "my-fines",
-                element: <MyFinesPage />,
+                element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <MyFinesPage />
+              </Suspense>
+            ),
               },
               {
                 element: <StaffRoute />,
                 children: [
                   {
                     path: "issue",
-                    element: <IssueBookPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <IssueBookPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "return",
-                    element: <ReturnBookPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <ReturnBookPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "loans",
-                    element: <ActiveLoansPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <ActiveLoansPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "overdue",
-                    element: <OverdueLoansPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <OverdueLoansPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "reservations",
-                    element: <ReservationsQueuePage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <ReservationsQueuePage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "fines",
-                    element: <StaffFinesPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <StaffFinesPage />
+              </Suspense>
+            ),
                   },
                 ],
               },
             ],
+          },
+          {
+            path: "*",
+            element: <NotFoundPage />,
           },
           {
             element: <AdminRoute />,
@@ -189,27 +340,51 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: "users",
-                    element: <UsersListPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <UsersListPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "users/new",
-                    element: <UserFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <UserFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "users/:id/edit",
-                    element: <UserFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <UserFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "departments",
-                    element: <DepartmentsListPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <DepartmentsListPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "departments/new",
-                    element: <DepartmentFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <DepartmentFormPage />
+              </Suspense>
+            ),
                   },
                   {
                     path: "departments/:id/edit",
-                    element: <DepartmentFormPage />,
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={5} />}>
+                <DepartmentFormPage />
+              </Suspense>
+            ),
                   },
                 ],
               },

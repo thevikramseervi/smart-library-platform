@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 
 import { Button } from "@/components/ui/button";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -47,7 +48,7 @@ export function StaffFinesPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading fines...</p>
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load fines.</p>
+        <QueryErrorState message="Unable to load fines." />
       ) : (
         <>
           <CirculationTable>

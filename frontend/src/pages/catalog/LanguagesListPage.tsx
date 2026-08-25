@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
@@ -110,7 +111,7 @@ export function LanguagesListPage() {
       {isLoading ? (
         <TableListSkeleton columns={3} />
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load languages.</p>
+        <QueryErrorState message="Unable to load languages." />
       ) : (
         <>
           <CatalogTable>

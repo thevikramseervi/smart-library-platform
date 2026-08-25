@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 
 import {
   CirculationPageHeader,
@@ -27,7 +28,7 @@ export function ActiveLoansPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading active loans...</p>
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load active loans.</p>
+        <QueryErrorState message="Unable to load active loans." />
       ) : (
         <>
           <CirculationTable>

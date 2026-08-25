@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
@@ -79,7 +80,7 @@ export function DepartmentsListPage() {
       {isLoading ? (
         <TableListSkeleton columns={4} showRecordCount={false} />
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load departments.</p>
+        <QueryErrorState message="Unable to load departments." />
       ) : (
         <CatalogTable>
           <CatalogTableHead columns={["Code", "Name", "Description", "Actions"]} />

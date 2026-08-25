@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CircleDollarSign } from "lucide-react";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
   CirculationPageHeader,
   CirculationTable,
@@ -28,7 +29,7 @@ export function MyFinesPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading fines...</p>
       ) : isError ? (
-        <p className="text-sm text-destructive">Unable to load fines.</p>
+        <QueryErrorState message="Unable to load fines." />
       ) : data?.length ? (
         <CirculationTable recordCount={data.length}>
           <CirculationTableHead columns={["Amount", "Reason", "Created", "Status"]} />

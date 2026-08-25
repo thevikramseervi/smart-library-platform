@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { BookOpen } from "lucide-react";
 import {
   CirculationPageHeader,
@@ -35,7 +36,7 @@ export function MyLoansPage() {
         {activeQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading active loans...</p>
         ) : activeQuery.isError ? (
-          <p className="text-sm text-destructive">Unable to load active loans.</p>
+          <QueryErrorState message="Unable to load active loans." />
         ) : activeQuery.data?.length ? (
           <CirculationTable>
             <CirculationTableHead columns={["Book", "Issued", "Due", "Status"]} />
@@ -77,7 +78,7 @@ export function MyLoansPage() {
         {historyQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading history...</p>
         ) : historyQuery.isError ? (
-          <p className="text-sm text-destructive">Unable to load borrowing history.</p>
+          <QueryErrorState message="Unable to load borrowing history." />
         ) : historyQuery.data?.items.length ? (
           <CirculationTable>
             <CirculationTableHead columns={["Book", "Issued", "Returned", "Status"]} />

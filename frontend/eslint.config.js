@@ -29,4 +29,12 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ['src/routes/**/*.tsx'],
+    rules: {
+      // Route tables declare lazy() components but export a router object;
+      // fast-refresh does not apply to them.
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

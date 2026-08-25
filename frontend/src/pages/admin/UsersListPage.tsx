@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
@@ -15,6 +16,7 @@ import {
 import { RoleBadge } from "@/components/ui/status-badge";
 import { deactivateUser, listDepartments, listUsers } from "@/services/admin";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { useDebouncedValue } from "@/lib/hooks";
 import { appToast } from "@/lib/toast";
 import {
   CatalogPageHeader,
@@ -36,6 +38,7 @@ export function UsersListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   const [roleFilter, setRoleFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
@@ -48,12 +51,12 @@ export function UsersListPage() {
   });
 
   const usersQuery = useQuery({
-    queryKey: ["users", page, pageSize, search, roleFilter, departmentFilter, activeFilter],
+    queryKey: ["users", page, pageSize, debouncedSearch, roleFilter, departmentFilter, activeFilter],
     queryFn: () =>
       listUsers({
         page,
         page_size: pageSize,
-        q: search || undefined,
+        q: debouncedSearch || undefined,
         role: roleFilter ? (roleFilter as UserResponse["role"]["name"]) : undefined,
         department_id: departmentFilter || undefined,
         is_active:
@@ -126,7 +129,7 @@ export function UsersListPage() {
       {usersQuery.isLoading ? (
         <TableListSkeleton columns={6} />
       ) : usersQuery.isError ? (
-        <p className="text-sm text-destructive">Unable to load users.</p>
+        <QueryErrorState message="Unable to load users." />
       ) : (
         <>
           <CatalogTable>
