@@ -1232,6 +1232,77 @@ Business rules:
 
 ---
 
+# Ratings
+
+## Rating Summary
+
+```http
+GET /api/v1/books/{book_id}/ratings
+```
+
+Access:
+
+```text
+Authenticated Users
+```
+
+Response: `{ "book_id": "uuid", "average": 3.5, "count": 2 }`; `average` is `null` when unrated.
+
+---
+
+## My Rating
+
+```http
+GET /api/v1/books/{book_id}/ratings/me
+```
+
+Access:
+
+```text
+Student
+```
+
+Returns the caller's rating or `null`.
+
+---
+
+## Rate a Book
+
+```http
+PUT /api/v1/books/{book_id}/rating
+```
+
+Access:
+
+```text
+Student
+```
+
+Request body: `{ "score": 1 }` (integer, 1–5).
+
+Business rules:
+
+* Upsert semantics via ON CONFLICT — re-rating updates the existing row, so concurrent double-posts are deterministic.
+* Soft-deleted books return 404. Staff roles receive 403.
+
+---
+
+## Remove My Rating
+
+```http
+DELETE /api/v1/books/{book_id}/rating
+```
+
+Access:
+
+```text
+Student
+```
+
+Returns `204`, or `404` when no rating exists.
+
+---
+
 # Health Check
 
 ## API Health

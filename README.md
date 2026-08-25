@@ -31,6 +31,7 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Reservations** | FIFO reservation queue enforced at issue and return time; returns hold copies for the queue head |
 | **Fines** | Automatic overdue fines (calendar days, capped), unpaid-fine borrowing block, exactly-once staff mark-paid |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
+| **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
 | **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (bge-small-en-v1.5) + pgvector; keyword fallback before first index |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).

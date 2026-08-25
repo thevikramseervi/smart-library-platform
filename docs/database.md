@@ -61,6 +61,7 @@ Tables created by Alembic migrations `001` through `010`.
 | `009_user_token_version` | `users.token_version` for JWT session revocation on password reset/change |
 | `010_transaction_returned_by` | `transactions.returned_by` FK recording which staff member processed a return |
 | `011_embedding_384_dims` | Resizes `book_embeddings.embedding` to `vector(384)` for FastEmbed's bge-small-en-v1.5; invalidates prior-model vectors |
+| `012_ratings` | `ratings`: one 1-5 score per student per book (UNIQUE + CHECK constraints, ON DELETE CASCADE) |
 
 ---
 
@@ -319,7 +320,17 @@ PDF and file metadata with URLs pointing to Cloudflare R2 (not PostgreSQL blobs)
 
 ## ratings
 
-One rating (1–5) per student per book.
+One rating (1–5) per student per book — **implemented** in migration `012`.
+
+| Column     | Type         |
+| ---------- | ------------ |
+| id         | UUID         |
+| book_id    | UUID (FK → books, CASCADE) |
+| student_id | UUID (FK → users, CASCADE) |
+| score      | INTEGER (CHECK 1–5) |
+| created_at / updated_at | TIMESTAMPTZ |
+
+Constraints: UNIQUE `(book_id, student_id)`. Indexes on both FK columns.
 
 ## reviews
 
