@@ -11,6 +11,7 @@ from app.models.department import Department
 from app.models.fine import Fine
 from app.models.language import Language
 from app.models.publisher import Publisher
+from app.models.rating import Rating
 from app.models.reservation import Reservation, ReservationStatus
 from app.models.role import Role
 from app.models.transaction import Transaction, TransactionStatus
@@ -30,6 +31,7 @@ __all__ = [
     "Fine",
     "Language",
     "Publisher",
+    "Rating",
     "Reservation",
     "ReservationStatus",
     "Role",
