@@ -13,6 +13,7 @@ from app.repositories.language_repository import LanguageRepository
 from app.repositories.publisher_repository import PublisherRepository
 from app.schemas.book import BookCreate, BookResponse, BookUpdate
 from app.schemas.pagination import PaginatedResponse
+from app.services.embedding_service import EmbeddingService
 
 
 class BookService:
@@ -24,6 +25,7 @@ class BookService:
         self.language_repository = LanguageRepository(db)
         self.author_repository = AuthorRepository(db)
         self.category_repository = CategoryRepository(db)
+        self.embedding_service = EmbeddingService(db)
         self.db = db
 
     def _to_response(self, book: Book) -> BookResponse:
@@ -154,6 +156,7 @@ class BookService:
         self.repository.sync_categories(created, categories)
         self.db.commit()
 
+        self.embedding_service.mark_book_pending(str(created.id))
         refreshed = self.repository.get_active_by_id(created.id)
         assert refreshed is not None
         return self._to_response(refreshed)
@@ -213,6 +216,7 @@ class BookService:
             book.is_digital = payload.is_digital
 
         self.db.commit()
+        self.embedding_service.mark_book_pending(str(book_id))
         refreshed = self.repository.get_active_by_id(book_id)
         assert refreshed is not None
         return self._to_response(refreshed)
@@ -233,3 +237,4 @@ class BookService:
             )
         self.repository.soft_delete(book)
         self.db.commit()
+        self.embedding_service.clear_book(str(book_id))

@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     LOGIN_RATE_LIMIT_ATTEMPTS: int = 5
     LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
 
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    SEMANTIC_SEARCH_ENABLED: bool = True
+
     @model_validator(mode="after")
     def _reject_insecure_jwt_secret(self) -> "Settings":
         """Fail startup when the JWT secret is missing, weak, or a known default."""

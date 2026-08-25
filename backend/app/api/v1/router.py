@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     auth,
     authors,
     book_copies,
+    book_search,
     books,
     categories,
     circulation,
@@ -31,6 +32,7 @@ api_router.include_router(languages.router, prefix="/languages", tags=["language
 api_router.include_router(publishers.router, prefix="/publishers", tags=["publishers"])
 api_router.include_router(authors.router, prefix="/authors", tags=["authors"])
 api_router.include_router(categories.router, prefix="/categories", tags=["categories"])
+api_router.include_router(book_search.router, prefix="/books", tags=["books"])
 api_router.include_router(books.router, prefix="/books", tags=["books"])
 api_router.include_router(book_copies.router, prefix="/book-copies", tags=["book-copies"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])

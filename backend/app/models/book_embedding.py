@@ -37,7 +37,7 @@ class BookEmbedding(Base, TimestampMixin):
         ForeignKey("books.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     embedding_status: Mapped[EmbeddingStatus] = mapped_column(
         Enum(EmbeddingStatus, name="embeddingstatus", create_type=False),
         nullable=False,

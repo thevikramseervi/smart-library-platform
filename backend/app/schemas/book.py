@@ -64,3 +64,24 @@ class BookResponse(BaseModel):
     copy_count: int
     total_copies: int
     available_copies: int
+
+
+class SemanticSearchResult(BaseModel):
+    """A single scored hit from semantic search."""
+
+    score: float
+    id: UUID
+    title: str
+    isbn: str | None
+    publication_year: int | None
+    authors: list[str]
+    categories: list[str]
+
+
+class SemanticSearchResponse(BaseModel):
+    """Semantic search results with fallback metadata."""
+
+    query: str
+    indexed_books: int
+    used_semantic: bool
+    results: list[SemanticSearchResult]
