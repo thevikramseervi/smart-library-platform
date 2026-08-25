@@ -1183,6 +1183,55 @@ Business rules:
 
 ---
 
+# Semantic Search
+
+## Search Books
+
+```http
+GET /api/v1/books/search
+```
+
+Access:
+
+```text
+Authenticated Users
+```
+
+Query params:
+
+* `q` (required) — natural-language query, 1–512 chars
+* `limit` (default `10`, max `50`)
+
+Response: `200`
+
+```json
+{
+  "query": "machine learning",
+  "indexed_books": 190,
+  "used_semantic": true,
+  "results": [
+    {
+      "score": 0.7656,
+      "id": "uuid",
+      "title": "Machine learning",
+      "isbn": "9780262018029",
+      "publication_year": 2012,
+      "authors": ["Kevin P. Murphy"],
+      "categories": ["Machine Learning"]
+    }
+  ]
+}
+```
+
+Business rules:
+
+* When embeddings exist (`indexed_books > 0`), results are ranked by cosine similarity over the HNSW index (`used_semantic: true`).
+* Before any index is built the endpoint falls back to keyword matching over title/ISBN/author/publisher (`used_semantic: false`, scores fixed at `1.0`).
+* Soft-deleted books never appear; indexing runs offline via `uv run python -m app.scripts.reindex_embeddings`.
+* Catalog writes mark their embedding row `PENDING`; edited books are re-embedded on the next reindex run.
+
+---
+
 # Health Check
 
 ## API Health

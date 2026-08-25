@@ -117,11 +117,12 @@ Alembic-managed PostgreSQL schema. See [`database.md`](database.md) for implemen
 | Backend | Python, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic, Psycopg |
 | Database | PostgreSQL 16 (Docker or Neon) |
 | Auth | JWT (PyJWT), bcrypt |
+| Semantic search | FastEmbed (bge-small-en-v1.5 ONNX) + pgvector HNSW cosine |
 | Tooling | uv, pnpm, Git |
 
 ### Planned (Not Integrated)
 
-* pgvector, Sentence Transformers (semantic search)
+* Semantic search is now partially implemented — see the Semantic Search Module below
 * Cloudflare R2 (digital files)
 * Recharts (analytics UI — dependency present, unused)
 * scikit-learn / Pandas (recommendations)
@@ -236,6 +237,14 @@ Server-side enforcement:
 ### Fine Workflow (Sprint 4)
 
 Calendar-day overdue calculation clamped to `MAX_FINE_AMOUNT`. Payment is exactly-once via a conditional update. Staff mark fines paid. INR display in frontend.
+
+### Semantic Search Module (Sprint 5)
+
+* Canonical text per book built from title/authors/categories/publisher/language/year/description (`app/search/document_builder.py`)
+* Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), lazy-loaded per process
+* Offline reindex command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
+* Catalog create/update marks the embedding `PENDING`; soft delete removes it
+* `GET /api/v1/books/search?q=` ranks by cosine similarity over the HNSW index and falls back to keyword matching until an index exists
 
 ---
 

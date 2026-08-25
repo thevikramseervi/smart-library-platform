@@ -31,6 +31,7 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Reservations** | FIFO reservation queue enforced at issue and return time; returns hold copies for the queue head |
 | **Fines** | Automatic overdue fines (calendar days, capped), unpaid-fine borrowing block, exactly-once staff mark-paid |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
+| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (bge-small-en-v1.5) + pgvector; keyword fallback before first index |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
 
@@ -45,7 +46,7 @@ The following are **design targets** documented in architecture materials but **
 | Digital Resources (PDF upload, R2 storage) | Sprint 5+ |
 | Notifications | Sprint 5+ |
 | QR-based issue/return workflows | Sprint 5+ |
-| Semantic Search | Future |
+| Semantic Search | Backend implemented (Sprint 5); frontend search UI pending |
 | Recommendation Engine | Future |
 | Analytics dashboards | Future |
 | Audit Logs | Future |
@@ -265,7 +266,8 @@ cd frontend && pnpm build
 | Layer | Technologies |
 |-------|--------------|
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, Zustand, TanStack Query, Axios |
-| Backend | Python 3.12+, FastAPI, Uvicorn, SQLAlchemy, Alembic, Psycopg, Pydantic, PyJWT, bcrypt |
+| Backend | Python 3.12+, FastAPI, Uvicorn, SQLAlchemy, Alembic, Psycopg, Pydantic, PyJWT, bcrypt, FastEmbed |
+| Database | PostgreSQL 16 (Docker Compose or Neon) with pgvector |
 | Database | PostgreSQL 16 (Docker Compose or Neon) |
 | Tooling | uv, pnpm, Git |
 

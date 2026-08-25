@@ -60,6 +60,7 @@ Tables created by Alembic migrations `001` through `010`.
 | `008_transaction_reservation_link` | `transactions.reservation_id` FK + index (which queued reservation an issue fulfilled) |
 | `009_user_token_version` | `users.token_version` for JWT session revocation on password reset/change |
 | `010_transaction_returned_by` | `transactions.returned_by` FK recording which staff member processed a return |
+| `011_embedding_384_dims` | Resizes `book_embeddings.embedding` to `vector(384)` for FastEmbed's bge-small-en-v1.5; invalidates prior-model vectors |
 
 ---
 
@@ -115,6 +116,8 @@ FAILED
 ```
 
 Used by `book_embeddings.embedding_status`. Only rows with `INDEXED` and a non-null embedding participate in semantic search.
+
+Indexing runs offline via the reindex command (`uv run python -m app.scripts.reindex_embeddings`) using FastEmbed with `BAAI/bge-small-en-v1.5`. Catalog writes mark their row `PENDING`; a stored content-hash mismatch flags edited books as stale.
 
 ---
 
@@ -187,7 +190,7 @@ GIN index `ix_books_search_vector` (partial: `deleted_at IS NULL`). Trigram inde
 | Column | Type | Notes |
 | ------ | ---- | ----- |
 | book_id | UUID | PK, FK → `books.id` ON DELETE CASCADE |
-| embedding | vector(1024) | NULL while `PENDING` or `FAILED` |
+| embedding | vector(384) | NULL while `PENDING`, `FAILED`, or not yet indexed |
 | embedding_status | EmbeddingStatus | Default `PENDING` |
 | content_hash | CHAR(64) | SHA-256 of canonical text |
 | model_name | VARCHAR(100) | Set on successful index |

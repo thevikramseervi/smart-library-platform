@@ -158,6 +158,8 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 | `MAX_ACTIVE_LOANS` | `5` | Concurrent loans allowed per student |
 | `LOGIN_RATE_LIMIT_ATTEMPTS` | `5` | Failed logins before lockout |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Lockout window |
+| `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | FastEmbed model for semantic search |
+| `SEMANTIC_SEARCH_ENABLED` | `true` | Master switch for vector queries |
 | `DEV_ADMIN_*` | see `.env.example` | Dev seed overrides (local only) |
 | `DEV_LIBRARIAN_*` | see `config.py` defaults | Dev seed overrides (local only) |
 | `CLOUD_STORAGE_*` | empty | Reserved for future digital resources (Sprint 5+) |
@@ -180,6 +182,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 - [ ] Frontend redeployed after setting `VITE_API_BASE_URL`
 - [ ] Dev seed never run against production (`SEED_ALLOWED=true` is required even to attempt it)
 - [ ] `GET /api/v1/health` returns `{ "status": "ok", "database": "connected" }`
+- [ ] Embeddings built once after deploy: `uv run python -m app.scripts.reindex_embeddings` (downloads the ONNX model on first run)
 - [ ] Production admin account created (not dev seed passwords)
 - [ ] Dev seed **not** run on production (or passwords rotated immediately)
 
