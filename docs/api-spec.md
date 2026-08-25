@@ -1348,15 +1348,15 @@ The endpoints below are **design targets** for future sprints. They are **not re
 
 Requires Cloudflare R2 configuration (`CLOUD_STORAGE_*` env vars).
 
-## Ratings & Reviews (Future)
+## Reviews (Future)
+
+Ratings are **implemented** — see the [Ratings](#ratings) section. Reviews remain a design target:
 
 | Method | Path |
 |--------|------|
-| POST | `/api/v1/ratings` |
-| PUT | `/api/v1/ratings/{id}` |
-| POST | `/api/v1/reviews` |
-| PUT | `/api/v1/reviews/{id}` |
-| DELETE | `/api/v1/reviews/{id}` |
+| POST | `/api/v1/books/{book_id}/reviews` |
+| PUT | `/api/v1/books/{book_id}/reviews/{id}` |
+| DELETE | `/api/v1/books/{book_id}/reviews/{id}` |
 
 ## Notifications (Sprint 5+)
 

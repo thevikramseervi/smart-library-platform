@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Production deployment guidance for the Smart Library Platform as of Sprint 4.7.
+Production deployment guidance for the Smart Library Platform (through Sprint 5).
 
 This document covers a typical stack:
 

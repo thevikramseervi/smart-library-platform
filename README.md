@@ -2,7 +2,7 @@
 
 An AI-powered, cloud-based Library Management System built as a final-year engineering project.
 
-This README describes the **currently implemented system** as of Sprint 4.7. Planned capabilities (digital resources, QR, AI, notifications, and more) are listed separately and are **not yet available**.
+This README describes the **currently implemented system** through Sprint 5 (semantic search and ratings included). Planned capabilities (digital resources, QR, AI, notifications, and more) are listed separately and are **not yet available**.
 
 ---
 
@@ -40,18 +40,17 @@ For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details s
 
 ## Planned Features (Future Work)
 
-The following are **design targets** documented in architecture materials but **not implemented** in the current codebase:
+Ratings and semantic search shipped in Sprint 5 (see [Current Features](#current-features-implemented)). The following remain **design targets not implemented** in the current codebase:
 
 | Area | Status |
 |------|--------|
 | Digital Resources (PDF upload, R2 storage) | Sprint 5+ |
 | Notifications | Sprint 5+ |
 | QR-based issue/return workflows | Sprint 5+ |
-| Semantic Search | Backend implemented (Sprint 5); frontend search UI pending |
 | Recommendation Engine | Future |
 | Analytics dashboards | Future |
 | Audit Logs | Future |
-| Ratings & Reviews | Future |
+| Reviews | Future (ratings are live) |
 | Library calendar / working-day fines | Future |
 | Book renewal | Future |
 | Token refresh / server-side logout | Server-side revocation on password reset/change is live (`users.token_version`); refresh endpoint is Future |

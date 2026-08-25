@@ -168,6 +168,7 @@ Without `TEST_DATABASE_URL`, tests still roll back all writes against `DATABASE_
 | Migrate | `uv run alembic upgrade head` |
 | Seed dev data | `SEED_ALLOWED=true uv run python -m app.db.seed` |
 | Import catalog | `uv run python -m app.db.import_catalog` |
+| Reindex embeddings | `uv run python -m app.scripts.reindex_embeddings` |
 | Test | `uv run pytest` |
 | Lint | `uv run ruff check .` |
 
@@ -179,8 +180,10 @@ Without `TEST_DATABASE_URL`, tests still roll back all writes against `DATABASE_
 backend/
 ├── app/
 │   ├── api/v1/endpoints/   # Route handlers (no business logic)
-│   ├── core/               # config.py, database.py, security.py
-│   ├── db/seed.py          # Development seed
+│   ├── core/               # config.py, database.py, security.py, rate_limit.py, clock.py
+│   ├── db/seed.py          # Development seed (SEED_ALLOWED=true required)
+│   ├── scripts/            # reindex_embeddings and similar CLIs
+│   ├── search/             # Embedding provider + document builder
 │   ├── models/             # SQLAlchemy ORM models
 │   ├── repositories/       # Database queries
 │   ├── schemas/            # Pydantic request/response models

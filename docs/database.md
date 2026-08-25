@@ -352,7 +352,7 @@ Holiday and closure dates for working-day fine calculation.
 
 # AI Design Notes (Future)
 
-When implemented, recommendations will use borrow history, ratings, department, and semester. Semantic search uses BGE-M3 embeddings (1024-dim) stored in `book_embeddings` with pgvector cosine similarity. Search analytics (`search_query_logs`) is planned for Sprint 5.5.
+Recommendations (future) will use borrow history, ratings, department, and semester. Semantic search is live: FastEmbed `BAAI/bge-small-en-v1.5` embeddings (384-dim) stored in `book_embeddings` with pgvector cosine similarity over an HNSW index. Search analytics (`search_query_logs`) remains planned for Sprint 5.5.
 
 ---
 

@@ -49,6 +49,10 @@ cp .env.example .env
 uv sync
 uv run alembic upgrade head
 SEED_ALLOWED=true uv run python -m app.db.seed
+uv run alembic upgrade head   # no-op if just run above; safe
+# Optional: build embeddings so smart search works immediately
+# (downloads the FastEmbed model on first run)
+uv run python -m app.scripts.reindex_embeddings
 uv run uvicorn app.main:app --reload --port 8000
 ```
 

@@ -6,7 +6,7 @@
 
 Smart Library Platform is a cloud-based Library Management System developed as a final-year engineering project.
 
-The **implemented system** (Sprint 4.7) manages physical books, catalog metadata, circulation, reservations, fines, admin user/department management, and role-based dashboards.
+The **implemented system** (through Sprint 5) manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
 
 Advanced capabilities (digital resources, QR scanning, AI search, notifications, analytics) are **planned** and documented separately as future architecture.
 
@@ -59,7 +59,7 @@ Advanced capabilities (digital resources, QR scanning, AI search, notifications,
 ### Future Student/Staff Capabilities
 
 * Digital resource viewing
-* Ratings, reviews, recommendations
+* Reviews and recommendations (ratings are live)
 * QR self-service (if added)
 * In-app notifications
 
@@ -245,6 +245,14 @@ Calendar-day overdue calculation clamped to `MAX_FINE_AMOUNT`. Payment is exactl
 * Offline reindex command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
 * Catalog create/update marks the embedding `PENDING`; soft delete removes it
 * `GET /api/v1/books/search?q=` ranks by cosine similarity over the HNSW index and falls back to keyword matching until an index exists
+* Smart-search toggle on the frontend books catalog renders scored results
+
+### Ratings Module (Sprint 5)
+
+* One 1-5 rating per student per book (migration `012`, UNIQUE constraint + CHECK on score range)
+* Upsert via ON CONFLICT so concurrent double-posts are deterministic
+* Endpoints: `PUT`/`DELETE /books/{id}/rating` (student-only), `GET /books/{id}/ratings` summary, `GET /books/{id}/ratings/me`
+* Star picker with live average/count on the student book detail page
 
 ---
 
@@ -320,9 +328,9 @@ Digital resources (future) will add Cloudflare R2.
 
 ## 13. Project Scope
 
-### Included (Implemented through Sprint 4.7)
+### Included (Implemented through Sprint 5)
 
-Physical library catalog and inventory, circulation, reservations, fines, admin users/departments, role dashboards, reservation-aware staff UX.
+Physical library catalog and inventory, circulation, reservations, fines, ratings, semantic search, admin users/departments, role dashboards, reservation-aware staff UX.
 
 ### Excluded / Future
 
