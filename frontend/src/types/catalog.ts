@@ -186,3 +186,20 @@ export interface BookListParams extends CatalogListParams {
   author_id?: string;
   is_digital?: boolean;
 }
+
+export interface SemanticSearchResult {
+  score: number;
+  id: string;
+  title: string;
+  isbn: string | null;
+  publication_year: number | null;
+  authors: string[];
+  categories: string[];
+}
+
+export interface SemanticSearchResponse {
+  query: string;
+  indexed_books: number;
+  used_semantic: boolean;
+  results: SemanticSearchResult[];
+}
