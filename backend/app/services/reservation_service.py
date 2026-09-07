@@ -6,10 +6,10 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.db_errors import commit_or_raise_conflict
 from app.models.reservation import Reservation, ReservationStatus
 from app.models.user import User
+from app.repositories.circulation_policy_repository import CirculationPolicyRepository
 from app.repositories.circulation_repository import CirculationRepository
 from app.repositories.reservation_repository import ReservationRepository
 from app.repositories.transaction_repository import TransactionRepository
@@ -28,6 +28,7 @@ class ReservationService:
         self.repository = ReservationRepository(db)
         self.circulation_repository = CirculationRepository(db)
         self.transaction_repository = TransactionRepository(db)
+        self.policy_repository = CirculationPolicyRepository(db)
         self.db = db
 
     def _to_response(self, reservation: Reservation) -> ReservationResponse:
@@ -78,11 +79,12 @@ class ReservationService:
             )
 
         now = datetime.now(UTC)
+        policy = self.policy_repository.get_active()
         reservation = Reservation(
             student_id=student.id,
             book_id=payload.book_id,
             reservation_date=now,
-            expiry_date=now + timedelta(days=settings.RESERVATION_EXPIRY_DAYS),
+            expiry_date=now + timedelta(days=policy.reservation_expiry_days),
             status=ReservationStatus.ACTIVE,
         )
         created = self.repository.create(reservation)

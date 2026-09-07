@@ -1184,6 +1184,82 @@ Business rules:
 
 ---
 
+# Circulation Policies
+
+## Get Active Policy
+
+```http
+GET /api/v1/circulation-policies
+```
+
+Access:
+
+```text
+Librarian, Admin
+```
+
+Response: `200`
+
+```json
+{
+  "id": "7c88b97d-6f20-40e1-b4f0-4354c46f6631",
+  "name": "Default Policy",
+  "daily_overdue_fine_rate": "10.00",
+  "max_fine_amount": "500.00",
+  "loan_period_days": 14,
+  "max_active_loans": 5,
+  "reservation_expiry_days": 7,
+  "is_active": true,
+  "updated_by": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "updated_by_user": {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "first_name": "System",
+    "last_name": "Admin",
+    "email": "admin@library.local"
+  },
+  "created_at": "2026-09-07T12:00:00Z",
+  "updated_at": "2026-09-07T12:00:00Z"
+}
+```
+
+---
+
+## Update Circulation Policy
+
+```http
+PUT /api/v1/circulation-policies
+```
+
+Access:
+
+```text
+Admin
+```
+
+Request body:
+
+```json
+{
+  "daily_overdue_fine_rate": 15.00,
+  "max_fine_amount": 600.00,
+  "loan_period_days": 21,
+  "max_active_loans": 5,
+  "reservation_expiry_days": 7
+}
+```
+
+Validation:
+* `daily_overdue_fine_rate >= 0`
+* `max_fine_amount >= 0`
+* `max_fine_amount >= daily_overdue_fine_rate` (cap must be >= daily rate when positive)
+* `1 <= loan_period_days <= 365`
+* `1 <= max_active_loans <= 50`
+* `1 <= reservation_expiry_days <= 90`
+
+Response: `200` (updated policy object with audit attribution).
+
+---
+
 # Semantic Search
 
 ## Search Books

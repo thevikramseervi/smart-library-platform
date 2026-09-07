@@ -289,10 +289,30 @@ Constraints: `transaction_id` UNIQUE (enforced since migration `007`).
 
 Business rules:
 
-* Created on late return: `(return_date - due_at)` **calendar days** × `DAILY_OVERDUE_FINE_RATE` (default ₹10.00/day), clamped to `MAX_FINE_AMOUNT` (default ₹500.00)
+* Created on late return: `(return_date - due_at)` **calendar days** × `daily_overdue_fine_rate` (active policy, default ₹10.00/day), clamped to `max_fine_amount` (default ₹500.00)
 * One fine per transaction
 * Unpaid fines block new issues
 * Payment is exactly-once: a conditional update on `paid = false` makes concurrent double-pays return 409
+
+## circulation_policies
+
+Added in migration `013_circulation_policies`.
+
+| Column                  | Type          |
+| ----------------------- | ------------- |
+| id                      | UUID          |
+| name                    | VARCHAR(100)  |
+| daily_overdue_fine_rate | DECIMAL(10,2) |
+| max_fine_amount         | DECIMAL(10,2) |
+| loan_period_days        | INTEGER       |
+| max_active_loans        | INTEGER       |
+| reservation_expiry_days | INTEGER       |
+| is_active               | BOOLEAN       |
+| updated_by              | UUID (FK → users, SET NULL) |
+| created_at              | TIMESTAMPTZ   |
+| updated_at              | TIMESTAMPTZ   |
+
+Constraints: Check constraints on non-negative fine rates, positive loan periods, and positive loan limits.
 
 ---
 
@@ -301,8 +321,9 @@ Business rules:
 | Topic | Current behaviour | Future |
 |-------|-------------------|--------|
 | Overdue detection | Derived (`ISSUED` + past `due_at`, UTC calendar) | — |
-| Fine calculation | Calendar days late × daily rate, clamped to `MAX_FINE_AMOUNT` | Working-day calculation via `library_calendar` (planned) |
-| Loan limit | Max `MAX_ACTIVE_LOANS` (default 5) concurrent loans per student | — |
+| Fine calculation | Calendar days late × active policy daily rate, clamped to `max_fine_amount` | Working-day calculation via `library_calendar` (planned) |
+| Loan limit | Max `max_active_loans` (active policy, default 5) concurrent loans per student | — |
+| Circulation policy | Dynamically manageable via Admin UI with audit tracking | Multi-tier policies (by patron / material type) |
 | Reservation queue | FIFO by `reservation_date`; returns hold copies `RESERVED` for queue head; issues honor queue unless `bypass_reservation` | — |
 | Session revocation | Password reset/change bumps `users.token_version`; old JWTs rejected immediately | Token refresh endpoint (planned) |
 | Copy QR | `qr_code_value` stored; no QR API yet | Sprint 5+ QR endpoints |

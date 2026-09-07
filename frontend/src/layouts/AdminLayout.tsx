@@ -1,4 +1,4 @@
-import { Building2, Shield, Users } from "lucide-react";
+import { Building2, Shield, SlidersHorizontal, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const navItems: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/departments", label: "Departments", icon: Building2 },
+  { to: "/admin/circulation-policy", label: "Circulation Policy", icon: SlidersHorizontal },
 ];
 
 export function AdminLayout() {

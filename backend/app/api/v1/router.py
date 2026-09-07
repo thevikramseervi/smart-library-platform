@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     books,
     categories,
     circulation,
+    circulation_policies,
     dashboard,
     departments,
     fines,
@@ -41,4 +42,7 @@ api_router.include_router(transactions.router, prefix="/transactions", tags=["tr
 api_router.include_router(reservations.router, prefix="/reservations", tags=["reservations"])
 api_router.include_router(fines.router, prefix="/fines", tags=["fines"])
 api_router.include_router(circulation.router, prefix="/circulation", tags=["circulation"])
+api_router.include_router(
+    circulation_policies.router, prefix="/circulation-policies", tags=["circulation-policies"]
+)
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])

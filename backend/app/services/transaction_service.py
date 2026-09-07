@@ -13,6 +13,7 @@ from app.models.book_copy import BookCopyStatus
 from app.models.reservation import ReservationStatus
 from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
+from app.repositories.circulation_policy_repository import CirculationPolicyRepository
 from app.repositories.circulation_repository import CirculationRepository
 from app.repositories.fine_repository import FineRepository
 from app.repositories.reservation_repository import ReservationRepository
@@ -35,6 +36,7 @@ class TransactionService:
         self.reservation_repository = ReservationRepository(db)
         self.fine_repository = FineRepository(db)
         self.fine_service = FineService(db)
+        self.policy_repository = CirculationPolicyRepository(db)
         self.db = db
 
     @staticmethod
@@ -151,12 +153,13 @@ class TransactionService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Student already has an open loan for this book",
             )
-        if self.repository.count_active_for_student(student_id) >= settings.MAX_ACTIVE_LOANS:
+        policy = self.policy_repository.get_active()
+        if self.repository.count_active_for_student(student_id) >= policy.max_active_loans:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
                     f"Student has reached the limit of "
-                    f"{settings.MAX_ACTIVE_LOANS} concurrent loans"
+                    f"{policy.max_active_loans} concurrent loans"
                 ),
             )
         if self.repository.get_open_for_copy(copy_id) is not None:
@@ -166,7 +169,7 @@ class TransactionService:
             )
 
         issued_at = utc_now()
-        due_at = issued_at.date() + timedelta(days=settings.LOAN_PERIOD_DAYS)
+        due_at = issued_at.date() + timedelta(days=policy.loan_period_days)
         transaction = Transaction(
             book_copy_id=copy_id,
             student_id=student_id,

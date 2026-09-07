@@ -184,12 +184,13 @@ Session security:
 
 ## 9. Implemented Modules
 
-### Admin Module (Sprint 4.5)
+### Admin Module (Sprint 4.5, 4.9)
 
 * **User Management** — CRUD, soft delete, password reset, role/department validation
 * **Department Management** — CRUD, delete protection when users assigned
+* **Circulation Policy Management** — Dynamic configuration of daily overdue fine rates, max fine amounts, loan durations, active loan limits, and reservation hold expiries with administrator audit tracking.
 
-Frontend: `/admin/users`, `/admin/departments`
+Frontend: `/admin/users`, `/admin/departments`, `/admin/circulation-policy`
 
 ### Dashboard Module (Sprint 4.6–4.7)
 
@@ -207,12 +208,12 @@ Home route `/` redirects to `/dashboard`.
 
 Books, authors, categories, publishers, languages, physical copies with lifecycle statuses.
 
-### Circulation Module (Sprint 4)
+### Circulation Module (Sprint 4, 4.9)
 
 * Issue and return transactions with row-level locking (`SELECT ... FOR UPDATE` on student and copy rows)
 * Active/overdue loan tracking on the UTC calendar
-* Fine creation on late return, capped at `MAX_FINE_AMOUNT`
-* Unpaid fine borrowing block and per-student concurrent loan limit (`MAX_ACTIVE_LOANS`)
+* Fine creation on late return, calculated using active `CirculationPolicy` (or fallback to `Settings`), capped at `max_fine_amount`
+* Unpaid fine borrowing block and per-student concurrent loan limit (`max_active_loans`)
 
 ### Reservations Module (Sprint 4)
 

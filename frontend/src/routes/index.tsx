@@ -40,6 +40,9 @@ const CategoryFormPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("@/pages/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 
+const CirculationPolicyPage = lazy(() =>
+  import("@/pages/admin/CirculationPolicyPage").then((m) => ({ default: m.CirculationPolicyPage })));
+
 const DepartmentFormPage = lazy(() =>
   import("@/pages/admin/DepartmentFormPage").then((m) => ({ default: m.DepartmentFormPage })));
 
@@ -383,6 +386,14 @@ export const router = createBrowserRouter([
                     element: (
               <Suspense fallback={<TableListSkeleton columns={5} />}>
                 <DepartmentFormPage />
+              </Suspense>
+            ),
+                  },
+                  {
+                    path: "circulation-policy",
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={3} />}>
+                <CirculationPolicyPage />
               </Suspense>
             ),
                   },

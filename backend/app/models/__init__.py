@@ -7,6 +7,7 @@ from app.models.book_category import BookCategory
 from app.models.book_copy import BookCopy, BookCopyStatus
 from app.models.book_embedding import BookEmbedding, EmbeddingStatus
 from app.models.category import Category
+from app.models.circulation_policy import CirculationPolicy
 from app.models.department import Department
 from app.models.fine import Fine
 from app.models.language import Language
@@ -27,6 +28,7 @@ __all__ = [
     "BookEmbedding",
     "EmbeddingStatus",
     "Category",
+    "CirculationPolicy",
     "Department",
     "Fine",
     "Language",

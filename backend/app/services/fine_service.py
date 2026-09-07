@@ -7,10 +7,10 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models.fine import Fine
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.repositories.circulation_policy_repository import CirculationPolicyRepository
 from app.repositories.fine_repository import FineRepository
 from app.schemas.fine import FineResponse
 from app.schemas.pagination import PaginatedResponse
@@ -21,6 +21,7 @@ class FineService:
 
     def __init__(self, db: Session) -> None:
         self.repository = FineRepository(db)
+        self.policy_repository = CirculationPolicyRepository(db)
         self.db = db
 
     def create_overdue_fine(self, transaction: Transaction, returned_at: datetime) -> Fine | None:
@@ -33,9 +34,10 @@ class FineService:
         if days_late <= 0:
             return None
 
+        policy = self.policy_repository.get_active()
         amount = min(
-            Decimal(days_late) * settings.DAILY_OVERDUE_FINE_RATE,
-            settings.MAX_FINE_AMOUNT,
+            Decimal(days_late) * policy.daily_overdue_fine_rate,
+            policy.max_fine_amount,
         )
         fine = Fine(
             transaction_id=transaction.id,
