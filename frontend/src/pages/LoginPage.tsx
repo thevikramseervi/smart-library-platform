@@ -52,7 +52,7 @@ export function LoginPage() {
     mutationFn: async () => {
       const tokenResponse = await login({ email, password });
       useAuthStore.setState({ token: tokenResponse.access_token });
-      const user = await getCurrentUser();
+      const user = await getCurrentUser(tokenResponse.access_token);
       return { token: tokenResponse.access_token, user };
     },
     onSuccess: ({ token: accessToken, user }) => {
