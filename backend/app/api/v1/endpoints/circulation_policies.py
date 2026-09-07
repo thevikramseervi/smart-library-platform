@@ -20,6 +20,7 @@ def get_circulation_policy_service(db: Session = Depends(get_db)) -> Circulation
 
 
 @router.get("", response_model=CirculationPolicyResponse)
+@router.get("/", response_model=CirculationPolicyResponse, include_in_schema=False)
 def get_circulation_policy(
     _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: CirculationPolicyService = Depends(get_circulation_policy_service),
@@ -29,6 +30,7 @@ def get_circulation_policy(
 
 
 @router.put("", response_model=CirculationPolicyResponse)
+@router.put("/", response_model=CirculationPolicyResponse, include_in_schema=False)
 def update_circulation_policy(
     payload: CirculationPolicyUpdate,
     current_user: User = Depends(require_roles("ADMIN")),
