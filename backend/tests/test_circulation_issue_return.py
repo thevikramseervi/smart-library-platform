@@ -61,6 +61,87 @@ def test_issue_sets_fourteen_day_due_date(
     assert due_at == (issued_at.date() + timedelta(days=settings.LOAN_PERIOD_DAYS))
 
 
+def test_issue_second_copy_of_same_book_rejected(
+    client: TestClient,
+    librarian_token: str,
+    admin_token: str,
+    catalog_book_with_copy: dict,
+) -> None:
+    """A student cannot hold two concurrent loans for the same book."""
+    lib_headers = {"Authorization": f"Bearer {librarian_token}"}
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    first = client.post(
+        "/api/v1/transactions/issue",
+        headers=lib_headers,
+        json={
+            "book_copy_id": catalog_book_with_copy["copy_id"],
+            "student_id": catalog_book_with_copy["student_id"],
+        },
+    )
+    assert first.status_code == 201
+
+    second_copy = client.post(
+        "/api/v1/book-copies",
+        headers=admin_headers,
+        json={"book_id": catalog_book_with_copy["book_id"]},
+    )
+    assert second_copy.status_code == 201
+
+    blocked = client.post(
+        "/api/v1/transactions/issue",
+        headers=lib_headers,
+        json={
+            "book_copy_id": second_copy.json()["id"],
+            "student_id": catalog_book_with_copy["student_id"],
+        },
+    )
+    assert blocked.status_code == 409
+    assert "already has an open loan" in blocked.json()["detail"].lower()
+
+
+def test_reborrow_same_book_after_return_allowed(
+    client: TestClient,
+    librarian_token: str,
+    admin_token: str,
+    catalog_book_with_copy: dict,
+) -> None:
+    """Returning a book frees the student to borrow another copy of it."""
+    lib_headers = {"Authorization": f"Bearer {librarian_token}"}
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    issue = client.post(
+        "/api/v1/transactions/issue",
+        headers=lib_headers,
+        json={
+            "book_copy_id": catalog_book_with_copy["copy_id"],
+            "student_id": catalog_book_with_copy["student_id"],
+        },
+    )
+    assert issue.status_code == 201
+    returned = client.post(
+        "/api/v1/transactions/return",
+        headers=lib_headers,
+        json={"book_copy_id": catalog_book_with_copy["copy_id"]},
+    )
+    assert returned.status_code == 200
+
+    second_copy = client.post(
+        "/api/v1/book-copies",
+        headers=admin_headers,
+        json={"book_id": catalog_book_with_copy["book_id"]},
+    )
+    assert second_copy.status_code == 201
+
+    retry = client.post(
+        "/api/v1/transactions/issue",
+        headers=lib_headers,
+        json={
+            "book_copy_id": second_copy.json()["id"],
+            "student_id": catalog_book_with_copy["student_id"],
+        },
+    )
+    assert retry.status_code == 201
+
+
 def test_issue_unavailable_copy_rejected(
     client: TestClient,
     librarian_token: str,

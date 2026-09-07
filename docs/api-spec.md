@@ -858,6 +858,7 @@ Business rules:
 * If the book has an active reservation queue and the borrower is not the
   head of it, the request returns 409 unless `bypass_reservation` is true.
 * Student must not have any unpaid fines (409).
+* Student cannot already hold an open loan for the same book, even on a different copy (409).
 * Student cannot exceed `MAX_ACTIVE_LOANS` concurrent loans (default 5).
 * Sets `due_at` to issue date + `LOAN_PERIOD_DAYS` (default 14).
 * Overdue is derived at read time (`status=ISSUED` and `due_at < today`

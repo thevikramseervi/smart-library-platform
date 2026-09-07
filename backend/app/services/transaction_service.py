@@ -146,6 +146,11 @@ class TransactionService:
                     detail="Reservation is no longer active",
                 )
 
+        if self.repository.has_open_loan_for_book(student_id, copy.book_id):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Student already has an open loan for this book",
+            )
         if self.repository.count_active_for_student(student_id) >= settings.MAX_ACTIVE_LOANS:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
