@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useDebouncedValue } from "@/lib/hooks";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
   getReservationQueue,
   issueBook,
   listAvailableCopies,
+  listTransactions,
   searchStudents,
 } from "@/services/circulation";
 import type { AvailableCopyResult, StudentSearchResult } from "@/types/circulation";
@@ -56,9 +58,24 @@ export function IssueBookPage() {
     queryFn: () => searchStudents(),
   });
 
+  const debouncedCopySearch = useDebouncedValue(copySearch.trim(), 300);
+
   const copiesQuery = useQuery({
-    queryKey: ["circulation", "copies", "all"],
-    queryFn: () => listAvailableCopies(),
+    queryKey: ["circulation", "copies", "available", debouncedCopySearch],
+    queryFn: () =>
+      listAvailableCopies(debouncedCopySearch ? { q: debouncedCopySearch } : undefined),
+  });
+
+  const studentLoansQuery = useQuery({
+    queryKey: ["transactions", "student-active", selectedStudent?.id],
+    queryFn: () =>
+      listTransactions({
+        student_id: selectedStudent!.id,
+        status: "ISSUED",
+        page: 1,
+        page_size: 100,
+      }),
+    enabled: Boolean(selectedStudent?.id),
   });
 
   const queueQuery = useQuery({
@@ -113,18 +130,34 @@ export function IssueBookPage() {
     });
   }, [studentSearch, studentsQuery.data]);
 
-  const filteredCopies = useMemo(() => {
-    const term = copySearch.trim().toLowerCase();
-    const copies = copiesQuery.data ?? [];
-    if (!term) {
-      return copies;
+  // Server already filters by `q` (title / inventory code); the list below
+  // is grouped by book so multiple copies of one title read as one group.
+  const availableCopies = useMemo(
+    () => copiesQuery.data ?? [],
+    [copiesQuery.data],
+  );
+
+  const groupedCopies = useMemo(() => {
+    const groups = new Map<string, { book_id: string; book_title: string; copies: typeof availableCopies }>();
+    for (const copy of availableCopies) {
+      const group = groups.get(copy.book_id) ?? {
+        book_id: copy.book_id,
+        book_title: copy.book_title,
+        copies: [],
+      };
+      group.copies.push(copy);
+      groups.set(copy.book_id, group);
     }
-    return copies.filter(
-      (copy) =>
-        copy.inventory_code.toLowerCase().includes(term) ||
-        copy.book_title.toLowerCase().includes(term),
-    );
-  }, [copySearch, copiesQuery.data]);
+    return [...groups.values()].sort((a, b) => a.book_title.localeCompare(b.book_title));
+  }, [availableCopies]);
+
+  const duplicateLoan = useMemo(() => {
+    if (!selectedStudent || !selectedCopy) {
+      return false;
+    }
+    const items = studentLoansQuery.data?.items ?? [];
+    return items.some((item) => item.book_copy.book_id === selectedCopy.book_id);
+  }, [selectedStudent, selectedCopy, studentLoansQuery.data]);
 
   const issueMutation = useMutation({
     mutationFn: ({ bypass }: { bypass: boolean }) =>
@@ -160,7 +193,7 @@ export function IssueBookPage() {
   );
 
   const handleIssueClick = () => {
-    if (!selectedStudent || !selectedCopy) {
+    if (!selectedStudent || !selectedCopy || duplicateLoan) {
       return;
     }
     if (activeQueue.length && !selectedStudentIsQueueHead) {
@@ -235,24 +268,37 @@ export function IssueBookPage() {
               <p className="text-xs text-muted-foreground">
                 {copiesQuery.isLoading
                   ? "Loading available copies..."
-                  : `Showing ${filteredCopies.length} of ${copiesQuery.data?.length ?? 0} available copies.`}
+                  : debouncedCopySearch
+                    ? `Showing ${availableCopies.length} available copies matching “${debouncedCopySearch}”.`
+                    : `Showing ${availableCopies.length} available copies. Only AVAILABLE copies are listed.`}
               </p>
               {copiesQuery.isError ? (
                 <p className="text-sm text-destructive">Unable to load available copies.</p>
-              ) : filteredCopies.length ? (
-                <div className="max-h-48 overflow-y-auto rounded-md border">
-                  {filteredCopies.map((copy) => (
-                    <button
-                      key={copy.id}
-                      type="button"
-                      className={[
-                        "block w-full px-3 py-2 text-left text-sm hover:bg-muted",
-                        selectedCopy?.id === copy.id ? "bg-muted font-medium" : "",
-                      ].join(" ")}
-                      onClick={() => setSelectedCopy(copy)}
-                    >
-                      {copy.book_title} · {copy.inventory_code}
-                    </button>
+              ) : groupedCopies.length ? (
+                <div className="max-h-64 overflow-y-auto rounded-md border">
+                  {groupedCopies.map((group) => (
+                    <div key={group.book_id} className="border-b last:border-b-0">
+                      <p className="bg-muted/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {group.book_title} · {group.copies.length}{" "}
+                        {group.copies.length === 1 ? "copy" : "copies"} available
+                      </p>
+                      {group.copies.map((copy) => (
+                        <button
+                          key={copy.id}
+                          type="button"
+                          className={[
+                            "block w-full px-3 py-2 text-left text-sm hover:bg-muted",
+                            selectedCopy?.id === copy.id ? "bg-muted font-medium" : "",
+                          ].join(" ")}
+                          onClick={() => setSelectedCopy(copy)}
+                        >
+                          <span className="font-medium">{copy.inventory_code}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {copy.location ?? "No location"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -260,7 +306,8 @@ export function IssueBookPage() {
               )}
               {selectedCopy ? (
                 <p className="text-sm text-muted-foreground">
-                  Selected: {selectedCopy.book_title} ({selectedCopy.inventory_code})
+                  Selected: {selectedCopy.book_title} ({selectedCopy.inventory_code}
+                  {selectedCopy.location ? ` · ${selectedCopy.location}` : ""})
                 </p>
               ) : null}
             </div>
@@ -274,10 +321,23 @@ export function IssueBookPage() {
             <ReservationQueueWarning queue={activeQueue} bookTitle={selectedCopy.book_title} />
           ) : null}
 
+          {selectedStudent && selectedCopy && studentLoansQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Checking student&apos;s active loans...</p>
+          ) : null}
+
+          {duplicateLoan && selectedStudent && selectedCopy ? (
+            <p className="text-sm text-destructive">
+              {selectedStudent.first_name} {selectedStudent.last_name} already holds an open loan
+              for “{selectedCopy.book_title}”. Return it before issuing another copy.
+            </p>
+          ) : null}
+
           {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
           <Button
-            disabled={!selectedStudent || !selectedCopy || issueMutation.isPending}
+            disabled={
+              !selectedStudent || !selectedCopy || duplicateLoan || issueMutation.isPending
+            }
             onClick={handleIssueClick}
           >
             {issueMutation.isPending ? "Issuing..." : "Issue book"}
