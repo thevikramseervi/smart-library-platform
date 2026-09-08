@@ -86,6 +86,15 @@ Migration files live in `alembic/versions/`:
 | `002_catalog_schema` | Catalog tables and book copies |
 | `003_circulation_schema` | Transactions, reservations, fines |
 | `004_book_copy_retired_status` | Adds `RETIRED` copy status |
+| `005_enable_pgvector` | Enables PostgreSQL `vector` extension |
+| `006_search_schema` | Book embeddings and semantic search indexes |
+| `007_missing_fk_indexes` | Indexes on foreign keys for query performance |
+| `008_transaction_reservation_link` | Links transactions to fulfilled reservations |
+| `009_user_token_version` | Server-side session revocation via `token_version` |
+| `010_transaction_returned_by` | Tracks staff member processing returns |
+| `011_embedding_384_dims` | Updates embedding dimensions to 384 for bge-small-en-v1.5 |
+| `012_ratings` | Book ratings 1-5 with unique constraint per student |
+| `013_circulation_policies` | Dynamic database-backed circulation policies |
 
 ---
 

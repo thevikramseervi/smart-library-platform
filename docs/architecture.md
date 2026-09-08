@@ -38,6 +38,7 @@ Advanced capabilities (digital resources, QR scanning, AI search, notifications,
 ### Admin (Implemented)
 
 * Manage users and departments
+* Manage dynamic circulation policies (fine rates, caps, loan durations, and borrowing limits)
 * Full catalog and circulation staff access
 * Platform dashboard with user and circulation activity
 
@@ -237,7 +238,21 @@ Server-side enforcement:
 
 ### Fine Workflow (Sprint 4)
 
-Calendar-day overdue calculation clamped to `MAX_FINE_AMOUNT`. Payment is exactly-once via a conditional update. Staff mark fines paid. INR display in frontend.
+Calendar-day overdue calculation clamped to `max_fine_amount`. Payment is exactly-once via a conditional update. Staff mark fines paid. INR display in frontend.
+
+### Circulation Policy Management Module (Sprint 4.9)
+
+Transitions static circulation configuration (`LOAN_PERIOD_DAYS`, `RESERVATION_EXPIRY_DAYS`, `DAILY_OVERDUE_FINE_RATE`, `MAX_FINE_AMOUNT`, `MAX_ACTIVE_LOANS`) into a dynamic, database-backed, audit-tracked system:
+
+* **Database schema:** `circulation_policies` table (migration `013_circulation_policies`) with check constraints ensuring non-negative fines, positive loan windows, and positive borrowing limits.
+* **Audit tracking:** `updated_by` tracks the administering user with `updated_by_user` foreign key relationship; audit banner displayed in UI.
+* **Concurrency:** `CirculationPolicyRepository.update_active` uses row-level locking (`SELECT ... FOR UPDATE`) to prevent concurrent race conditions on policy updates.
+* **Service integration:**
+  * `FineService.create_overdue_fine`: uses `policy.daily_overdue_fine_rate` and `policy.max_fine_amount`.
+  * `TransactionService.issue_copy`: uses `policy.loan_period_days` and `policy.max_active_loans`.
+  * `ReservationService.create_reservation`: uses `policy.reservation_expiry_days`.
+* **Zero-downtime fallback:** If no active policy record exists in the database, the repository seamlessly falls back to static runtime `Settings`.
+* **Admin UI:** Dedicated interface at `/admin/circulation-policy` with form validations, reset controls, error retry boundary, and contextual policy guidelines.
 
 ### Semantic Search Module (Sprint 5)
 

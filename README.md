@@ -30,6 +30,7 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Circulation** | Issue, return, active/overdue loans (UTC calendar), student loan history, per-student loan limit, queue-aware issue/return |
 | **Reservations** | FIFO reservation queue enforced at issue and return time; returns hold copies for the queue head |
 | **Fines** | Automatic overdue fines (calendar days, capped), unpaid-fine borrowing block, exactly-once staff mark-paid |
+| **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, hold expiry) with audit tracking and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
 | **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
 | **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (bge-small-en-v1.5) + pgvector; keyword fallback before first index |
