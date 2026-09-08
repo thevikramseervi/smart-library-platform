@@ -327,10 +327,6 @@ export const router = createBrowserRouter([
             ],
           },
           {
-            path: "*",
-            element: <NotFoundPage />,
-          },
-          {
             element: <AdminRoute />,
             children: [
               {
@@ -400,6 +396,10 @@ export const router = createBrowserRouter([
                 ],
               },
             ],
+          },
+          {
+            path: "*",
+            element: <NotFoundPage />,
           },
         ],
       },
