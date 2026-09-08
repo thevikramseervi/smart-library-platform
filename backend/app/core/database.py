@@ -2,12 +2,33 @@
 
 from collections.abc import Generator
 
+import socket
+from urllib.parse import urlparse
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import settings
 
-engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
+
+def _get_connect_args() -> dict[str, str]:
+    """Resolve IPv4 hostaddr directly to avoid OS-level IPv6 connection timeouts."""
+    connect_args: dict[str, str] = {}
+    try:
+        parsed = urlparse(settings.DATABASE_URL)
+        if parsed.hostname and not parsed.hostname.startswith("127.") and parsed.hostname != "localhost":
+            connect_args["hostaddr"] = socket.gethostbyname(parsed.hostname)
+    except Exception:
+        pass
+    return connect_args
+
+
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args=_get_connect_args(),
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
