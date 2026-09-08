@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Info, ShieldAlert, SlidersHorizontal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,44 +14,33 @@ import { formatInr } from "@/lib/formatCurrency";
 import { appToast } from "@/lib/toast";
 import { CatalogPageHeader } from "@/pages/catalog/components/CatalogShared";
 import { getCirculationPolicy, updateCirculationPolicy } from "@/services/admin";
-import type { CirculationPolicyUpdate } from "@/types/circulationPolicy";
+import type { CirculationPolicyResponse, CirculationPolicyUpdate } from "@/types/circulationPolicy";
 
-export function CirculationPolicyPage() {
-  const queryClient = useQueryClient();
+interface CirculationPolicyFormProps {
+  policy: CirculationPolicyResponse;
+  isPending: boolean;
+  onSubmit: (payload: CirculationPolicyUpdate) => void;
+  apiError: string | null;
+}
 
-  const [dailyFineRate, setDailyFineRate] = useState<string>("10.00");
-  const [maxFineAmount, setMaxFineAmount] = useState<string>("500.00");
-  const [loanPeriodDays, setLoanPeriodDays] = useState<number>(14);
-  const [maxActiveLoans, setMaxActiveLoans] = useState<number>(5);
-  const [reservationExpiryDays, setReservationExpiryDays] = useState<number>(7);
+function CirculationPolicyForm({
+  policy,
+  isPending,
+  onSubmit,
+  apiError,
+}: CirculationPolicyFormProps) {
+  const [dailyFineRate, setDailyFineRate] = useState<string>(
+    String(policy.daily_overdue_fine_rate)
+  );
+  const [maxFineAmount, setMaxFineAmount] = useState<string>(
+    String(policy.max_fine_amount)
+  );
+  const [loanPeriodDays, setLoanPeriodDays] = useState<number>(policy.loan_period_days);
+  const [maxActiveLoans, setMaxActiveLoans] = useState<number>(policy.max_active_loans);
+  const [reservationExpiryDays, setReservationExpiryDays] = useState<number>(
+    policy.reservation_expiry_days
+  );
   const [clientError, setClientError] = useState<string | null>(null);
-
-  const policyQuery = useQuery({
-    queryKey: ["circulation-policy"],
-    queryFn: getCirculationPolicy,
-  });
-
-  useEffect(() => {
-    if (policyQuery.data) {
-      setDailyFineRate(String(policyQuery.data.daily_overdue_fine_rate));
-      setMaxFineAmount(String(policyQuery.data.max_fine_amount));
-      setLoanPeriodDays(policyQuery.data.loan_period_days);
-      setMaxActiveLoans(policyQuery.data.max_active_loans);
-      setReservationExpiryDays(policyQuery.data.reservation_expiry_days);
-    }
-  }, [policyQuery.data]);
-
-  const updateMutation = useMutation({
-    mutationFn: (payload: CirculationPolicyUpdate) => updateCirculationPolicy(payload),
-    onSuccess: (data) => {
-      appToast.success("Circulation policy updated successfully");
-      queryClient.setQueryData(["circulation-policy"], data);
-      setClientError(null);
-    },
-    onError: (error) => {
-      setClientError(getApiErrorMessage(error, "Failed to update circulation policy."));
-    },
-  });
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -85,7 +74,7 @@ export function CirculationPolicyPage() {
       return;
     }
 
-    updateMutation.mutate({
+    onSubmit({
       daily_overdue_fine_rate: rateNum,
       max_fine_amount: capNum,
       loan_period_days: loanPeriodDays,
@@ -93,6 +82,146 @@ export function CirculationPolicyPage() {
       reservation_expiry_days: reservationExpiryDays,
     });
   };
+
+  const errorMessage = clientError || apiError;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="daily-fine-rate">Daily Overdue Fine Rate (₹)</Label>
+          <Input
+            id="daily-fine-rate"
+            type="number"
+            step="0.50"
+            min="0"
+            value={dailyFineRate}
+            onChange={(e) => setDailyFineRate(e.target.value)}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Charged per calendar day a book is returned late.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="max-fine-amount">Maximum Fine Cap (₹)</Label>
+          <Input
+            id="max-fine-amount"
+            type="number"
+            step="1.00"
+            min="0"
+            value={maxFineAmount}
+            onChange={(e) => setMaxFineAmount(e.target.value)}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Upper ceiling on overdue fine for a single loan.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="loan-period">Loan Duration (Days)</Label>
+          <Input
+            id="loan-period"
+            type="number"
+            min="1"
+            max="365"
+            value={loanPeriodDays}
+            onChange={(e) => setLoanPeriodDays(Number(e.target.value))}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Default borrowing window.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="max-active-loans">Max Active Loans</Label>
+          <Input
+            id="max-active-loans"
+            type="number"
+            min="1"
+            max="50"
+            value={maxActiveLoans}
+            onChange={(e) => setMaxActiveLoans(Number(e.target.value))}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Concurrent limit per student.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="reservation-expiry">Reservation Hold (Days)</Label>
+          <Input
+            id="reservation-expiry"
+            type="number"
+            min="1"
+            max="90"
+            value={reservationExpiryDays}
+            onChange={(e) => setReservationExpiryDays(Number(e.target.value))}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Window before hold expires.
+          </p>
+        </div>
+      </div>
+
+      {errorMessage ? (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+          <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
+          <span>{errorMessage}</span>
+        </div>
+      ) : null}
+
+      <div className="flex gap-2 pt-2">
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving..." : "Save Policy Changes"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setDailyFineRate(String(policy.daily_overdue_fine_rate));
+            setMaxFineAmount(String(policy.max_fine_amount));
+            setLoanPeriodDays(policy.loan_period_days);
+            setMaxActiveLoans(policy.max_active_loans);
+            setReservationExpiryDays(policy.reservation_expiry_days);
+            setClientError(null);
+          }}
+          disabled={isPending}
+        >
+          Reset
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function CirculationPolicyPage() {
+  const queryClient = useQueryClient();
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const policyQuery = useQuery({
+    queryKey: ["circulation-policy"],
+    queryFn: getCirculationPolicy,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: CirculationPolicyUpdate) => updateCirculationPolicy(payload),
+    onSuccess: (data) => {
+      appToast.success("Circulation policy updated successfully");
+      queryClient.setQueryData(["circulation-policy"], data);
+      setApiError(null);
+    },
+    onError: (error) => {
+      setApiError(getApiErrorMessage(error, "Failed to update circulation policy."));
+    },
+  });
 
   if (policyQuery.isError) {
     return (
@@ -147,7 +276,7 @@ export function CirculationPolicyPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {policyQuery.isLoading ? (
+              {policyQuery.isLoading || !policy ? (
                 <div className="space-y-5" aria-busy="true" aria-label="Loading active policy">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
@@ -184,121 +313,13 @@ export function CirculationPolicyPage() {
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="daily-fine-rate">Daily Overdue Fine Rate (₹)</Label>
-                      <Input
-                        id="daily-fine-rate"
-                        type="number"
-                        step="0.50"
-                        min="0"
-                        value={dailyFineRate}
-                        onChange={(e) => setDailyFineRate(e.target.value)}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Charged per calendar day a book is returned late.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="max-fine-amount">Maximum Fine Cap (₹)</Label>
-                      <Input
-                        id="max-fine-amount"
-                        type="number"
-                        step="1.00"
-                        min="0"
-                        value={maxFineAmount}
-                        onChange={(e) => setMaxFineAmount(e.target.value)}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Upper ceiling on overdue fine for a single loan.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="loan-period">Loan Duration (Days)</Label>
-                      <Input
-                        id="loan-period"
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={loanPeriodDays}
-                        onChange={(e) => setLoanPeriodDays(Number(e.target.value))}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Default borrowing window.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="max-active-loans">Max Active Loans</Label>
-                      <Input
-                        id="max-active-loans"
-                        type="number"
-                        min="1"
-                        max="50"
-                        value={maxActiveLoans}
-                        onChange={(e) => setMaxActiveLoans(Number(e.target.value))}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Concurrent limit per student.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="reservation-expiry">Reservation Hold (Days)</Label>
-                      <Input
-                        id="reservation-expiry"
-                        type="number"
-                        min="1"
-                        max="90"
-                        value={reservationExpiryDays}
-                        onChange={(e) => setReservationExpiryDays(Number(e.target.value))}
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Window before hold expires.
-                      </p>
-                    </div>
-                  </div>
-
-                  {clientError ? (
-                    <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-                      <ShieldAlert className="size-4 shrink-0" aria-hidden="true" />
-                      <span>{clientError}</span>
-                    </div>
-                  ) : null}
-
-                  <div className="flex gap-2 pt-2">
-                    <Button type="submit" disabled={updateMutation.isPending}>
-                      {updateMutation.isPending ? "Saving..." : "Save Policy Changes"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        if (policy) {
-                          setDailyFineRate(String(policy.daily_overdue_fine_rate));
-                          setMaxFineAmount(String(policy.max_fine_amount));
-                          setLoanPeriodDays(policy.loan_period_days);
-                          setMaxActiveLoans(policy.max_active_loans);
-                          setReservationExpiryDays(policy.reservation_expiry_days);
-                          setClientError(null);
-                        }
-                      }}
-                      disabled={updateMutation.isPending}
-                    >
-                      Reset
-                    </Button>
-                  </div>
-                </form>
+                <CirculationPolicyForm
+                  key={policy.updated_at}
+                  policy={policy}
+                  isPending={updateMutation.isPending}
+                  onSubmit={(payload) => updateMutation.mutate(payload)}
+                  apiError={apiError}
+                />
               )}
             </CardContent>
           </Card>
@@ -317,7 +338,7 @@ export function CirculationPolicyPage() {
                 <p className="font-semibold text-foreground">Late Returns & Fines</p>
                 <p>
                   Fines are assessed when a book is returned past its UTC calendar due date.
-                  Calculation: <code className="text-foreground">days_late × rate</code> clamped to the Maximum Fine Cap ({formatInr(maxFineAmount)}).
+                  Calculation: <code className="text-foreground">days_late × rate</code> clamped to the Maximum Fine Cap ({formatInr(policy?.max_fine_amount ?? 500)}).
                 </p>
               </div>
               <div className="space-y-1">
@@ -329,13 +350,13 @@ export function CirculationPolicyPage() {
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">Loan Limits</p>
                 <p>
-                  Limits students to at most {maxActiveLoans} concurrent open loans across all catalog copies.
+                  Limits students to at most {policy?.max_active_loans ?? 5} concurrent open loans across all catalog copies.
                 </p>
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">Reservation Holds</p>
                 <p>
-                  When a reserved book is returned, it is set to <code>RESERVED</code> and held for the first queued student for {reservationExpiryDays} days.
+                  When a reserved book is returned, it is set to <code>RESERVED</code> and held for the first queued student for {policy?.reservation_expiry_days ?? 7} days.
                 </p>
               </div>
             </CardContent>

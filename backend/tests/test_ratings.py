@@ -4,7 +4,12 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from tests.conftest_circulation import admin_token, catalog_book_with_copy, student2_token, student_token  # noqa: F401
+from tests.conftest_circulation import (  # noqa: F401
+    admin_token,
+    catalog_book_with_copy,
+    student2_token,
+    student_token,
+)
 
 
 def _headers(token: str) -> dict:
@@ -41,7 +46,11 @@ def test_rating_summary_aggregates_across_students(
 ) -> None:
     """Average and count reflect every rater."""
     book_id = catalog_book_with_copy["book_id"]
-    client.put(f"/api/v1/books/{book_id}/rating", headers=_headers(student_token), json={"score": 2})
+    client.put(
+        f"/api/v1/books/{book_id}/rating",
+        headers=_headers(student_token),
+        json={"score": 2},
+    )
     client.put(
         f"/api/v1/books/{book_id}/rating",
         headers=_headers(student2_token),
@@ -65,7 +74,11 @@ def test_score_bounds_rejected(
     headers = _headers(student_token)
 
     for score in (0, 6):
-        response = client.put(f"/api/v1/books/{book_id}/rating", headers=headers, json={"score": score})
+        response = client.put(
+            f"/api/v1/books/{book_id}/rating",
+            headers=headers,
+            json={"score": score},
+        )
         assert response.status_code == 422
 
 

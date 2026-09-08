@@ -3,8 +3,9 @@
 from typing import Sequence, Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "003_circulation_schema"
 down_revision: Union[str, None] = "002_catalog_schema"
@@ -42,8 +43,18 @@ def upgrade() -> None:
         sa.Column("due_at", sa.Date(), nullable=False),
         sa.Column("returned_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("status", transaction_status, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["book_copy_id"], ["book_copies.id"]),
         sa.ForeignKeyConstraint(["issued_by"], ["users.id"]),
         sa.ForeignKeyConstraint(["student_id"], ["users.id"]),
@@ -68,8 +79,18 @@ def upgrade() -> None:
         sa.Column("reservation_date", sa.DateTime(timezone=True), nullable=False),
         sa.Column("expiry_date", sa.DateTime(timezone=True), nullable=False),
         sa.Column("status", reservation_status, nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["book_id"], ["books.id"]),
         sa.ForeignKeyConstraint(["student_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
@@ -95,8 +116,18 @@ def upgrade() -> None:
         sa.Column("reason", sa.String(length=255), nullable=False),
         sa.Column("paid", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("paid_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["transaction_id"], ["transactions.id"]),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("transaction_id"),

@@ -72,8 +72,12 @@ class CirculationPolicyUpdate(BaseModel):
     @model_validator(mode="after")
     def validate_fine_cap(self) -> "CirculationPolicyUpdate":
         """Ensure the maximum fine amount is not less than the single-day fine rate."""
-        if self.daily_overdue_fine_rate > 0 and self.max_fine_amount < self.daily_overdue_fine_rate:
+        if (
+            self.daily_overdue_fine_rate > 0
+            and self.max_fine_amount < self.daily_overdue_fine_rate
+        ):
             raise ValueError(
-                "max_fine_amount cannot be less than daily_overdue_fine_rate when fine rate is positive"
+                "max_fine_amount cannot be less than daily_overdue_fine_rate "
+                "when fine rate is positive"
             )
         return self

@@ -7,6 +7,7 @@ mirrors the long-planned schema design.
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "012_ratings"

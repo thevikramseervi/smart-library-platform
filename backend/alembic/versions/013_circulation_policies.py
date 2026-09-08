@@ -7,6 +7,7 @@ loan durations, concurrent loan limits, and reservation expiry.
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "013_circulation_policies"

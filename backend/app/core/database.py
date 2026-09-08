@@ -1,8 +1,7 @@
 """Database engine and session configuration."""
 
-from collections.abc import Generator
-
 import socket
+from collections.abc import Generator
 from urllib.parse import urlparse
 
 from sqlalchemy import create_engine
@@ -16,8 +15,9 @@ def _get_connect_args() -> dict[str, str]:
     connect_args: dict[str, str] = {}
     try:
         parsed = urlparse(settings.DATABASE_URL)
-        if parsed.hostname and not parsed.hostname.startswith("127.") and parsed.hostname != "localhost":
-            connect_args["hostaddr"] = socket.gethostbyname(parsed.hostname)
+        hostname = parsed.hostname
+        if hostname and not hostname.startswith("127.") and hostname != "localhost":
+            connect_args["hostaddr"] = socket.gethostbyname(hostname)
     except Exception:
         pass
     return connect_args

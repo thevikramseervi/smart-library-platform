@@ -7,7 +7,6 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.clock import utc_now, utc_today
-from app.core.config import settings
 from app.core.db_errors import commit_or_raise_conflict
 from app.models.book_copy import BookCopyStatus
 from app.models.reservation import ReservationStatus
