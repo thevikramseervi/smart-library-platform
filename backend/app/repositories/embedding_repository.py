@@ -89,6 +89,10 @@ class EmbeddingRepository:
                 break
         return stale
 
+    def has_stale_books(self, *, hash_for_book: Callable[[Book], str]) -> bool:
+        """Return whether any active catalog entry is not represented by its current vector."""
+        return bool(self.list_stale_books(limit=1, force=False, hash_for_book=hash_for_book))
+
     def upsert_indexed(
         self,
         *,

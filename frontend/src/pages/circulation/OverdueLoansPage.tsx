@@ -16,7 +16,7 @@ export function OverdueLoansPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["transactions", "overdue", page, pageSize],
     queryFn: () => listTransactions({ page, page_size: pageSize, overdue: true }),
   });
@@ -31,7 +31,7 @@ export function OverdueLoansPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading overdue loans...</p>
       ) : isError ? (
-        <QueryErrorState message="Unable to load overdue loans." />
+        <QueryErrorState message="Unable to load overdue loans." onRetry={() => void refetch()} />
       ) : (
         <>
           <CirculationTable>

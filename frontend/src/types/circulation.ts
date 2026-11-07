@@ -26,6 +26,12 @@ export interface TransactionCopySummary {
   book: TransactionBookSummary;
 }
 
+export interface StudentTransactionCopySummary {
+  id: string;
+  book_id: string;
+  book: TransactionBookSummary;
+}
+
 export interface Transaction {
   id: string;
   book_copy_id: string;
@@ -39,6 +45,10 @@ export interface Transaction {
   book_copy: TransactionCopySummary;
   student: TransactionUserSummary;
   issuer: TransactionUserSummary;
+}
+
+export interface StudentActiveTransaction extends Omit<Transaction, "book_copy"> {
+  book_copy: StudentTransactionCopySummary;
 }
 
 export interface TransactionIssueRequest {
@@ -116,6 +126,7 @@ export interface TransactionListParams {
   overdue?: boolean;
   student_id?: string;
   book_id?: string;
+  q?: string;
 }
 
 export interface ReservationListParams {

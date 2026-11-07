@@ -99,7 +99,7 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
           emptyIcon={Sparkles}
           recordCount={data.recent_loans.length}
         >
-          <CirculationTable recordCount={data.recent_loans.length}>
+          <CirculationTable ariaLabel="Recent loans">
             <CirculationTableHead columns={["Book", "Issued", "Due", "Status"]} />
             <tbody>
               {data.recent_loans.map((loan, index) => (
@@ -129,7 +129,7 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
           emptyIcon={Bookmark}
           recordCount={data.recent_reservations.length}
         >
-          <CirculationTable recordCount={data.recent_reservations.length}>
+          <CirculationTable ariaLabel="Recent reservations">
             <CirculationTableHead columns={["Book", "Queue", "Reserved"]} />
             <tbody>
               {data.recent_reservations.map((reservation, index) => (

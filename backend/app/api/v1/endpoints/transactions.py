@@ -10,6 +10,7 @@ from app.models.transaction import TransactionStatus
 from app.models.user import User
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.transaction import (
+    StudentActiveTransactionResponse,
     TransactionIssueRequest,
     TransactionResponse,
     TransactionReturnRequest,
@@ -57,6 +58,7 @@ def list_transactions(
     status_filter: TransactionStatus | None = Query(default=None, alias="status"),
     overdue: bool | None = Query(default=None),
     book_id: UUID | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=200),
     _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: TransactionService = Depends(get_transaction_service),
 ) -> PaginatedResponse[TransactionResponse]:
@@ -70,6 +72,7 @@ def list_transactions(
         status_filter=status_filter,
         overdue=overdue,
         book_id=book_id,
+        q=q,
     )
 
 
@@ -90,11 +93,11 @@ def list_my_transactions(
     )
 
 
-@router.get("/me/active", response_model=list[TransactionResponse])
+@router.get("/me/active", response_model=list[StudentActiveTransactionResponse])
 def list_my_active_transactions(
     current_user: User = Depends(get_current_user),
     service: TransactionService = Depends(get_transaction_service),
-) -> list[TransactionResponse]:
+) -> list[StudentActiveTransactionResponse]:
     """List the authenticated user's active loans."""
     return service.list_active_for_student(current_user)
 

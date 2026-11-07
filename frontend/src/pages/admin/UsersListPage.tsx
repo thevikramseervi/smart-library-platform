@@ -129,7 +129,10 @@ export function UsersListPage() {
       {usersQuery.isLoading ? (
         <TableListSkeleton columns={6} />
       ) : usersQuery.isError ? (
-        <QueryErrorState message="Unable to load users." />
+        <QueryErrorState
+          message="Unable to load users."
+          onRetry={() => void usersQuery.refetch()}
+        />
       ) : (
         <>
           <CatalogTable>

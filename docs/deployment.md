@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Production deployment guidance for the Smart Library Platform (through Sprint 5).
+Production deployment guidance for the current Smart Library Platform implementation.
 
 This document covers a typical stack:
 
@@ -162,7 +162,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 | `SEMANTIC_SEARCH_ENABLED` | `true` | Master switch for vector queries |
 | `DEV_ADMIN_*` | see `.env.example` | Dev seed overrides (local only) |
 | `DEV_LIBRARIAN_*` | see `config.py` defaults | Dev seed overrides (local only) |
-| `CLOUD_STORAGE_*` | empty | Reserved for future digital resources (Sprint 5+) |
+| `CLOUD_STORAGE_*` | empty | Reserved configuration only; digital-resource storage is not implemented |
 
 ### Frontend (required)
 
@@ -175,14 +175,14 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 ## Post-Deploy Checklist
 
 - [ ] `DATABASE_URL` set with `sslmode=require` (Neon)
-- [ ] `uv run alembic upgrade head` succeeded (through revision `010`)
+- [ ] `uv run alembic upgrade head` succeeded (through revision `014_model_index_alignment`)
 - [ ] `JWT_SECRET_KEY` is a strong unique value — the server **refuses to start** on known defaults or secrets under 32 characters
 - [ ] `CORS_ORIGINS` includes the exact Vercel frontend URL (scheme + host, no trailing slash)
 - [ ] `VITE_API_BASE_URL` points to the deployed backend `/api/v1`
 - [ ] Frontend redeployed after setting `VITE_API_BASE_URL`
 - [ ] Dev seed never run against production (`SEED_ALLOWED=true` is required even to attempt it)
 - [ ] `GET /api/v1/health` returns `{ "status": "ok", "database": "connected" }`
-- [ ] Embeddings built once after deploy: `uv run python -m app.scripts.reindex_embeddings` (downloads the ONNX model on first run)
+- [ ] If semantic search is enabled, embeddings built after deploy: `uv run python -m app.scripts.reindex_embeddings` (downloads the ONNX model on first run)
 - [ ] Production admin account created (not dev seed passwords)
 - [ ] Dev seed **not** run on production (or passwords rotated immediately)
 
@@ -225,17 +225,18 @@ Returns `200` with `status: ok` when the database is reachable; `503` when degra
 - Use HTTPS everywhere in production.
 - Restrict admin account creation in production.
 - Keep Neon credentials in platform secret stores (Render env, Vercel env, etc.).
+- Login lockout state is held in process memory. With multiple API workers or replicas, workers do not share lockout counters; restarting a worker clears its counters.
 
 ---
 
-## Future Deployment Considerations (Not Yet Implemented)
+## Configuration Notes for Implemented and Future Features
 
-When Sprint 5+ features ship, additional configuration will be required:
+Future features may require additional configuration:
 
 | Feature | Additional config |
 |---------|-------------------|
 | Digital resources | Cloudflare R2 (`CLOUD_STORAGE_*`) |
-| AI / semantic search | pgvector extension on Neon, model serving |
+| Semantic search | Already implemented. PostgreSQL must support pgvector; build embeddings with the reindex command. Keyword search is used if no index is available or semantic inference fails. |
 | Notifications | Email/push provider credentials |
 
 See [`architecture.md`](architecture.md) for planned modules.

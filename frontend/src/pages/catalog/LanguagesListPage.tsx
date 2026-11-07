@@ -24,7 +24,7 @@ export function LanguagesListPage() {
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["languages"],
     queryFn: listLanguages,
   });
@@ -111,7 +111,7 @@ export function LanguagesListPage() {
       {isLoading ? (
         <TableListSkeleton columns={3} />
       ) : isError ? (
-        <QueryErrorState message="Unable to load languages." />
+        <QueryErrorState message="Unable to load languages." onRetry={() => void refetch()} />
       ) : (
         <>
           <CatalogTable>

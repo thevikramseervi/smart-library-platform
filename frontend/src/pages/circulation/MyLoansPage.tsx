@@ -36,7 +36,10 @@ export function MyLoansPage() {
         {activeQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading active loans...</p>
         ) : activeQuery.isError ? (
-          <QueryErrorState message="Unable to load active loans." />
+          <QueryErrorState
+            message="Unable to load active loans."
+            onRetry={() => void activeQuery.refetch()}
+          />
         ) : activeQuery.data?.length ? (
           <CirculationTable>
             <CirculationTableHead columns={["Book", "Issued", "Due", "Status"]} />
@@ -78,7 +81,10 @@ export function MyLoansPage() {
         {historyQuery.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading history...</p>
         ) : historyQuery.isError ? (
-          <QueryErrorState message="Unable to load borrowing history." />
+          <QueryErrorState
+            message="Unable to load borrowing history."
+            onRetry={() => void historyQuery.refetch()}
+          />
         ) : historyQuery.data?.items.length ? (
           <CirculationTable>
             <CirculationTableHead columns={["Book", "Issued", "Returned", "Status"]} />

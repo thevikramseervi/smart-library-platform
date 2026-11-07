@@ -3,6 +3,10 @@
 **Date:** 2026-06-07  
 **Scope:** Frontend-only polish — icons, badges, empty states, tables, toasts, page headers
 
+This is a historical report of that sprint's scope and verification. Its
+out-of-scope statements describe the June 2026 work pass, not the current
+repository. See the root README and architecture document for current features.
+
 ---
 
 ## Verification

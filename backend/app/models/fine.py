@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,7 +24,7 @@ class Fine(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "fines"
     __table_args__ = (
         Index("ix_fines_paid", "paid"),
-        Index("uq_fines_transaction_id", "transaction_id", unique=True),
+        UniqueConstraint("transaction_id"),
     )
 
     transaction_id: Mapped[uuid.UUID] = mapped_column(

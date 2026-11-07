@@ -30,7 +30,7 @@ export function DepartmentsListPage() {
   const [pendingDelete, setPendingDelete] = useState<DepartmentResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["departments"],
     queryFn: listDepartments,
   });
@@ -80,7 +80,7 @@ export function DepartmentsListPage() {
       {isLoading ? (
         <TableListSkeleton columns={4} showRecordCount={false} />
       ) : isError ? (
-        <QueryErrorState message="Unable to load departments." />
+        <QueryErrorState message="Unable to load departments." onRetry={() => void refetch()} />
       ) : (
         <CatalogTable>
           <CatalogTableHead columns={["Code", "Name", "Description", "Actions"]} />

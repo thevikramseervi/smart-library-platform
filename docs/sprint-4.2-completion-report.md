@@ -3,6 +3,10 @@
 **Date:** 2026-06-07  
 **Scope:** INR fines, return confirmation, copy lifecycle, languages documentation
 
+This report records the implementation and checks from that sprint. Its test
+counts and limitations are historical; see the current status update below for
+items that changed afterward.
+
 ---
 
 ## Verification
@@ -121,7 +125,7 @@
 
 ---
 
-## Remaining Limitations
+## Remaining Limitations (at report date)
 
 | Area | Note |
 |------|------|
@@ -131,6 +135,13 @@
 | `RETIRED` downgrade | PostgreSQL enum value cannot be removed in migration downgrade |
 | Frontend tests | No automated UI tests for dialog or INR formatting |
 | QR / scanner | Not in Sprint 4.2 scope |
+
+### Current status update (2026-11-08)
+
+The Return Book limit has since been addressed with backend search and
+pagination. INR formatting remains implemented. Frontend automated tests are
+still not configured. The historical verification results above do not verify
+the current repository revision.
 
 ---
 

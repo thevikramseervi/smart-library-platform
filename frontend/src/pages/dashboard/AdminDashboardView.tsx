@@ -8,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { formatDashboardDateTime } from "@/lib/format";
+import { formatDashboardDateTime, formatDashboardDateTimeCompact } from "@/lib/format";
 import {
   DASHBOARD_TABLE_CELL_CLASS,
   DashboardQuickActions,
@@ -87,7 +87,7 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="dashboard-activity-grid">
         <DashboardSection
           title="Recent user activity"
           isEmpty={!data.recent_user_activity.length}
@@ -96,7 +96,7 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
           compact
           recordCount={data.recent_user_activity.length}
         >
-          <CirculationTable recordCount={data.recent_user_activity.length}>
+          <CirculationTable ariaLabel="Recent user activity">
             <CirculationTableHead columns={["Activity", "User", "Role", "When"]} />
             <tbody>
               {data.recent_user_activity.map((activity, index) => (
@@ -112,7 +112,13 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
                     <RoleBadge role={activity.role_name} />
                   </td>
                   <td className={cn(DASHBOARD_TABLE_CELL_CLASS, "whitespace-nowrap")}>
-                    {formatDashboardDateTime(activity.occurred_at)}
+                    <time
+                      dateTime={activity.occurred_at}
+                      title={formatDashboardDateTime(activity.occurred_at)}
+                      aria-label={formatDashboardDateTime(activity.occurred_at)}
+                    >
+                      {formatDashboardDateTimeCompact(activity.occurred_at)}
+                    </time>
                   </td>
                 </tr>
               ))}
@@ -128,7 +134,7 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
           compact
           recordCount={data.recent_circulation_activity.length}
         >
-          <CirculationTable recordCount={data.recent_circulation_activity.length}>
+          <CirculationTable ariaLabel="Recent circulation activity">
             <CirculationTableHead columns={["Action", "Book", "Student", "When"]} />
             <tbody>
               {data.recent_circulation_activity.map((activity, index) => (
@@ -144,7 +150,13 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
                   </td>
                   <td className={DASHBOARD_TABLE_CELL_CLASS}>{activity.student_name}</td>
                   <td className={cn(DASHBOARD_TABLE_CELL_CLASS, "whitespace-nowrap")}>
-                    {formatDashboardDateTime(activity.occurred_at)}
+                    <time
+                      dateTime={activity.occurred_at}
+                      title={formatDashboardDateTime(activity.occurred_at)}
+                      aria-label={formatDashboardDateTime(activity.occurred_at)}
+                    >
+                      {formatDashboardDateTimeCompact(activity.occurred_at)}
+                    </time>
                   </td>
                 </tr>
               ))}

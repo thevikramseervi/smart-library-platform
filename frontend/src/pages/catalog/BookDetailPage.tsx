@@ -7,6 +7,7 @@ import { useIsStaff } from "@/lib/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { createBookCopy, getBook, listBookCopies, updateBookCopy } from "@/services/catalog";
 import type { BookCopy, BookCopyStatus } from "@/types/catalog";
@@ -194,7 +195,12 @@ export function BookDetailPage() {
   }
 
   if (bookQuery.isError || !bookQuery.data) {
-    return <p className="text-sm text-destructive">Unable to load book.</p>;
+    return (
+      <QueryErrorState
+        message="Unable to load this book."
+        onRetry={() => void bookQuery.refetch()}
+      />
+    );
   }
 
   const book = bookQuery.data;
@@ -307,7 +313,10 @@ export function BookDetailPage() {
             {myReservationsQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading reservation status...</p>
             ) : myReservationsQuery.isError ? (
-              <p className="text-sm text-destructive">Unable to load your reservations.</p>
+              <QueryErrorState
+                message="Unable to load your reservation status."
+                onRetry={() => void myReservationsQuery.refetch()}
+              />
             ) : availability ? (
               <>
                 <dl className="grid gap-4 text-sm sm:grid-cols-2">
@@ -400,7 +409,10 @@ export function BookDetailPage() {
             {copiesQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">Loading copies...</p>
             ) : copiesQuery.isError ? (
-              <p className="text-sm text-destructive">Unable to load copies.</p>
+              <QueryErrorState
+                message="Unable to load physical copies."
+                onRetry={() => void copiesQuery.refetch()}
+              />
             ) : (
               <CatalogTable>
                 <CatalogTableHead columns={["Inventory code", "Location", "Status", "Acquired"]} />

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { appToast } from "@/lib/toast";
 import { ReservationQueueWarning } from "@/pages/circulation/components/ReservationQueueWarning";
@@ -35,6 +36,7 @@ interface IssuePageLocationState {
   bookId?: string;
   copyId?: string;
   studentId?: string;
+  student?: StudentSearchResult;
 }
 
 function formatStudentLabel(student: StudentSearchResult): string {
@@ -52,19 +54,24 @@ export function IssueBookPage() {
   const [selectedCopy, setSelectedCopy] = useState<AvailableCopyResult | null>(null);
   const [showIssueConfirm, setShowIssueConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const studentsQuery = useQuery({
-    queryKey: ["circulation", "students", "all"],
-    queryFn: () => searchStudents(),
-  });
-
+  const debouncedStudentSearch = useDebouncedValue(studentSearch.trim(), 300);
   const debouncedCopySearch = useDebouncedValue(copySearch.trim(), 300);
 
-  const copiesQuery = useQuery({
-    queryKey: ["circulation", "copies", "available", debouncedCopySearch],
-    queryFn: () =>
-      listAvailableCopies(debouncedCopySearch ? { q: debouncedCopySearch } : undefined),
+  const studentsQuery = useQuery({
+    queryKey: ["circulation", "students", debouncedStudentSearch],
+    queryFn: () => searchStudents(debouncedStudentSearch),
+    enabled: debouncedStudentSearch.length >= 2,
   });
+
+  const copiesQuery = useQuery({
+    queryKey: ["circulation", "copies", "available", locationState?.bookId, debouncedCopySearch],
+    queryFn: () =>
+      listAvailableCopies({
+        ...(locationState?.bookId ? { book_id: locationState.bookId } : {}),
+        ...(debouncedCopySearch ? { q: debouncedCopySearch } : {}),
+      }),
+  });
+  const copySearchSettled = copySearch.trim() === debouncedCopySearch;
 
   const studentLoansQuery = useQuery({
     queryKey: ["transactions", "student-active", selectedStudent?.id],
@@ -89,8 +96,7 @@ export function IssueBookPage() {
   if (
     locationState &&
     locationState !== lastAppliedLocationState &&
-    copiesQuery.data &&
-    studentsQuery.data
+    copiesQuery.data
   ) {
     if (locationState.copyId) {
       const copy = copiesQuery.data.find((item) => item.id === locationState.copyId);
@@ -100,41 +106,22 @@ export function IssueBookPage() {
       }
     }
 
-    if (locationState.studentId) {
-      const student = studentsQuery.data.find((item) => item.id === locationState.studentId);
-      if (student) {
-        setSelectedStudent(student);
-        setStudentSearch(student.student_code ?? student.email);
-      }
+    if (locationState.student) {
+      setSelectedStudent(locationState.student);
+      setStudentSearch(locationState.student.student_code ?? locationState.student.email);
     }
 
     setLastAppliedLocationState(locationState);
   }
 
-  const filteredStudents = useMemo(() => {
-    const term = studentSearch.trim().toLowerCase();
-    const students = studentsQuery.data ?? [];
-    if (!term) {
-      return students;
-    }
-    return students.filter((student) => {
-      const haystack = [
-        student.first_name,
-        student.last_name,
-        student.email,
-        student.student_code ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
-  }, [studentSearch, studentsQuery.data]);
+  const studentSearchSettled = studentSearch.trim() === debouncedStudentSearch;
+  const matchingStudents = studentSearchSettled ? (studentsQuery.data ?? []) : [];
 
   // Server already filters by `q` (title / inventory code); the list below
   // is grouped by book so multiple copies of one title read as one group.
   const availableCopies = useMemo(
-    () => copiesQuery.data ?? [],
-    [copiesQuery.data],
+    () => (copySearchSettled ? (copiesQuery.data ?? []) : []),
+    [copySearchSettled, copiesQuery.data],
   );
 
   const groupedCopies = useMemo(() => {
@@ -193,7 +180,15 @@ export function IssueBookPage() {
   );
 
   const handleIssueClick = () => {
-    if (!selectedStudent || !selectedCopy || duplicateLoan) {
+    if (
+      !selectedStudent ||
+      !selectedCopy ||
+      duplicateLoan ||
+      queueQuery.isLoading ||
+      queueQuery.isError ||
+      studentLoansQuery.isLoading ||
+      studentLoansQuery.isError
+    ) {
       return;
     }
     if (activeQueue.length && !selectedStudentIsQueueHead) {
@@ -221,35 +216,53 @@ export function IssueBookPage() {
               <Input
                 id="student-search"
                 value={studentSearch}
-                onChange={(event) => setStudentSearch(event.target.value)}
-                placeholder="Filter by name, email, or student code"
+                onChange={(event) => {
+                  setStudentSearch(event.target.value);
+                  setSelectedStudent(null);
+                  setSelectedCopy(null);
+                  setCopySearch("");
+                }}
+                placeholder="Search by name, email, or student code"
+                autoComplete="off"
               />
-              <p className="text-xs text-muted-foreground">
+              <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
                 {studentsQuery.isLoading
                   ? "Loading students..."
-                  : `Showing ${filteredStudents.length} of ${studentsQuery.data?.length ?? 0} students.`}
+                  : !studentSearchSettled
+                    ? "Searching students..."
+                    : debouncedStudentSearch.length < 2
+                    ? "Enter at least 2 characters to search students."
+                    : `Showing up to 20 matching students. ${matchingStudents.length} found.`}
               </p>
               {studentsQuery.isError ? (
-                <p className="text-sm text-destructive">Unable to load students.</p>
-              ) : filteredStudents.length ? (
-                <div className="max-h-48 overflow-y-auto rounded-md border">
-                  {filteredStudents.map((student) => (
+                <QueryErrorState
+                  message="Unable to search students."
+                  onRetry={() => void studentsQuery.refetch()}
+                />
+              ) : matchingStudents.length ? (
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-border/70 bg-card/60">
+                  {matchingStudents.map((student) => (
                     <button
                       key={student.id}
                       type="button"
                       className={[
-                        "block w-full px-3 py-2 text-left text-sm hover:bg-muted",
+                        "block min-h-10 w-full px-3 py-2.5 text-left text-sm hover:bg-muted",
                         selectedStudent?.id === student.id ? "bg-muted font-medium" : "",
                       ].join(" ")}
+                      aria-pressed={selectedStudent?.id === student.id}
                       onClick={() => setSelectedStudent(student)}
                     >
                       {formatStudentLabel(student)}
                     </button>
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No students match your filter.</p>
-              )}
+              ) : studentSearchSettled &&
+                debouncedStudentSearch.length >= 2 &&
+                !studentsQuery.isLoading ? (
+                <p className="rounded-xl border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                  No active students match “{debouncedStudentSearch}”. Try a name, email, or student code.
+                </p>
+              ) : null}
               {selectedStudent ? (
                 <p className="text-sm text-muted-foreground">
                   Selected: {formatStudentLabel(selectedStudent)}
@@ -262,23 +275,33 @@ export function IssueBookPage() {
               <Input
                 id="copy-search"
                 value={copySearch}
-                onChange={(event) => setCopySearch(event.target.value)}
+                onChange={(event) => {
+                  setCopySearch(event.target.value);
+                  setSelectedCopy(null);
+                }}
                 placeholder="Filter by book title or inventory code"
               />
-              <p className="text-xs text-muted-foreground">
-                {copiesQuery.isLoading
+              <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+                {copiesQuery.isLoading || !copySearchSettled
                   ? "Loading available copies..."
                   : debouncedCopySearch
-                    ? `Showing ${availableCopies.length} available copies matching “${debouncedCopySearch}”.`
-                    : `Showing ${availableCopies.length} available copies. Only AVAILABLE copies are listed.`}
+                    ? `Showing up to 50 available copies matching “${debouncedCopySearch}”. Narrow your search if needed.`
+                    : "Showing up to 50 available copies. Search to narrow the list. Only AVAILABLE copies are listed."}
               </p>
               {copiesQuery.isError ? (
-                <p className="text-sm text-destructive">Unable to load available copies.</p>
+                <QueryErrorState
+                  message="Unable to load available copies."
+                  onRetry={() => void copiesQuery.refetch()}
+                />
+              ) : copiesQuery.isLoading || !copySearchSettled ? (
+                <p role="status" className="rounded-xl border border-dashed px-3 py-4 text-sm text-muted-foreground">
+                  Searching available copies…
+                </p>
               ) : groupedCopies.length ? (
-                <div className="max-h-64 overflow-y-auto rounded-md border">
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-border/70 bg-card/60">
                   {groupedCopies.map((group) => (
                     <div key={group.book_id} className="border-b last:border-b-0">
-                      <p className="bg-muted/60 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <p className="bg-secondary/55 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {group.book_title} · {group.copies.length}{" "}
                         {group.copies.length === 1 ? "copy" : "copies"} available
                       </p>
@@ -287,9 +310,10 @@ export function IssueBookPage() {
                           key={copy.id}
                           type="button"
                           className={[
-                            "block w-full px-3 py-2 text-left text-sm hover:bg-muted",
+                            "block min-h-10 w-full px-3 py-2.5 text-left text-sm hover:bg-muted",
                             selectedCopy?.id === copy.id ? "bg-muted font-medium" : "",
                           ].join(" ")}
+                          aria-pressed={selectedCopy?.id === copy.id}
                           onClick={() => setSelectedCopy(copy)}
                         >
                           <span className="font-medium">{copy.inventory_code}</span>
@@ -317,12 +341,26 @@ export function IssueBookPage() {
             <p className="text-sm text-muted-foreground">Checking reservation queue...</p>
           ) : null}
 
+          {selectedCopy && queueQuery.isError ? (
+            <QueryErrorState
+              message="Unable to check the reservation queue. Retry before issuing this copy."
+              onRetry={() => void queueQuery.refetch()}
+            />
+          ) : null}
+
           {selectedCopy && activeQueue.length ? (
             <ReservationQueueWarning queue={activeQueue} bookTitle={selectedCopy.book_title} />
           ) : null}
 
           {selectedStudent && selectedCopy && studentLoansQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">Checking student&apos;s active loans...</p>
+          ) : null}
+
+          {selectedStudent && studentLoansQuery.isError ? (
+            <QueryErrorState
+              message="Unable to check this student’s current loans. Retry before issuing."
+              onRetry={() => void studentLoansQuery.refetch()}
+            />
           ) : null}
 
           {duplicateLoan && selectedStudent && selectedCopy ? (
@@ -336,7 +374,14 @@ export function IssueBookPage() {
 
           <Button
             disabled={
-              !selectedStudent || !selectedCopy || duplicateLoan || issueMutation.isPending
+              !selectedStudent ||
+              !selectedCopy ||
+              duplicateLoan ||
+              issueMutation.isPending ||
+              queueQuery.isLoading ||
+              queueQuery.isError ||
+              studentLoansQuery.isLoading ||
+              studentLoansQuery.isError
             }
             onClick={handleIssueClick}
           >

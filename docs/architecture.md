@@ -1,14 +1,14 @@
 # Smart Library Platform - Architecture Document
 
-**Version:** Sprint 4.8
+**Implementation snapshot:** 2026-11-08 (Alembic head `014_model_index_alignment`)
 
 ## 1. Project Overview
 
 Smart Library Platform is a cloud-based Library Management System developed as a final-year engineering project.
 
-The **implemented system** (through Sprint 5) manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
+The current implementation manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
 
-Advanced capabilities (digital resources, QR scanning, AI search, notifications, analytics) are **planned** and documented separately as future architecture.
+Advanced capabilities (digital resources, QR scanning, recommendations, notifications, and analytics) are **planned** and documented separately as future architecture. Semantic book search and ratings are implemented.
 
 ---
 
@@ -27,7 +27,7 @@ Advanced capabilities (digital resources, QR scanning, AI search, notifications,
 
 * QR-based issue and return
 * Digital books and cloud storage
-* AI-powered recommendations and semantic search
+* AI-powered recommendations
 * Notifications and analytics dashboards
 * Audit logging
 
@@ -123,10 +123,9 @@ Alembic-managed PostgreSQL schema. See [`database.md`](database.md) for implemen
 
 ### Planned (Not Integrated)
 
-* Semantic search is now partially implemented — see the Semantic Search Module below
 * Cloudflare R2 (digital files)
-* Recharts (analytics UI — dependency present, unused)
-* scikit-learn / Pandas (recommendations)
+* Recommendation algorithms
+* Analytics visualization library (no charts are implemented)
 
 ---
 
@@ -171,12 +170,14 @@ require_roles() / get_current_user dependencies
 
 Roles: `ADMIN`, `LIBRARIAN`, `STUDENT`.
 
-Frontend route guards (`AdminRoute`, `StaffRoute`, `ProtectedRoute`) improve UX; **backend RBAC is authoritative**.
+Frontend route guards (`AdminRoute`, `StaffRoute`, `ProtectedRoute`) improve UX; **backend RBAC is authoritative**. Zustand persists the access token and user profile in browser local storage. Client logout clears that state and the TanStack Query cache; it does not revoke the token server-side.
 
 Session security:
 
 * JWTs carry a `token_version` claim checked against `users.token_version`; password resets and changes invalidate outstanding tokens immediately
+* Access tokens expire after `ACCESS_TOKEN_EXPIRE_MINUTES` (default 30); no refresh endpoint is implemented
 * Failed logins are locked out per account and per IP after `LOGIN_RATE_LIMIT_ATTEMPTS` failures within the window
+* Login rate-limit state is in process memory; it is not shared across API workers/replicas and resets on process restart
 * Startup validation rejects weak or default `JWT_SECRET_KEY` values
 
 **Not implemented:** token refresh endpoint, explicit server-side logout (revocation currently happens on credential changes).
@@ -189,7 +190,7 @@ Session security:
 
 * **User Management** — CRUD, soft delete, password reset, role/department validation
 * **Department Management** — CRUD, delete protection when users assigned
-* **Circulation Policy Management** — Dynamic configuration of daily overdue fine rates, max fine amounts, loan durations, active loan limits, and reservation hold expiries with administrator audit tracking.
+* **Circulation Policy Management** — Dynamic configuration of daily overdue fine rates, max fine amounts, loan durations, active loan limits, and reservation hold expiries, with attribution for the latest editor.
 
 Frontend: `/admin/users`, `/admin/departments`, `/admin/circulation-policy`
 
@@ -234,7 +235,8 @@ Server-side enforcement:
 
 * Returns hold the copy as `RESERVED` while a queue is waiting; the first queued student fulfills it on issue
 * Issues to a queued book require the borrower to be first in the queue or an explicit `bypass_reservation=true`
-* Cancelling/expiring the last reservation releases held copies back to `AVAILABLE`
+* Expired reservations are processed before issue/return queue decisions; cancelling/expiring the last reservation releases held copies back to `AVAILABLE`
+* Return Book supports backend search across book title, inventory code, and student identity, plus pagination
 
 ### Fine Workflow (Sprint 4)
 
@@ -242,15 +244,16 @@ Calendar-day overdue calculation clamped to `max_fine_amount`. Payment is exactl
 
 ### Circulation Policy Management Module (Sprint 4.9)
 
-Transitions static circulation configuration (`LOAN_PERIOD_DAYS`, `RESERVATION_EXPIRY_DAYS`, `DAILY_OVERDUE_FINE_RATE`, `MAX_FINE_AMOUNT`, `MAX_ACTIVE_LOANS`) into a dynamic, database-backed, audit-tracked system:
+Provides database-backed circulation configuration for loan duration, reservation expiry, fine rate and cap, and active loan limit:
 
 * **Database schema:** `circulation_policies` table (migration `013_circulation_policies`) with check constraints ensuring non-negative fines, positive loan windows, and positive borrowing limits.
-* **Audit tracking:** `updated_by` tracks the administering user with `updated_by_user` foreign key relationship; audit banner displayed in UI.
+* **Latest-editor attribution:** `updated_by` points to the user who last changed the policy; the UI shows this attribution. There is no history of prior policy values or a general audit log.
 * **Concurrency:** `CirculationPolicyRepository.update_active` uses row-level locking (`SELECT ... FOR UPDATE`) to prevent concurrent race conditions on policy updates.
 * **Service integration:**
   * `FineService.create_overdue_fine`: uses `policy.daily_overdue_fine_rate` and `policy.max_fine_amount`.
   * `TransactionService.issue_copy`: uses `policy.loan_period_days` and `policy.max_active_loans`.
   * `ReservationService.create_reservation`: uses `policy.reservation_expiry_days`.
+* Fine rate and cap are read when a late book is returned. A policy edit during an open loan therefore applies to that loan's fine; the policy is not snapshotted at issue time.
 * **Zero-downtime fallback:** If no active policy record exists in the database, the repository seamlessly falls back to static runtime `Settings`.
 * **Admin UI:** Dedicated interface at `/admin/circulation-policy` with form validations, reset controls, error retry boundary, and contextual policy guidelines.
 
@@ -260,7 +263,7 @@ Transitions static circulation configuration (`LOAN_PERIOD_DAYS`, `RESERVATION_E
 * Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), lazy-loaded per process
 * Offline reindex command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
 * Catalog create/update marks the embedding `PENDING`; soft delete removes it
-* `GET /api/v1/books/search?q=` ranks by cosine similarity over the HNSW index and falls back to keyword matching until an index exists
+* `GET /api/v1/books/search?q=` ranks by cosine similarity over the HNSW index only while all active catalog embeddings are current; it uses keyword matching if any book is pending/stale, no index exists, or semantic inference fails
 * Smart-search toggle on the frontend books catalog renders scored results
 
 ### Ratings Module (Sprint 5)
@@ -289,12 +292,6 @@ Copy `qr_code_value` is stored today; QR API and scanner UI are not built.
 
 ```text
 Cloudflare R2 → file URL → PostgreSQL metadata
-```
-
-### AI / Semantic Search (Future)
-
-```text
-Book metadata → Sentence Transformer → pgvector → similarity search
 ```
 
 ### Recommendation Engine (Future)
@@ -344,13 +341,13 @@ Digital resources (future) will add Cloudflare R2.
 
 ## 13. Project Scope
 
-### Included (Implemented through Sprint 5)
+### Included (Current Implementation)
 
 Physical library catalog and inventory, circulation, reservations, fines, ratings, semantic search, admin users/departments, role dashboards, reservation-aware staff UX.
 
 ### Excluded / Future
 
-Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, digital resources, notifications, QR, semantic search, recommendations, audit logs, analytics.
+Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, digital resources, notifications, QR, recommendations, audit logs, analytics.
 
 ---
 

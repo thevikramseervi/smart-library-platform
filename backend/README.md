@@ -106,15 +106,20 @@ Populates roles, departments, languages, and development users. **Intended for l
 SEED_ALLOWED=true uv run python -m app.db.seed
 ```
 
-Seed users and roles, then optionally import the real Open Library catalog:
+To seed users and reference data, run the first command. To also import the
+curated Open Library catalog, use `--catalog` instead. **The catalog import
+clears existing books, authors, publishers, categories, and circulation rows**;
+use it only on a disposable development database.
 
 ```bash
-SEED_ALLOWED=true SEED_ALLOWED=true uv run python -m app.db.seed --catalog
-uv run python -m app.db.import_catalog
-uv run python -m app.scripts.import_real_books
+SEED_ALLOWED=true uv run python -m app.db.seed --catalog
 ```
 
-Catalog import clears books, authors, publishers, categories, and circulation rows, then loads ~190 curated CS/tech titles from `app/db/data/catalog_manifest.json` using cached Open Library metadata.
+Catalog import reads `app/db/data/catalog_manifest.json` and Open Library
+metadata. `uv run python -m app.scripts.import_real_books` is a separate wrapper
+around the same importer; it also clears catalog/circulation rows and uses
+network metadata lookups by default. Do not run either catalog import against
+data you need to preserve.
 
 Seed is idempotent — existing records are skipped.
 
@@ -148,11 +153,13 @@ Quiet output:
 uv run pytest -q
 ```
 
-Tests use FastAPI's `TestClient` against the application with the configured database. Use a dedicated test database in CI/production pipelines.
+Tests use FastAPI's `TestClient` against the application and require PostgreSQL
+with the migrations applied. Use a dedicated test database; never point test
+runs at a database whose data must be preserved.
 
 **Test isolation:** Pytest uses `TEST_DATABASE_URL` when set, otherwise `DATABASE_URL`. Each test runs inside a rolled-back SQLAlchemy transaction (`join_transaction_mode="create_savepoint"`) so API commits never persist. Override `get_db` routes all requests through the test session.
 
-Recommended local setup — the compose file ships an isolated throwaway test database:
+Recommended local setup — Compose includes an isolated test database on port 5433:
 
 ```bash
 docker compose up -d testdb          # pgvector Postgres on 127.0.0.1:5433
@@ -164,7 +171,13 @@ DATABASE_URL='postgresql+psycopg://smart_library:smart_library@127.0.0.1:5433/sm
 
 Reference data (roles, dev users, languages) is seeded automatically inside each test's transaction; never run the seed script against the test database.
 
-Without `TEST_DATABASE_URL`, tests still roll back all writes against `DATABASE_URL` and leave the catalog unchanged after a full run.
+Without `TEST_DATABASE_URL`, tests use `DATABASE_URL`. The test fixtures wrap
+each test in an outer transaction and roll it back, but a dedicated test
+database is still recommended to avoid accidental impact if fixture behavior
+changes.
+
+CI is configured in `.github/workflows/backend.yml`: it starts pgvector/Postgres,
+installs locked dependencies, runs Ruff, applies migrations, then runs pytest.
 
 ---
 

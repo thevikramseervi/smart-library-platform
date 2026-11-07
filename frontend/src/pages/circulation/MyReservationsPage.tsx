@@ -20,7 +20,7 @@ export function MyReservationsPage() {
   const queryClient = useQueryClient();
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["reservations", "me"],
     queryFn: listMyReservations,
   });
@@ -49,7 +49,7 @@ export function MyReservationsPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading reservations...</p>
       ) : isError ? (
-        <QueryErrorState message="Unable to load reservations." />
+        <QueryErrorState message="Unable to load reservations." onRetry={() => void refetch()} />
       ) : data?.length ? (
         <CirculationTable>
           <CirculationTableHead

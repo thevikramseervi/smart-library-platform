@@ -19,6 +19,7 @@ from app.repositories.reservation_repository import ReservationRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.transaction import (
+    StudentActiveTransactionResponse,
     TransactionIssueRequest,
     TransactionResponse,
     TransactionReturnRequest,
@@ -90,9 +91,19 @@ class TransactionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book copy not found")
         return copy.id
 
+    def _expire_stale_reservations(self) -> None:
+        """Expire old queue entries before circulation decisions use the queue."""
+        expired_book_ids = self.reservation_repository.expire_stale_returning_book_ids()
+        if not expired_book_ids:
+            return
+        for book_id in expired_book_ids:
+            self.circulation_repository.release_reserved_copies_without_queue(book_id)
+        commit_or_raise_conflict(self.db, detail="Failed to expire stale reservations")
+
     def issue_copy(self, payload: TransactionIssueRequest, issued_by: User) -> TransactionResponse:
         """Issue an available copy to a student, honoring the reservation queue."""
         copy_id, student_id = self._resolve_issue_targets(payload)
+        self._expire_stale_reservations()
 
         if self.fine_repository.has_unpaid_for_student(student_id):
             raise HTTPException(
@@ -199,6 +210,7 @@ class TransactionService:
     ) -> TransactionResponse:
         """Return a borrowed copy and create an overdue fine when applicable."""
         copy_id = self._resolve_copy_id(payload)
+        self._expire_stale_reservations()
 
         copy = self.circulation_repository.get_copy_for_update(copy_id)
         if copy is None:
@@ -257,6 +269,7 @@ class TransactionService:
         status_filter: TransactionStatus | None = None,
         overdue: bool | None = None,
         book_id: UUID | None = None,
+        q: str | None = None,
     ) -> PaginatedResponse[TransactionResponse]:
         """List transactions with role-aware scoping."""
         if not is_staff:
@@ -271,11 +284,17 @@ class TransactionService:
             status=status_filter,
             overdue=overdue,
             book_id=book_id,
+            q=q,
         )
         responses = [self._to_response(item) for item in items]
         return PaginatedResponse.create(responses, total, page, page_size)
 
-    def list_active_for_student(self, student: User) -> list[TransactionResponse]:
+    def list_active_for_student(self, student: User) -> list[StudentActiveTransactionResponse]:
         """Return open loans for the authenticated student."""
         items = self.repository.list_active_for_student(student.id)
-        return [self._to_response(item) for item in items]
+        return [
+            StudentActiveTransactionResponse.model_validate(
+                self._to_response(item).model_dump(),
+            )
+            for item in items
+        ]

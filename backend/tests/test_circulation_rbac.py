@@ -64,6 +64,7 @@ def test_student_active_loans_endpoint(
     ]
     assert len(matching) == 1
     assert matching[0]["status"] == "ISSUED"
+    assert "inventory_code" not in matching[0]["book_copy"]
 
 
 def test_student_cannot_view_other_student_transactions(

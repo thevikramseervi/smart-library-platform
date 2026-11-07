@@ -22,7 +22,7 @@ export function PublishersListPage() {
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["publishers"],
     queryFn: listPublishers,
   });
@@ -65,7 +65,7 @@ export function PublishersListPage() {
       {isLoading ? (
         <TableListSkeleton columns={3} />
       ) : isError ? (
-        <QueryErrorState message="Unable to load publishers." />
+        <QueryErrorState message="Unable to load publishers." onRetry={() => void refetch()} />
       ) : (
         <>
           <CatalogTable>

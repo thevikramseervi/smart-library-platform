@@ -1,5 +1,7 @@
 """Semantic book search endpoint."""
 
+import logging
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from app.services.book_service import BookService
 from app.services.embedding_service import EmbeddingService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _to_result(book, score: float) -> SemanticSearchResult:
@@ -34,20 +37,27 @@ def semantic_search(
 ) -> SemanticSearchResponse:
     """Natural-language search over indexed catalog content.
 
-    Falls back to keyword matching over titles/ISBN/authors/publishers when
-    no embeddings have been built yet.
+    Uses keyword matching while embeddings are missing or stale, and whenever
+    the semantic provider is unavailable, so recent catalog edits stay searchable.
     """
     embedding_service = EmbeddingService(db)
     indexed_books = embedding_service.repository.count_indexed()
 
-    if settings.SEMANTIC_SEARCH_ENABLED and indexed_books > 0:
-        hits = embedding_service.semantic_search(query=q, limit=limit)
-        return SemanticSearchResponse(
-            query=q,
-            indexed_books=indexed_books,
-            used_semantic=True,
-            results=[_to_result(book, score) for book, score in hits],
-        )
+    index_is_current = not embedding_service.repository.has_stale_books(
+        hash_for_book=embedding_service.hash_for_book,
+    )
+    if settings.SEMANTIC_SEARCH_ENABLED and indexed_books > 0 and index_is_current:
+        try:
+            hits = embedding_service.semantic_search(query=q, limit=limit)
+        except Exception:  # noqa: BLE001 - keyword search keeps the catalog usable
+            logger.exception("Semantic search failed; falling back to keyword search")
+        else:
+            return SemanticSearchResponse(
+                query=q,
+                indexed_books=indexed_books,
+                used_semantic=True,
+                results=[_to_result(book, score) for book, score in hits],
+            )
 
     service = BookService(db)
     books, _total = service.repository.list_books(page=1, page_size=limit, q=q)

@@ -21,13 +21,18 @@ interface DashboardWelcomeHeaderProps {
 
 export function DashboardWelcomeHeader({ firstName, subtitle }: DashboardWelcomeHeaderProps) {
   return (
-    <div className="flex items-start gap-2.5">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-        <LayoutDashboard className="size-4 text-primary" aria-hidden="true" />
-      </div>
-      <div className="space-y-0.5">
-        <h2 className="text-xl font-semibold tracking-tight">Welcome back, {firstName}</h2>
-        <p className="text-sm text-muted-foreground">{subtitle}</p>
+    <div className="relative isolate overflow-hidden rounded-[1.75rem] border border-primary/10 bg-[linear-gradient(112deg,oklch(0.93_0.045_149),oklch(0.97_0.025_94)_72%)] px-6 py-3 sm:px-9 sm:py-4">
+      <div className="absolute -top-24 right-12 -z-10 size-64 rounded-full border border-primary/10 bg-white/20" />
+      <div className="absolute -right-10 -bottom-32 -z-10 size-72 rounded-full border border-primary/10" />
+      <div className="flex items-center gap-4">
+        <div className="hidden size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/15 sm:flex">
+          <LayoutDashboard className="size-6" aria-hidden="true" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary/75">Your library at a glance</p>
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Welcome back, {firstName}</h2>
+          <p className="text-sm text-muted-foreground sm:text-base">{subtitle}</p>
+        </div>
       </div>
     </div>
   );
@@ -87,25 +92,25 @@ export function DashboardStatCard({
   const card = (
     <Card
       className={cn(
-        "h-full gap-0 border bg-card py-0 shadow-sm transition-[box-shadow,border-color]",
-        to && "hover:border-foreground/15 hover:shadow-md",
+        "h-full gap-0 border-border/70 bg-card/90 py-0 shadow-sm transition-all duration-200",
+        to && "hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg hover:shadow-primary/[0.06]",
         className,
       )}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 pb-1 pt-3.5">
-        <CardTitle className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 pb-1 pt-3">
+        <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground">
           {label}
         </CardTitle>
         <div
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-md",
+            "flex size-8 shrink-0 items-center justify-center rounded-lg",
             iconClass,
           )}
         >
           <Icon className="size-3.5" aria-hidden="true" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-0.5 px-4 pb-3.5 pt-0">
+      <CardContent className="space-y-0.5 px-4 pb-3 pt-0">
         <p className={cn("text-2xl font-semibold leading-none tracking-tight", statValueToneClasses[tone])}>
           {value}
         </p>
@@ -286,8 +291,8 @@ export function DashboardSection({
 }: DashboardSectionProps) {
   return (
     <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/60 pb-4">
+        <CardTitle className="text-base font-semibold">{title}</CardTitle>
         {!isEmpty && recordCount != null ? (
           <span className="text-xs text-muted-foreground">
             {recordCount} record{recordCount === 1 ? "" : "s"}
@@ -328,8 +333,8 @@ export function DashboardQuickActions({
 }: DashboardQuickActionsProps) {
   return (
     <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
+      <CardHeader className="border-b border-border/60 pb-4">
+        <CardTitle className="text-base font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -339,12 +344,12 @@ export function DashboardQuickActions({
               <Link
                 key={action.to}
                 to={action.to}
-                className="group flex cursor-pointer items-start justify-between gap-3 rounded-lg border bg-background p-4 transition-all hover:border-primary/30 hover:bg-muted/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex cursor-pointer items-start justify-between gap-3 rounded-2xl border-border/70 bg-background/70 p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-card hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className="flex gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted group-hover:bg-primary/10">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary/80 transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <Icon
-                      className="size-4 text-muted-foreground group-hover:text-primary"
+                      className="size-4 text-primary transition-colors group-hover:text-primary-foreground"
                       aria-hidden="true"
                     />
                   </div>

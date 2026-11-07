@@ -77,13 +77,13 @@
 
 ---
 
-## Remaining Known Limitations
+## Remaining Known Limitations (at report date)
 
 | Area | Limitation |
 |------|------------|
 | Return Book UI | Still loads max 100 active loans (`page_size: 100`) |
 | Issue Book UI | Loads all students/copies upfront (up to API limits) |
-| Student loan API | `GET /transactions/me/active` still includes `inventory_code` in JSON (UI hidden only) |
+| Student loan API | Fixed after this report: `GET /transactions/me/active` now omits `inventory_code` from the student response schema |
 | Staff reservation queue | API responses lack student name/code for desk fulfillment |
 | Staff fines list | API responses lack student identity column data |
 | QR workflows | No scanner UI; codes supported in API only |
@@ -94,10 +94,26 @@
 | Currency display | Fines UI shows `$` instead of INR |
 | RESV-05 | Student cancel flow — manual UI sign-off still pending |
 
+### Current status update (2026-11-08)
+
+The following items in the historical list have since been addressed:
+
+* Fine amounts display in INR in the current student and staff fines pages.
+* Student reservation cancellation is implemented in the current UI.
+* Backend and frontend GitHub Actions workflows now exist.
+
+The return-page 100-loan cap was fixed after this update by adding API-backed
+search and pagination. Staff reservation responses include student summaries.
+The student active-loan API still includes nested inventory codes even though
+the student UI hides them.
+Frontend automated tests remain absent. The current backend regression suite was
+not executed as part of the 2026-11-08 documentation/code review.
+
 ---
 
 ## Sprint 5 Readiness
 
 Sprint 4.1 resolved the **Priority 1 and Priority 2** audit items. The codebase is suitable to **begin Sprint 5 feature work** on notifications, QR UI, and digital resources.
 
-Production deployment should still address Return Book pagination, CI pipeline, and staff API enrichment before go-live.
+This final paragraph records the recommendation made at the original report
+date; it is historical and should not be read as a current deployment status.

@@ -42,9 +42,14 @@ export function CirculationPageHeader({ title, description }: CirculationPageHea
 interface CirculationTableProps {
   children: ReactNode;
   recordCount?: number;
+  ariaLabel?: string;
 }
 
-export function CirculationTable({ children, recordCount }: CirculationTableProps) {
+export function CirculationTable({
+  children,
+  recordCount,
+  ariaLabel = "Circulation table",
+}: CirculationTableProps) {
   return (
     <div className="space-y-2">
       {recordCount != null ? (
@@ -52,7 +57,12 @@ export function CirculationTable({ children, recordCount }: CirculationTableProp
           {recordCount} record{recordCount === 1 ? "" : "s"}
         </p>
       ) : null}
-      <div className="overflow-x-auto rounded-lg border">
+      <div
+        className="overflow-x-auto rounded-2xl border border-border/70 bg-card/70 shadow-sm"
+        role="region"
+        aria-label={ariaLabel}
+        tabIndex={0}
+      >
         <table className="w-full text-sm">{children}</table>
       </div>
     </div>
@@ -68,8 +78,8 @@ export function CirculationTableHead({ columns, sticky = true }: CirculationTabl
   return (
     <thead
       className={cn(
-        "border-b bg-muted/50",
-        sticky && "sticky top-0 z-10 bg-muted/95 backdrop-blur-sm",
+        "border-b border-border/60 bg-secondary/35",
+        sticky && "sticky top-0 z-10 bg-background/95 backdrop-blur-sm",
       )}
     >
       <tr>

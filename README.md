@@ -2,7 +2,10 @@
 
 An AI-powered, cloud-based Library Management System built as a final-year engineering project.
 
-This README describes the **currently implemented system** through Sprint 5 (semantic search and ratings included). Planned capabilities (digital resources, QR, AI, notifications, and more) are listed separately and are **not yet available**.
+This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, and semantic book search are implemented. Digital resources, QR scanning, recommendations, notifications, and analytics remain future work.
+
+**Documentation snapshot:** 2026-11-08. See the sprint reports for dated
+delivery history; their old test counts and limitations are not current status.
 
 ---
 
@@ -22,18 +25,18 @@ Smart Library Platform is a web application for managing a physical library cata
 
 | Module | Capabilities |
 |--------|--------------|
-| **Authentication & RBAC** | JWT login with login-attempt lockout, session revocation on password change, role-based route and API protection (Admin, Librarian, Student) |
+| **Authentication & RBAC** | JWT login with in-process failed-login lockout, session revocation on password change, role-based route and API protection (Admin, Librarian, Student) |
 | **User Management** | Admin CRUD for users, password reset, soft delete, role/department assignment |
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
 | **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
-| **Circulation** | Issue, return, active/overdue loans (UTC calendar), student loan history, per-student loan limit, queue-aware issue/return |
-| **Reservations** | FIFO reservation queue enforced at issue and return time; returns hold copies for the queue head |
+| **Circulation** | Issue, return, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination |
+| **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions |
 | **Fines** | Automatic overdue fines (calendar days, capped), unpaid-fine borrowing block, exactly-once staff mark-paid |
-| **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, hold expiry) with audit tracking and Admin UI |
+| **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, hold expiry), latest editor attribution, and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
 | **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
-| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (bge-small-en-v1.5) + pgvector; keyword fallback before first index |
+| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; keyword fallback when no index exists or semantic inference fails; offline reindex command |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
 
@@ -41,7 +44,7 @@ For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details s
 
 ## Planned Features (Future Work)
 
-Ratings and semantic search shipped in Sprint 5 (see [Current Features](#current-features-implemented)). The following remain **design targets not implemented** in the current codebase:
+The following remain **design targets not implemented** in the current codebase:
 
 | Area | Status |
 |------|--------|
@@ -67,7 +70,7 @@ Full setup and troubleshooting: [`docs/setup.md`](docs/setup.md)
 - [Docker](https://docs.docker.com/get-docker/) (for local PostgreSQL)
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [pnpm](https://pnpm.io/) (frontend package manager)
-- Node.js 20+ (for frontend)
+- Node.js 22+ recommended (the frontend CI workflow uses Node 22)
 
 ### Option A — Local Docker PostgreSQL
 
@@ -78,6 +81,7 @@ docker compose up -d
 
 cd backend
 cp .env.example .env
+# Edit backend/.env and replace the JWT_SECRET_KEY placeholder with a random value of 32+ characters.
 uv sync
 uv run alembic upgrade head
 SEED_ALLOWED=true uv run python -m app.db.seed
@@ -97,7 +101,8 @@ pnpm dev
 
 1. Create a project in [Neon](https://neon.tech).
 2. Copy the connection string (use the **pooled** or **direct** URL as appropriate).
-3. Set `DATABASE_URL` in `backend/.env`:
+3. Create `backend/.env` from `backend/.env.example`, then set `DATABASE_URL`
+   and replace `JWT_SECRET_KEY` with a unique value at least 32 characters long:
 
    ```text
    DATABASE_URL=postgresql+psycopg://user:password@ep-xxx.region.aws.neon.tech/neondb?sslmode=require
@@ -163,7 +168,7 @@ smart-library-platform/
 │   ├── setup.md
 │   ├── deployment.md
 │   └── sprint-4-summary.md
-├── .github/workflows/          # CI: backend (ruff + pytest), frontend (eslint + build)
+├── .github/workflows/          # CI: backend (migrations + ruff + pytest), frontend (eslint + build)
 ├── docker-compose.yml          # Local PostgreSQL (pgvector image)
 └── README.md
 ```
@@ -197,6 +202,10 @@ See [`docs/architecture.md`](docs/architecture.md) for module-level detail.
 | [`docs/architecture.md`](docs/architecture.md) | System architecture |
 | [`docs/project-rules.md`](docs/project-rules.md) | Engineering standards |
 | [`docs/sprint-4-summary.md`](docs/sprint-4-summary.md) | Sprint 4 delivery history |
+| [`docs/sprint-4-acceptance-tests.md`](docs/sprint-4-acceptance-tests.md) | Circulation acceptance criteria and historical test record |
+| [`docs/sprint-4.1-completion-report.md`](docs/sprint-4.1-completion-report.md) | Historical hardening report with current follow-up status |
+| [`docs/sprint-4.2-completion-report.md`](docs/sprint-4.2-completion-report.md) | Historical inventory and UX report |
+| [`docs/sprint-4.9-completion-report.md`](docs/sprint-4.9-completion-report.md) | Historical UI polish report |
 
 ---
 
@@ -206,43 +215,29 @@ See [`docs/architecture.md`](docs/architecture.md) for module-level detail.
 
 ### Login
 
-<!-- ![Login](docs/screenshots/login.png) -->
-
 Branded two-column login with dev account helper (development mode only).
 
 ### Student Dashboard
-
-<!-- ![Student Dashboard](docs/screenshots/student-dashboard.png) -->
 
 Welcome header, loan/reservation/fine KPIs, recent activity, quick actions.
 
 ### Librarian Dashboard
 
-<!-- ![Librarian Dashboard](docs/screenshots/librarian-dashboard.png) -->
-
 Circulation metrics and recent transactions.
 
 ### Admin Dashboard
-
-<!-- ![Admin Dashboard](docs/screenshots/admin-dashboard.png) -->
 
 User/catalog metrics and recent platform activity.
 
 ### User Management
 
-<!-- ![User Management](docs/screenshots/admin-users.png) -->
-
 Admin user list and create/edit forms.
 
 ### Catalog
 
-<!-- ![Catalog](docs/screenshots/catalog-books.png) -->
-
 Book list, detail, and staff catalog management.
 
 ### Circulation
-
-<!-- ![Circulation](docs/screenshots/circulation-issue.png) -->
 
 Issue/return workflows with reservation queue awareness.
 
@@ -269,14 +264,12 @@ cd frontend && pnpm build
 | Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui, React Router, Zustand, TanStack Query, Axios |
 | Backend | Python 3.12+, FastAPI, Uvicorn, SQLAlchemy, Alembic, Psycopg, Pydantic, PyJWT, bcrypt, FastEmbed |
 | Database | PostgreSQL 16 (Docker Compose or Neon) with pgvector |
-| Database | PostgreSQL 16 (Docker Compose or Neon) |
 | Tooling | uv, pnpm, Git |
 
 ### Planned (not yet integrated)
 
-- pgvector, Sentence Transformers, scikit-learn (semantic search / recommendations)
 - Cloudflare R2 (digital resources)
-- Recharts (analytics charts — dependency present but unused)
+- Recommendation algorithms and analytics charting
 
 ---
 

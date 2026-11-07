@@ -108,7 +108,7 @@ export function LibrarianDashboardView({ data, firstName }: LibrarianDashboardVi
         emptyIcon={ArrowLeftRight}
         recordCount={data.recent_transactions.length}
       >
-        <CirculationTable recordCount={data.recent_transactions.length}>
+        <CirculationTable ariaLabel="Recent transactions">
           <CirculationTableHead columns={["Book", "Student", "Action", "Date"]} />
           <tbody>
             {data.recent_transactions.map((transaction, index) => (

@@ -22,7 +22,7 @@ export function CategoriesListPage() {
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["categories"],
     queryFn: listCategories,
   });
@@ -64,7 +64,7 @@ export function CategoriesListPage() {
       {isLoading ? (
         <TableListSkeleton columns={3} />
       ) : isError ? (
-        <QueryErrorState message="Unable to load categories." />
+        <QueryErrorState message="Unable to load categories." onRetry={() => void refetch()} />
       ) : (
         <>
           <CatalogTable>

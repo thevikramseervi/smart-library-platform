@@ -2,10 +2,12 @@
 
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.clock import utc_today
+from app.core.sql import contains_pattern
+from app.models.book import Book
 from app.models.book_copy import BookCopy
 from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
@@ -74,6 +76,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         status: TransactionStatus | None = None,
         overdue: bool | None = None,
         book_id: UUID | None = None,
+        q: str | None = None,
     ) -> tuple[list[Transaction], int]:
         """Return paginated transactions with optional filters."""
         statement = self._with_relations()
@@ -88,7 +91,24 @@ class TransactionRepository(BaseRepository[Transaction]):
                 Transaction.due_at < utc_today(),
             )
         if book_id is not None:
-            statement = statement.join(BookCopy).where(BookCopy.book_id == book_id)
+            statement = statement.where(Transaction.book_copy.has(BookCopy.book_id == book_id))
+        if q:
+            pattern = contains_pattern(q)
+            statement = (
+                statement.join(BookCopy, Transaction.book_copy_id == BookCopy.id)
+                .join(Book, BookCopy.book_id == Book.id)
+                .join(User, Transaction.student_id == User.id)
+                .where(
+                    or_(
+                        Book.title.ilike(pattern),
+                        BookCopy.inventory_code.ilike(pattern),
+                        User.first_name.ilike(pattern),
+                        User.last_name.ilike(pattern),
+                        User.student_code.ilike(pattern),
+                        User.email.ilike(pattern),
+                    )
+                )
+            )
 
         count_stmt = select(func.count()).select_from(statement.subquery())
         total = self.db.execute(count_stmt).scalar_one()

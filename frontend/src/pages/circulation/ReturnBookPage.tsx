@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,10 +13,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { useDebouncedValue } from "@/lib/hooks";
 import { appToast } from "@/lib/toast";
 import { ReturnReservationNoticeActions } from "@/pages/circulation/components/ReservationQueueWarning";
-import { CirculationPageHeader } from "@/pages/circulation/components/CirculationShared";
+import {
+  CirculationPageHeader,
+  PaginationControls,
+} from "@/pages/circulation/components/CirculationShared";
 import { getReservationQueue, listTransactions, returnBook } from "@/services/circulation";
 import type { Reservation, Transaction } from "@/types/circulation";
 
@@ -30,38 +35,33 @@ interface ReturnQueueNotice {
 export function ReturnBookPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const debouncedSearch = useDebouncedValue(search.trim());
   const [pendingReturn, setPendingReturn] = useState<Transaction | null>(null);
   const [queueNotice, setQueueNotice] = useState<ReturnQueueNotice | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [queueLookupWarning, setQueueLookupWarning] = useState<string | null>(null);
 
   const activeLoansQuery = useQuery({
-    queryKey: ["transactions", "issued"],
-    queryFn: () => listTransactions({ status: "ISSUED", page: 1, page_size: 100 }),
+    queryKey: ["transactions", "issued", "return", page, pageSize, debouncedSearch],
+    queryFn: () =>
+      listTransactions({
+        status: "ISSUED",
+        page,
+        page_size: pageSize,
+        q: debouncedSearch || undefined,
+      }),
   });
 
-  const filteredLoans = useMemo(() => {
-    const loans = activeLoansQuery.data?.items ?? [];
-    const term = search.trim().toLowerCase();
-    if (!term) {
-      return loans;
-    }
-    return loans.filter((transaction) => {
-      const haystack = [
-        transaction.book_copy.book.title,
-        transaction.book_copy.inventory_code,
-        transaction.student.first_name,
-        transaction.student.last_name,
-        transaction.student.student_code ?? "",
-        transaction.student.email,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(term);
-    });
-  }, [activeLoansQuery.data?.items, search]);
+  const loans = activeLoansQuery.data?.items ?? [];
 
   const returnMutation = useMutation({
     mutationFn: (bookCopyId: string) => returnBook({ book_copy_id: bookCopyId }),
+    onMutate: () => {
+      setErrorMessage(null);
+      setQueueLookupWarning(null);
+    },
     onSuccess: async (transaction) => {
       appToast.returned(`Returned ${transaction.book_copy.book.title}`);
       setErrorMessage(null);
@@ -71,14 +71,20 @@ export function ReturnBookPage() {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
 
       const bookId = transaction.book_copy.book_id;
-      const queue = await getReservationQueue(bookId);
-      if (queue.length) {
-        setQueueNotice({
-          bookId,
-          bookTitle: transaction.book_copy.book.title,
-          copyId: transaction.book_copy_id,
-          queue,
-        });
+      try {
+        const queue = await getReservationQueue(bookId);
+        if (queue.length) {
+          setQueueNotice({
+            bookId,
+            bookTitle: transaction.book_copy.book.title,
+            copyId: transaction.book_copy_id,
+            queue,
+          });
+        }
+      } catch {
+        setQueueLookupWarning(
+          "The book was returned, but its reservation queue could not be checked. Review the queue before issuing this copy again.",
+        );
       }
     },
     onError: (error) => {
@@ -102,23 +108,34 @@ export function ReturnBookPage() {
         <Input
           id="return-search"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           placeholder="Search by book title, student name, or inventory code"
         />
         <p className="text-xs text-muted-foreground">
           {activeLoansQuery.isLoading
             ? "Loading active loans..."
-            : `Showing ${filteredLoans.length} of ${activeLoansQuery.data?.items.length ?? 0} active loans.`}
+            : `Showing ${loans.length} of ${activeLoansQuery.data?.total ?? 0} matching active loans.`}
         </p>
       </div>
 
       {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+      {queueLookupWarning ? (
+        <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          {queueLookupWarning}
+        </p>
+      ) : null}
 
       {activeLoansQuery.isError ? (
-        <p className="text-sm text-destructive">Unable to load active loans.</p>
-      ) : filteredLoans.length ? (
+        <QueryErrorState
+          message="Unable to load active loans."
+          onRetry={() => void activeLoansQuery.refetch()}
+        />
+      ) : loans.length ? (
         <div className="space-y-3">
-          {filteredLoans.map((transaction) => (
+          {loans.map((transaction) => (
             <Card key={transaction.id}>
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -144,6 +161,20 @@ export function ReturnBookPage() {
           {search.trim() ? "No active loans match your search." : "No active loans to return."}
         </p>
       )}
+
+      {activeLoansQuery.data ? (
+        <PaginationControls
+          page={activeLoansQuery.data.page}
+          totalPages={activeLoansQuery.data.total_pages}
+          total={activeLoansQuery.data.total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       <Dialog
         open={pendingReturn !== null}

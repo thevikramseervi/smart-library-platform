@@ -171,7 +171,11 @@ See [`sprint-4.2-completion-report.md`](sprint-4.2-completion-report.md).
 
 ---
 
-## Current System Capabilities (End of Sprint 4.7)
+## Historical System Capabilities (End of Sprint 4.7)
+
+The following section is a snapshot from the end of Sprint 4.7, not the current
+feature list. Consult the root README and architecture document for current
+capabilities.
 
 ### Backend API modules (implemented)
 
@@ -210,6 +214,16 @@ See [`sprint-4.2-completion-report.md`](sprint-4.2-completion-report.md).
 ### Not yet implemented (Sprint 5+)
 
 Digital resources, notifications, QR workflows, ratings/reviews, semantic search, recommendations, analytics, audit logs, library calendar, token refresh/logout, book renewal.
+
+### Current implementation update (2026-11-08)
+
+Ratings, semantic search, and database-backed circulation policies have since
+been implemented. Staff loan search and pagination are available in the return
+workflow. Backend and frontend GitHub Actions workflows are present. Other
+items in the historical Sprint 5+ list remain future work unless listed as
+implemented in the current README and architecture document. Current backend
+tests are broader than the historical 67-test count above; the suite was not
+run during this documentation update.
 
 ---
 

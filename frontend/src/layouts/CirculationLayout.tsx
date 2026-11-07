@@ -34,12 +34,12 @@ export function CirculationLayout() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-          <ArrowLeftRight className="size-5 text-primary" aria-hidden="true" />
+      <div className="flex items-center gap-3 rounded-2xl border border-primary/10 bg-[linear-gradient(112deg,oklch(0.93_0.045_149),oklch(0.97_0.025_94)_72%)] px-4 py-3 sm:px-6">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/15">
+          <ArrowLeftRight className="size-4.5" aria-hidden="true" />
         </div>
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Circulation</h1>
+          <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Circulation</h1>
           <p className="text-sm text-muted-foreground">
             {isStaff
               ? "Manage library loans, returns, and reservations."
@@ -47,17 +47,17 @@ export function CirculationLayout() {
           </p>
         </div>
       </div>
-      <nav className="flex flex-wrap gap-2 border-b pb-4">
+      <nav aria-label="Circulation sections" className="flex gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             className={({ isActive }) =>
               cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
                 isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
               )
             }
           >

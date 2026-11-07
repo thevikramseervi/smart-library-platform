@@ -116,6 +116,36 @@ def test_search_falls_back_to_keyword_without_index(
     assert any(item["id"] == book["id"] for item in body["results"])
 
 
+def test_search_falls_back_to_keyword_when_embedding_provider_fails(
+    client: TestClient,
+    admin_token: str,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed semantic query should not make the catalog search unavailable."""
+    book = _create_book(
+        client,
+        admin_token,
+        "Provider Failure Fallback",
+        "Keyword fallback content.",
+    )
+    EmbeddingService(_request_db()).reindex_all()  # type: ignore[arg-type]
+
+    def fail_semantic_search(*, query: str, limit: int = 10):
+        raise RuntimeError("embedding model is unavailable")
+
+    monkeypatch.setattr(EmbeddingService, "semantic_search", fail_semantic_search)
+    response = client.get(
+        "/api/v1/books/search",
+        headers=_headers(admin_token),
+        params={"q": "Provider Failure Fallback"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["used_semantic"] is False
+    assert any(item["id"] == book["id"] for item in body["results"])
+
+
 def test_content_edits_make_embedding_stale(
     client: TestClient,
     admin_token: str,  # noqa: F811
@@ -151,6 +181,33 @@ def test_content_edits_make_embedding_stale(
         select(BookEmbedding).where(BookEmbedding.book_id == book["id"])
     ).scalar_one()
     assert refreshed.embedding_status.value == "INDEXED"
+
+
+def test_search_uses_keywords_until_stale_catalog_is_reindexed(
+    client: TestClient,
+    admin_token: str,  # noqa: F811
+) -> None:
+    """An edited title remains discoverable while the offline reindex is pending."""
+    headers = _headers(admin_token)
+    book = _create_book(client, admin_token, "Fresh Search Title", "Original description.")
+    service = EmbeddingService(_request_db())  # type: ignore[arg-type]
+    assert service.reindex_all()["indexed"] >= 1
+
+    update = client.put(
+        f"/api/v1/books/{book['id']}",
+        headers=headers,
+        json={"title": "Fresh Search Title Revision"},
+    )
+    assert update.status_code == 200
+    response = client.get(
+        "/api/v1/books/search",
+        headers=headers,
+        params={"q": "Fresh Search Title Revision"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["used_semantic"] is False
+    assert any(item["id"] == book["id"] for item in body["results"])
 
 
 def test_soft_deleted_book_drops_from_index(

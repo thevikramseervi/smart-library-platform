@@ -79,12 +79,23 @@ export function BooksListPage() {
       />
 
       <div className="space-y-2">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search books..." />
-        <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+        <SearchInput
+          value={search}
+          onChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+          placeholder="Search books..."
+        />
+        <label htmlFor="smart-search" className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
+            id="smart-search"
             type="checkbox"
             checked={smartSearch}
-            onChange={(event) => setSmartSearch(event.target.checked)}
+            onChange={(event) => {
+              setSmartSearch(event.target.checked);
+              setPage(1);
+            }}
             className="size-4 accent-primary"
           />
           Smart search — rank by meaning (uses the semantic index when available)
@@ -94,13 +105,26 @@ export function BooksListPage() {
       {isLoading ? (
         <TableListSkeleton columns={isStaff ? 6 : 5} />
       ) : isError ? (
-        <QueryErrorState message="Unable to load books." />
+        <QueryErrorState
+          message="Unable to load books."
+          onRetry={() => void (semanticActive ? semanticQuery.refetch() : listQuery.refetch())}
+        />
       ) : semanticActive ? (
         <>
-          {semanticQuery.data && !semanticQuery.data.used_semantic ? (
-            <p className="text-sm text-muted-foreground">
-              Semantic index is empty; showing keyword matches instead.
-            </p>
+          {semanticQuery.data ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-primary/15 bg-secondary/45 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                {semanticQuery.data.used_semantic
+                  ? `Ranked by meaning across ${semanticQuery.data.indexed_books} indexed books.`
+                  : "Semantic ranking is temporarily unavailable; these matches use book text."}
+                {semanticQuery.data.results.length === 50
+                  ? " Showing the first 50 matches."
+                  : " Smart search returns up to 50 matches."}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setSmartSearch(false)}>
+                Browse catalog pages
+              </Button>
+            </div>
           ) : null}
           <CatalogTable recordCount={semanticQuery.data?.results.length}>
             <CatalogTableHead columns={["Title", "Authors", "Categories", "Match"]} />
@@ -173,6 +197,31 @@ export function BooksListPage() {
                   ) : null}
                 </tr>
               ))}
+              {listQuery.data?.items.length === 0 ? (
+                <tr>
+                  <td colSpan={isStaff ? 6 : 5} className="px-5 py-12 text-center">
+                    <p className="font-semibold">No books found</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {trimmedSearch
+                        ? `No catalog books match “${trimmedSearch}”.`
+                        : "The catalog is empty right now."}
+                    </p>
+                    {trimmedSearch ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => {
+                          setSearch("");
+                          setPage(1);
+                        }}
+                      >
+                        Clear search
+                      </Button>
+                    ) : null}
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </CatalogTable>
           {listQuery.data ? (

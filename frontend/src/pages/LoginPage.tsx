@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowRight, BookOpenCheck, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
@@ -51,7 +51,6 @@ export function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: async () => {
       const tokenResponse = await login({ email, password });
-      useAuthStore.setState({ token: tokenResponse.access_token });
       const user = await getCurrentUser(tokenResponse.access_token);
       return { token: tokenResponse.access_token, user };
     },
@@ -71,41 +70,64 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-svh bg-muted/30">
-      <div className="mx-auto grid min-h-svh max-w-6xl items-center gap-10 px-6 py-10 lg:grid-cols-2 lg:py-16">
-        <section className="space-y-8">
-          <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-              Smart Library Platform
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Library Management</h1>
-            <p className="max-w-lg text-base text-muted-foreground">
-              Modern library management for students, librarians, and administrators.
-            </p>
+    <div className="min-h-svh bg-[radial-gradient(ellipse_at_18%_12%,oklch(0.87_0.075_147/32%),transparent_34rem)] px-4 py-5 sm:px-8 sm:py-8">
+      <div className="mx-auto grid min-h-[calc(100svh-2.5rem)] max-w-7xl overflow-hidden rounded-[2rem] border border-border/70 bg-card/75 shadow-[0_30px_100px_-45px_oklch(0.2_0.04_160/0.38)] backdrop-blur sm:min-h-[calc(100svh-4rem)] lg:grid-cols-[1.08fr_0.92fr]">
+        <section className="relative isolate flex min-h-72 flex-col justify-between overflow-hidden bg-primary px-7 py-8 text-primary-foreground sm:px-10 sm:py-11 lg:min-h-full lg:px-14 lg:py-14">
+          <div className="absolute -top-32 -right-24 -z-10 size-[32rem] rounded-full border border-white/10 bg-white/[0.035]" />
+          <div className="absolute top-24 -right-8 -z-10 size-72 rounded-full border border-white/10" />
+          <div className="absolute right-12 bottom-12 -z-10 size-40 rotate-12 rounded-[2rem] border border-white/10 bg-white/[0.035]" />
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20">
+                <BookOpenCheck className="size-6" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-sm font-bold tracking-wide">Smart Library</p>
+                <p className="text-xs text-primary-foreground/65">Campus knowledge hub</p>
+              </div>
+            </div>
+            <div className="mt-12 max-w-xl space-y-5 lg:mt-20">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-xs font-semibold tracking-wide text-primary-foreground/85">
+                <Sparkles className="size-3.5" aria-hidden="true" />
+                YOUR CAMPUS, IN GOOD READS
+              </span>
+              <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+                Make space for your next big idea.
+              </h1>
+              <p className="max-w-lg text-base leading-7 text-primary-foreground/72 sm:text-lg">
+                Find your next read, keep track of what you borrow, and make library visits feel effortless.
+              </p>
+            </div>
           </div>
 
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {FEATURES.map((feature) => (
-              <li
-                key={feature}
-                className="flex items-center gap-2 rounded-lg border bg-background px-4 py-3 text-sm"
-              >
-                <ArrowRight className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                {feature}
-              </li>
-            ))}
-          </ul>
+          <div className="mt-10">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/55">
+              Everything you need, all in one place
+            </p>
+            <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              {FEATURES.map((feature) => (
+                <li key={feature} className="flex items-center gap-2.5 text-sm text-primary-foreground/90">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-white/12">
+                    <ArrowRight className="size-3" aria-hidden="true" />
+                  </span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
 
-        <section className="w-full">
-          <Card className="mx-auto w-full max-w-md shadow-sm">
-            <CardHeader>
-              <CardTitle>Sign in</CardTitle>
-              <CardDescription>Use your library account to continue.</CardDescription>
-            </CardHeader>
-            <CardContent>
+        <section className="flex items-center justify-center px-5 py-10 sm:px-10 lg:px-14">
+          <div className="w-full max-w-md">
+            <div className="mb-8 space-y-2">
+              <p className="text-sm font-semibold text-primary">Welcome back</p>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Sign in to your library</h2>
+              <p className="text-sm leading-6 text-muted-foreground">Use your campus account to pick up where you left off.</p>
+            </div>
+            <Card className="gap-0 border-0 bg-transparent py-0 shadow-none">
+              <CardContent className="px-0">
               <form
-                className="space-y-4"
+                className="space-y-5"
                 onSubmit={(event) => {
                   event.preventDefault();
                   setErrorMessage(null);
@@ -113,10 +135,11 @@ export function LoginPage() {
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-sm font-semibold">Email address</Label>
                   <Input
                     id="email"
                     type="email"
+                    placeholder="you@campus.edu"
                     autoComplete="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
@@ -126,7 +149,10 @@ export function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
+                    <span className="text-xs text-muted-foreground">Your account credentials</span>
+                  </div>
                   <div className="relative">
                     <Input
                       id="password"
@@ -158,7 +184,7 @@ export function LoginPage() {
                   </p>
                 ) : null}
 
-                <Button type="submit" className="w-full" disabled={pending}>
+                <Button type="submit" className="h-12 w-full rounded-xl text-sm shadow-lg shadow-primary/15" disabled={pending}>
                   {pending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -171,23 +197,23 @@ export function LoginPage() {
               </form>
 
               {import.meta.env.DEV ? (
-                <Card className="mt-6 border-dashed bg-muted/40 shadow-none">
-                  <CardHeader className="pb-3">
+                <Card className="mt-8 border-dashed bg-muted/45 shadow-none">
+                  <CardHeader className="gap-1 px-4 pb-3 pt-4">
                     <CardTitle className="text-sm">Development accounts</CardTitle>
                     <CardDescription className="text-xs">
                       Local seed users for testing. Passwords are not shown here.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardContent className="space-y-2 px-4 pb-4 text-sm">
                     {DEV_ACCOUNTS.map((account) => (
                       <div
                         key={account.email}
-                        className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-xl border bg-card px-3 py-2.5"
                       >
-                        <span className="font-medium">{account.role}</span>
+                        <span className="font-semibold">{account.role}</span>
                         <button
                           type="button"
-                          className="text-left text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="text-left text-xs text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           onClick={() => setEmail(account.email)}
                         >
                           {account.email}
@@ -197,8 +223,10 @@ export function LoginPage() {
                   </CardContent>
                 </Card>
               ) : null}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+            <p className="mt-7 text-center text-xs leading-5 text-muted-foreground">Your library account keeps your reading, reservations, and loan history together.</p>
+          </div>
         </section>
       </div>
     </div>

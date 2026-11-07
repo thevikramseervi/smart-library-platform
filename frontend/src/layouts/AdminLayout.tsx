@@ -13,23 +13,23 @@ const navItems: Array<{ to: string; label: string; icon: LucideIcon }> = [
 export function AdminLayout() {
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <aside className="w-full shrink-0 lg:w-56">
-        <nav className="rounded-lg border bg-card p-2">
-          <p className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <Shield className="size-3.5" aria-hidden="true" />
+      <aside className="w-full shrink-0 lg:w-60">
+        <nav aria-label="Administration sections" className="rounded-2xl border border-border/70 bg-card/75 p-2.5 shadow-sm lg:sticky lg:top-36">
+          <p className="flex items-center gap-2 px-3 py-3 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+            <Shield className="size-4 text-primary" aria-hidden="true" />
             Admin
           </p>
-          <ul className="space-y-1">
+            <ul className="flex gap-1 overflow-x-auto lg:flex-col">
             {navItems.map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      "flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all",
                       isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                        ? "bg-secondary text-primary shadow-sm"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )
                   }
                 >

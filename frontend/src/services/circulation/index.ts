@@ -8,6 +8,7 @@ import type {
   ReservationCreate,
   ReservationListParams,
   StudentSearchResult,
+  StudentActiveTransaction,
   Transaction,
   TransactionIssueRequest,
   TransactionListParams,
@@ -31,8 +32,8 @@ export async function listTransactions(
   return response.data;
 }
 
-export async function listMyActiveTransactions(): Promise<Transaction[]> {
-  const response = await api.get<Transaction[]>("/transactions/me/active");
+export async function listMyActiveTransactions(): Promise<StudentActiveTransaction[]> {
+  const response = await api.get<StudentActiveTransaction[]>("/transactions/me/active");
   return response.data;
 }
 

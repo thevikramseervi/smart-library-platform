@@ -1,11 +1,10 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 interface QueryErrorStateProps {
-  /** Called on the retry button; defaults to refetching every query. */
-  onRetry?: () => void;
+  /** Refetch only the failed request. */
+  onRetry: () => void;
   message?: string;
 }
 
@@ -13,16 +12,6 @@ export function QueryErrorState({
   onRetry,
   message = "Unable to load data.",
 }: QueryErrorStateProps) {
-  const queryClient = useQueryClient();
-
-  const handleRetry = () => {
-    if (onRetry) {
-      onRetry();
-      return;
-    }
-    queryClient.refetchQueries({ type: "active", stale: true });
-  };
-
   return (
     <div
       role="alert"
@@ -32,7 +21,7 @@ export function QueryErrorState({
         <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
         {message}
       </div>
-      <Button variant="outline" size="sm" onClick={handleRetry}>
+      <Button variant="outline" size="sm" onClick={onRetry}>
         <RotateCcw className="size-4" aria-hidden="true" />
         Retry
       </Button>

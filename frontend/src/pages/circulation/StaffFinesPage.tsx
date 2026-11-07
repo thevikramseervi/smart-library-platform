@@ -22,7 +22,7 @@ export function StaffFinesPage() {
   const [payError, setPayError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["fines", page, pageSize],
     queryFn: () => listFines({ page, page_size: pageSize }),
   });
@@ -48,7 +48,7 @@ export function StaffFinesPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading fines...</p>
       ) : isError ? (
-        <QueryErrorState message="Unable to load fines." />
+        <QueryErrorState message="Unable to load fines." onRetry={() => void refetch()} />
       ) : (
         <>
           <CirculationTable>

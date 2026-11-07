@@ -1,6 +1,6 @@
 # Smart Library Platform - API Specification
 
-**Version:** Sprint 4.8 (implemented surface)
+**Implementation snapshot:** 2026-11-08 (API prefix `/api/v1`)
 
 ## Overview
 
@@ -53,6 +53,8 @@ Business rules:
   `LOGIN_RATE_LIMIT_WINDOW_SECONDS` (defaults 5 / 300s) the account returns
   `429 Too Many Requests` until the window elapses. A successful login
   clears the account's failure history.
+* The limiter stores state in process memory. Lockout state is not shared across
+  backend workers or replicas and is cleared when a process restarts.
 * Password resets and password changes revoke all previously issued tokens
   for that user; the next request with an old token returns 401.
 
@@ -76,7 +78,7 @@ Purpose:
 Get current user profile.
 ```
 
-> **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are planned for a future sprint. Clients currently store the JWT locally and clear it on logout; server-side revocation already happens automatically when a user's password is reset or changed.
+> **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are not registered. The browser persists the JWT in local storage and clears it on client-side logout; logout does not revoke the token server-side. Password reset/change increments `users.token_version` and does revoke existing tokens.
 
 ---
 
@@ -857,6 +859,8 @@ Business rules:
 * Copies with status `LOST`, `DAMAGED`, or `RETIRED` can never be issued.
 * If the book has an active reservation queue and the borrower is not the
   head of it, the request returns 409 unless `bypass_reservation` is true.
+* Expired reservations are processed before the queue is checked; an expired
+  entry cannot hold a copy or block a walk-up issue.
 * Student must not have any unpaid fines (409).
 * Student cannot already hold an open loan for the same book, even on a different copy (409).
 * Student cannot exceed `MAX_ACTIVE_LOANS` concurrent loans (default 5).
@@ -897,7 +901,7 @@ Business rules:
 * Marks transaction `RETURNED` and records `returned_by` (the staff member
   processing the return).
 * Copy status after return:
-  * `RESERVED` when the book has an active reservation queue — the copy is
+  * `RESERVED` when the book has an unexpired active reservation queue — the copy is
     held for the first queued student, who fulfills it on their next issue.
   * `AVAILABLE` otherwise.
 * If returned after `due_at` (UTC calendar), creates an unpaid fine linked
@@ -918,7 +922,7 @@ Access:
 Librarian, Admin
 ```
 
-Query params: `page`, `page_size`, `status` (`ISSUED` | `RETURNED`), `overdue` (bool), `student_id`, `book_id`.
+Query params: `page`, `page_size`, `status` (`ISSUED` | `RETURNED`), `overdue` (bool), `student_id`, `book_id`, `q` (case-insensitive search across book title, inventory code, and student name/code/email).
 
 ---
 
@@ -949,6 +953,9 @@ Student
 ```
 
 Returns all open (`ISSUED`) loans for the authenticated student, including computed `is_overdue`.
+
+The active-loan response omits `book_copy.inventory_code`. Inventory codes
+remain in staff transaction and circulation responses.
 
 ---
 
@@ -1256,7 +1263,7 @@ Validation:
 * `1 <= max_active_loans <= 50`
 * `1 <= reservation_expiry_days <= 90`
 
-Response: `200` (updated policy object with audit attribution).
+Response: `200` (updated policy object including the latest editor attribution; prior values are not recorded).
 
 ---
 
@@ -1302,10 +1309,11 @@ Response: `200`
 
 Business rules:
 
-* When embeddings exist (`indexed_books > 0`), results are ranked by cosine similarity over the HNSW index (`used_semantic: true`).
+* Results are ranked by cosine similarity over the HNSW index (`used_semantic: true`) only when at least one embedding exists and all active catalog entries have current embeddings.
 * Before any index is built the endpoint falls back to keyword matching over title/ISBN/author/publisher (`used_semantic: false`, scores fixed at `1.0`).
+* If semantic inference fails after indexing, the endpoint logs the failure and returns keyword matches (`used_semantic: false`).
 * Soft-deleted books never appear; indexing runs offline via `uv run python -m app.scripts.reindex_embeddings`.
-* Catalog writes mark their embedding row `PENDING`; edited books are re-embedded on the next reindex run.
+* Catalog writes mark their embedding row `PENDING`; while any active entry is pending or stale, search falls back to keyword matching so recently changed books remain discoverable. Reindexing restores semantic ranking.
 
 ---
 
@@ -1448,14 +1456,15 @@ Ratings are **implemented** — see the [Ratings](#ratings) section. Reviews rem
 |--------|------|-------|
 | GET | `/api/v1/analytics/dashboard` | Superseded in design by role dashboards (`/dashboard/admin`); may be revisited |
 
-## AI (Future)
+## Recommendations (Future)
 
 | Method | Path |
 |--------|------|
 | GET | `/api/v1/recommendations/me` |
-| GET | `/api/v1/search/semantic?q=...` |
 
-Requires pgvector and embedding pipeline.
+Semantic book search is already implemented at `GET /api/v1/books/search` and
+is documented above. The previously proposed `/api/v1/search/semantic` path is
+not registered.
 
 ## Audit Logs (Future)
 

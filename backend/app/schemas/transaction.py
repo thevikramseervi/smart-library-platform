@@ -73,6 +73,16 @@ class TransactionCopySummary(BaseModel):
     book: TransactionBookSummary
 
 
+class StudentTransactionCopySummary(BaseModel):
+    """Book copy details safe to expose in the student's loan view."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    book_id: UUID
+    book: TransactionBookSummary
+
+
 class TransactionResponse(BaseModel):
     """Circulation transaction with computed overdue flag."""
 
@@ -92,3 +102,9 @@ class TransactionResponse(BaseModel):
     book_copy: TransactionCopySummary
     student: TransactionUserSummary
     issuer: TransactionUserSummary
+
+
+class StudentActiveTransactionResponse(TransactionResponse):
+    """Active-loan response that omits staff-only inventory identifiers."""
+
+    book_copy: StudentTransactionCopySummary

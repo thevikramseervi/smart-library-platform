@@ -159,6 +159,20 @@ def test_circulation_flow_uses_updated_policy(
     transaction.due_at = utc_today() - timedelta(days=3)
     db_session.flush()
 
+    # Policy is evaluated on return, so edits during an open loan apply to its fine.
+    changed_policy = client.put(
+        "/api/v1/circulation-policies",
+        headers=headers,
+        json={
+            "daily_overdue_fine_rate": "40.00",
+            "max_fine_amount": "100.00",
+            "loan_period_days": 10,
+            "max_active_loans": 5,
+            "reservation_expiry_days": 7,
+        },
+    )
+    assert changed_policy.status_code == 200
+
     # Return book
     returned = client.post(
         "/api/v1/transactions/return",
@@ -167,14 +181,14 @@ def test_circulation_flow_uses_updated_policy(
     )
     assert returned.status_code == 200
 
-    # Verify fine calculated with the updated rate: 3 * 25.00 = 75.00
+    # The current 40/day rate would be 120, clamped by the current 100 cap.
     fines = client.get(
         "/api/v1/fines",
         headers=headers,
         params={"student_id": data["student_id"], "paid": "false"},
     ).json()
     fine = next(f for f in fines["items"] if f["transaction_id"] == transaction_id)
-    assert Decimal(str(fine["amount"])) == Decimal("75.00")
+    assert Decimal(str(fine["amount"])) == Decimal("100.00")
 
     # Reset policy back to standard baseline so other tests remain clean
     reset_res = client.put(

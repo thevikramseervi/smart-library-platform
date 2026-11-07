@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { AdminDashboardView } from "@/pages/dashboard/AdminDashboardView";
 import { LibrarianDashboardView } from "@/pages/dashboard/LibrarianDashboardView";
 import { StudentDashboardView } from "@/pages/dashboard/StudentDashboardView";
@@ -70,7 +71,12 @@ export function DashboardPage() {
   }
 
   if (activeQuery.isError || !activeQuery.data) {
-    return <p className="text-sm text-destructive">Unable to load dashboard.</p>;
+    return (
+      <QueryErrorState
+        message="Unable to load your dashboard."
+        onRetry={() => void activeQuery.refetch()}
+      />
+    );
   }
 
   if (roleName === "ADMIN") {

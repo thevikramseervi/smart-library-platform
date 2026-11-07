@@ -16,7 +16,7 @@ export function ActiveLoansPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["transactions", "issued", page, pageSize],
     queryFn: () => listTransactions({ page, page_size: pageSize, status: "ISSUED" }),
   });
@@ -28,7 +28,7 @@ export function ActiveLoansPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading active loans...</p>
       ) : isError ? (
-        <QueryErrorState message="Unable to load active loans." />
+        <QueryErrorState message="Unable to load active loans." onRetry={() => void refetch()} />
       ) : (
         <>
           <CirculationTable>

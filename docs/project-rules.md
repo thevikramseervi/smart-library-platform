@@ -192,12 +192,13 @@ Responsibilities:
 
 * Business logic
 * Validation rules
-* Permission checks
 * AI workflows
+* Transaction orchestration and commit/rollback boundaries
 
-Must Not:
-
-* Directly access database sessions
+The current services receive a SQLAlchemy `Session` and use repositories for
+queries and persistence. Keep SQL statements in repositories; services may
+coordinate repository calls and own the unit-of-work commit boundary. API
+dependencies enforce route-level authentication and role access.
 
 ---
 
@@ -218,7 +219,9 @@ Must Not:
 
 ## UUIDs
 
-All primary keys must use UUID.
+Entity-table primary keys should use UUID. Many-to-many junction tables may
+use a composite primary key made from their foreign keys, as the current
+`book_authors` and `book_categories` tables do.
 
 Example:
 
@@ -479,14 +482,17 @@ Allowed Algorithms:
 
 ## Semantic Search
 
-Mandatory Stack:
+Implemented stack:
 
-* Sentence Transformers
-* pgvector
+* FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384 dimensions)
+* PostgreSQL pgvector
 
 Similarity Metric:
 
-* Cosine Similarity
+* Cosine similarity
+
+The current reindex command is `uv run python -m app.scripts.reindex_embeddings`.
+Recommendations are future work; do not describe or expose them as implemented.
 
 ---
 
@@ -502,7 +508,10 @@ for version 1.
 
 ---
 
-# QR Rules
+# QR Rules (Future Workflow)
+
+QR scanning is future work. Current copies store `qr_code_value` equal to the
+inventory code, but there is no QR image endpoint or scanner workflow.
 
 Each Book Copy must have:
 

@@ -24,3 +24,17 @@ export function formatDashboardDateTime(value: string): string {
   });
   return `${datePart}, ${timePart.replace(/\s(am|pm)$/i, (_, period: string) => ` ${period.toUpperCase()}`)}`;
 }
+
+export function formatDashboardDateTimeCompact(value: string): string {
+  const date = new Date(value);
+  const datePart = date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+  const timePart = date.toLocaleTimeString("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `${datePart} · ${timePart.replace(/\s(am|pm)$/i, (_, period: string) => ` ${period.toUpperCase()}`)}`;
+}

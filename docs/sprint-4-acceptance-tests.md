@@ -3,8 +3,13 @@
 **Project:** Smart Library Platform  
 **Module:** Circulation & Reservations  
 **Sprint:** 4  
-**Document version:** 1.0  
-**Last updated:** 2026-06-07  
+**Document version:** 1.1
+**Last updated:** 2026-11-08
+
+The acceptance criteria remain useful for the current circulation workflow.
+The execution results below are historical Sprint 4 records and do not certify
+the current code revision. Current backend tests were not run during this
+documentation update.
 
 ---
 
@@ -40,9 +45,9 @@ It is intended for QA sign-off, sprint review, and project documentation.
 
 | Rule | Expected behaviour |
 | ---- | ------------------ |
-| Loan period | `due_at` = issue date + 14 days |
+| Loan period | `due_at` = issue date + active policy loan period (default 14 days) |
 | Transaction status | `ISSUED` or `RETURNED` only; overdue is derived (`ISSUED` + `due_at < today`) |
-| Fine rate | `DAILY_OVERDUE_FINE_RATE` × days late (default ₹10.00/day) |
+| Fine rate | Active policy daily rate × calendar days late (default ₹10.00/day); capped at active policy maximum |
 | Unpaid fine block | Student with any unpaid fine cannot receive new loans (HTTP 409) |
 | Reservation | Allowed only when `available_copies = 0` for the book |
 | Reservation queue | FIFO by `reservation_date`; position computed at query time |
@@ -71,7 +76,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | **Objective** | Verify a librarian can return an issued copy. |
 | **Preconditions** | Active loan exists (`status = ISSUED`). |
 | **Steps** | 1. Log in as librarian.<br>2. Navigate to **Circulation → Return Book**.<br>3. Select loan from active list and click **Return**.<br><br>*API alternative:* `POST /transactions/return` with `book_copy_id`. |
-| **Expected result** | HTTP 200; transaction `status = RETURNED`; `returned_at` set; copy status returns to `AVAILABLE`. |
+| **Expected result** | HTTP 200; transaction `status = RETURNED`; `returned_at` set; copy status is `RESERVED` if an unexpired reservation queue remains, otherwise `AVAILABLE`. |
 | **Automated coverage** | `test_issue_and_return_flow` |
 
 ---
@@ -194,7 +199,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | **Preconditions** | Student already has `ACTIVE` reservation for target book; no copies available. |
 | **Steps** | 1. Create first reservation (RESV-01).<br>2. Submit second `POST /reservations` for same `book_id`. |
 | **Expected result** | HTTP 409; detail: *"Student already has an active reservation for this book"*; catalog shows existing reservation state. |
-| **Automated coverage** | Service rule verified; add manual/API re-test during sign-off |
+| **Automated coverage** | `test_duplicate_reservation_rejected` in `test_circulation_hardening.py` |
 
 ---
 
@@ -218,7 +223,15 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | **Preconditions** | Student has `ACTIVE` reservation. |
 | **Steps** | 1. Log in as student.<br>2. Navigate to **Circulation → My Reservations**.<br>3. Click **Cancel** on active reservation.<br><br>*API alternative:* `DELETE /reservations/{id}`. |
 | **Expected result** | HTTP 204/200; reservation `status = CANCELLED`; removed from active queue. |
-| **Automated coverage** | Manual/UI sign-off recommended |
+| **Automated coverage** | API cancellation and held-copy release are covered by `test_cancelled_last_reservation_releases_held_copy` in `test_queue_aware_circulation.py`; UI workflow still needs manual sign-off. |
+
+### RESV-06 — Expired reservations do not affect circulation
+
+| Field | Detail |
+| ----- | ------ |
+| **Objective** | Verify expired queue entries neither hold a returned copy nor block an eligible walk-up issue. |
+| **Expected result** | Expired entries become `EXPIRED`; returned copy is `AVAILABLE` when no unexpired queue remains; issue is allowed for the walk-up student. |
+| **Automated coverage** | `test_return_expires_stale_queue_and_releases_copy` and `test_expired_queue_head_does_not_block_walkup_issue` in `test_queue_aware_circulation.py`. |
 
 ---
 
@@ -271,7 +284,11 @@ It is intended for QA sign-off, sprint review, and project documentation.
 
 ---
 
-## 6. Expected vs Actual Results Summary
+## 6. Historical Sprint 4 Execution Results
+
+The following pass/pending entries were recorded for the Sprint 4 sign-off in
+June 2026. They describe that run only; re-run the tests and complete manual
+checks before treating them as current.
 
 **Test execution date:** _______________  
 **Tester:** _______________  
@@ -292,7 +309,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | RESV-02 | Prevent reservation when available | 409 reservation not allowed | Pass (automated) | ✅ Pass | |
 | RESV-03 | Prevent duplicate reservations | 409 duplicate message | Pass (automated) | ✅ Pass | `test_duplicate_reservation_rejected` |
 | RESV-04 | FIFO queue ordering | Positions 1, 2, … by date | Pass (automated) | ✅ Pass | |
-| RESV-05 | Student cancellation | Reservation CANCELLED | | ⬜ Pending | Manual UI sign-off |
+| RESV-05 | Student cancellation | Reservation CANCELLED | Manual UI sign-off pending | ⬜ Pending at report date | API cancellation is now automated; UI still needs manual sign-off |
 | RBAC-01 | Student restrictions | 403 on staff endpoints | Pass (automated) | ✅ Pass | Sprint 4.1 hardening tests |
 | RBAC-02 | Librarian permissions | Staff circulation allowed | Pass (automated) | ✅ Pass | |
 | RBAC-03 | Admin permissions | Full catalog + circulation | Pass (automated) | ✅ Pass | |
@@ -320,7 +337,7 @@ uv run pytest tests/test_circulation_issue_return.py \
              tests/test_circulation_reservations.py -v
 ```
 
-**Last automated run:** 48 tests passed (full backend suite including Sprint 4.1 hardening).
+**Historical last automated run recorded here:** 48 tests passed (full backend suite including Sprint 4.1 hardening). This is not a result for the current revision.
 
 ---
 

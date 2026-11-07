@@ -11,7 +11,7 @@ Complete local development setup for the Smart Library Platform.
 | Docker | Local PostgreSQL (`docker compose`) |
 | uv | Python dependencies and commands |
 | pnpm | Frontend dependencies |
-| Node.js 20+ | Frontend dev server |
+| Node.js 22+ recommended | Frontend dev server (CI uses Node 22) |
 
 Optional: a [Neon](https://neon.tech) account for cloud PostgreSQL instead of Docker.
 
@@ -46,10 +46,11 @@ The compose file (`docker-compose.yml`) runs `pgvector/pgvector:pg16` on port **
 ```bash
 cd backend
 cp .env.example .env
+# Edit .env: set a unique JWT_SECRET_KEY with at least 32 characters.
+# Generate one with: python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 uv sync
 uv run alembic upgrade head
 SEED_ALLOWED=true uv run python -m app.db.seed
-uv run alembic upgrade head   # no-op if just run above; safe
 # Optional: build embeddings so smart search works immediately
 # (downloads the FastEmbed model on first run)
 uv run python -m app.scripts.reindex_embeddings
@@ -100,6 +101,9 @@ Set `DATABASE_URL` in `.env`:
 ```text
 DATABASE_URL=postgresql+psycopg://<user>:<password>@<host>/<dbname>?sslmode=require
 ```
+
+Also replace the example `JWT_SECRET_KEY` with a unique value at least 32
+characters long. The backend refuses to start with the placeholder secret.
 
 **Important:**
 
@@ -198,7 +202,7 @@ pnpm dev
 
 Default dev server: http://localhost:5173
 
-Frontend API URL is set in `frontend/.env`:
+Frontend API URL is set in `frontend/.env` (or defaults to this local URL):
 
 ```text
 VITE_API_BASE_URL=http://localhost:8000/api/v1
@@ -252,7 +256,7 @@ SEED_ALLOWED=true uv run python -m app.db.seed
 Confirm users exist (optional):
 
 ```bash
-uv run python -c "from app.db.seed import run_seed; run_seed()"
+SEED_ALLOWED=true uv run python -m app.db.seed
 ```
 
 ### Neon SSL configuration
@@ -288,6 +292,30 @@ lsof -i :8000
 ```bash
 cd frontend && pnpm build
 ```
+
+## Backend tests
+
+The backend test suite requires PostgreSQL with pgvector and current migrations.
+Use the isolated Compose database so tests cannot touch the development catalog:
+
+```bash
+docker compose up -d testdb
+cd backend
+DATABASE_URL='postgresql+psycopg://smart_library:smart_library@127.0.0.1:5433/smart_library_test' \
+  uv run alembic upgrade head
+```
+
+Set the same URL as `TEST_DATABASE_URL` in `backend/.env`, then run:
+
+```bash
+uv run ruff check app tests
+uv run pytest -q
+```
+
+Fixtures seed reference users inside an outer transaction and roll each test
+back. Do not run the development seed command against the test database. The
+frontend has no unit or browser-test script; configured checks are `pnpm lint`
+and `pnpm build`.
 
 ---
 

@@ -14,7 +14,7 @@ import { formatInr } from "@/lib/formatCurrency";
 import { listMyFines } from "@/services/circulation";
 
 export function MyFinesPage() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["fines", "me"],
     queryFn: listMyFines,
   });
@@ -29,7 +29,7 @@ export function MyFinesPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading fines...</p>
       ) : isError ? (
-        <QueryErrorState message="Unable to load fines." />
+        <QueryErrorState message="Unable to load fines." onRetry={() => void refetch()} />
       ) : data?.length ? (
         <CirculationTable recordCount={data.length}>
           <CirculationTableHead columns={["Amount", "Reason", "Created", "Status"]} />

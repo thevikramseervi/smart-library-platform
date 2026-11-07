@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const TABLE_HEAD_CELL_CLASS =
-  "px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
-export const TABLE_BODY_CELL_CLASS = "px-5 py-3.5 align-middle";
+  "px-5 py-4 text-left text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground";
+export const TABLE_BODY_CELL_CLASS = "px-5 py-4 align-middle";
 
 interface CatalogPageHeaderProps {
   title: string;
@@ -51,7 +51,12 @@ export function CatalogTable({ children, recordCount }: CatalogTableProps) {
           {recordCount} record{recordCount === 1 ? "" : "s"}
         </p>
       ) : null}
-      <div className="overflow-x-auto rounded-lg border">
+      <div
+        className="overflow-x-auto rounded-2xl border border-border/70 bg-card/70 shadow-sm"
+        role="region"
+        aria-label="Catalog table"
+        tabIndex={0}
+      >
         <table className="w-full text-sm">{children}</table>
       </div>
     </div>
@@ -67,8 +72,8 @@ export function CatalogTableHead({ columns, sticky = true }: CatalogTableHeadPro
   return (
     <thead
       className={cn(
-        "border-b bg-muted/50",
-        sticky && "sticky top-0 z-10 bg-muted/95 backdrop-blur-sm",
+        "border-b border-border/60 bg-secondary/35",
+        sticky && "sticky top-0 z-10 bg-background/95 backdrop-blur-sm",
       )}
     >
       <tr>
@@ -97,7 +102,7 @@ export function SearchInput({ value, onChange, placeholder = "Search..." }: Sear
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="flex h-9 w-full max-w-sm rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex h-11 w-full max-w-xl rounded-xl border border-border/80 bg-card/80 px-4 py-1 text-sm shadow-sm transition-all placeholder:text-muted-foreground/75 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15"
     />
   );
 }

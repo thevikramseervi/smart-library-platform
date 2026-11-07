@@ -129,6 +129,13 @@ export function ReturnReservationNoticeActions({
               bookId,
               copyId,
               studentId: next.student.id,
+              student: {
+                id: next.student.id,
+                first_name: next.student.first_name,
+                last_name: next.student.last_name,
+                email: next.student.email ?? "",
+                student_code: next.student.student_code,
+              },
             }}
             onClick={onClose}
           >

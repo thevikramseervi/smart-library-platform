@@ -1,11 +1,13 @@
 """Queue-aware issue and return workflow tests."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.book_copy import BookCopy
+from app.models.reservation import Reservation
 from app.models.transaction import Transaction
 
 
@@ -217,3 +219,107 @@ def test_cancelled_last_reservation_releases_held_copy(
     copy = db_session.get(BookCopy, data["copy_id"])
     assert copy is not None
     assert copy.status.value == "AVAILABLE"
+
+
+def test_return_expires_stale_queue_and_releases_copy(
+    client: TestClient,
+    db_session: Session,
+    admin_token: str,
+    student2_token: str,
+    catalog_book_with_copy: dict,
+) -> None:
+    """An expired reservation must not leave a returned copy held."""
+    data = catalog_book_with_copy
+    headers = _headers(admin_token)
+    issued = client.post(
+        "/api/v1/transactions/issue",
+        headers=headers,
+        json={"book_copy_id": data["copy_id"], "student_id": data["student_id"]},
+    )
+    assert issued.status_code == 201
+
+    reservation, _ = _reserve(client, student2_token, data["book_id"])
+    assert reservation.status_code == 201
+    row = db_session.get(Reservation, reservation.json()["id"])
+    assert row is not None
+    row.expiry_date = datetime.now(UTC) - timedelta(seconds=1)
+    db_session.flush()
+
+    returned = client.post(
+        "/api/v1/transactions/return",
+        headers=headers,
+        json={"book_copy_id": data["copy_id"]},
+    )
+    assert returned.status_code == 200
+    db_session.refresh(row)
+    assert row.status.value == "EXPIRED"
+    copy = db_session.get(BookCopy, data["copy_id"])
+    assert copy is not None
+    assert copy.status.value == "AVAILABLE"
+
+
+def test_expired_queue_head_does_not_block_walkup_issue(
+    client: TestClient,
+    db_session: Session,
+    admin_token: str,
+    student_token: str,
+    student2_token: str,
+    catalog_book_with_copy: dict,
+) -> None:
+    """Issue decisions should ignore expired queue entries without a prior list call."""
+    data = catalog_book_with_copy
+    headers = _headers(admin_token)
+    first_issue = client.post(
+        "/api/v1/transactions/issue",
+        headers=headers,
+        json={"book_copy_id": data["copy_id"], "student_id": data["student_id"]},
+    )
+    assert first_issue.status_code == 201
+    reservation, _ = _reserve(client, student2_token, data["book_id"])
+    assert reservation.status_code == 201
+    expired = db_session.get(Reservation, reservation.json()["id"])
+    assert expired is not None
+    expired.expiry_date = datetime.now(UTC) - timedelta(seconds=1)
+    db_session.flush()
+
+    returned = client.post(
+        "/api/v1/transactions/return",
+        headers=headers,
+        json={"book_copy_id": data["copy_id"]},
+    )
+    assert returned.status_code == 200
+
+    walkup = client.post(
+        "/api/v1/transactions/issue",
+        headers=headers,
+        json={"book_copy_id": data["copy_id"], "student_id": data["student_id"]},
+    )
+    assert walkup.status_code == 201
+    db_session.refresh(expired)
+    assert expired.status.value == "EXPIRED"
+
+
+def test_staff_transaction_search_matches_book_copy_code(
+    client: TestClient,
+    admin_token: str,
+    catalog_book_with_copy: dict,
+) -> None:
+    """Staff can find an active loan using its book title or borrower identity."""
+    data = catalog_book_with_copy
+    headers = _headers(admin_token)
+    issued = client.post(
+        "/api/v1/transactions/issue",
+        headers=headers,
+        json={"book_copy_id": data["copy_id"], "student_id": data["student_id"]},
+    )
+    assert issued.status_code == 201
+
+    response = client.get(
+        "/api/v1/transactions",
+        headers=headers,
+        params={"status": "ISSUED", "q": data["inventory_code"]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["id"] == issued.json()["id"]
