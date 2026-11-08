@@ -69,19 +69,24 @@ class BookResponse(BaseModel):
 class SemanticSearchResult(BaseModel):
     """A single scored hit from semantic search."""
 
-    score: float
+    score: float | None = None
     id: UUID
     title: str
+    cover_image_url: str | None = None
+    publisher: str | None = None
     isbn: str | None
     publication_year: int | None
     authors: list[str]
     categories: list[str]
+    total_copies: int = 0
+    available_copies: int = 0
 
 
 class SemanticSearchResponse(BaseModel):
-    """Semantic search results with fallback metadata."""
+    """Semantic and text-matched results with indexing metadata."""
 
     query: str
     indexed_books: int
     used_semantic: bool
+    text_match_count: int = 0
     results: list[SemanticSearchResult]

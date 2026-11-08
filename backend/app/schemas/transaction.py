@@ -1,6 +1,7 @@
 """Circulation transaction schemas."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -32,6 +33,7 @@ class TransactionReturnRequest(BaseModel):
 
     book_copy_id: UUID | None = None
     inventory_code: str | None = Field(default=None, max_length=100)
+    pay_fine: bool = False
 
     @model_validator(mode="after")
     def validate_identifier(self) -> "TransactionReturnRequest":
@@ -97,6 +99,8 @@ class TransactionResponse(BaseModel):
     returned_at: datetime | None
     status: str
     is_overdue: bool
+    fine_amount: Decimal | None = None
+    fine_is_capped: bool | None = None
     reservation_id: UUID | None = None
     returned_by: UUID | None = None
     book_copy: TransactionCopySummary

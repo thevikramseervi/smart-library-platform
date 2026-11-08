@@ -1,5 +1,6 @@
 """Book repository."""
 
+import re
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
@@ -68,6 +69,14 @@ class BookRepository(BaseRepository[Book]):
 
         if q:
             pattern = contains_pattern(q)
+            normalized_isbn_query = re.sub(r"[^a-z0-9]", "", q.casefold())
+            isbn_match = (
+                func.regexp_replace(func.lower(Book.isbn), r"[^a-z0-9]", "", "g").ilike(
+                    contains_pattern(normalized_isbn_query)
+                )
+                if len(normalized_isbn_query) >= 10
+                else False
+            )
             id_query = (
                 id_query.outerjoin(Book.authors)
                 .outerjoin(Book.publisher)
@@ -75,6 +84,7 @@ class BookRepository(BaseRepository[Book]):
                     or_(
                         Book.title.ilike(pattern),
                         Book.isbn.ilike(pattern),
+                        isbn_match,
                         Author.name.ilike(pattern),
                         Publisher.name.ilike(pattern),
                     )
@@ -122,11 +132,7 @@ class BookRepository(BaseRepository[Book]):
 
     def get_copy_counts(self, book_id: UUID) -> tuple[int, int]:
         """Return total and available copy counts for a book."""
-        total_stmt = (
-            select(func.count())
-            .select_from(BookCopy)
-            .where(BookCopy.book_id == book_id)
-        )
+        total_stmt = select(func.count()).select_from(BookCopy).where(BookCopy.book_id == book_id)
         available_stmt = (
             select(func.count())
             .select_from(BookCopy)

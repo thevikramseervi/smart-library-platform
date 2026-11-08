@@ -1,4 +1,4 @@
-import { Building2, Shield, SlidersHorizontal, Users } from "lucide-react";
+import { Building2, Database, Shield, SlidersHorizontal, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -8,6 +8,7 @@ const navItems: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/admin/users", label: "Users", icon: Users },
   { to: "/admin/departments", label: "Departments", icon: Building2 },
   { to: "/admin/circulation-policy", label: "Circulation Policy", icon: SlidersHorizontal },
+  { to: "/admin/search-index", label: "Search Index", icon: Database },
 ];
 
 export function AdminLayout() {
@@ -19,14 +20,14 @@ export function AdminLayout() {
             <Shield className="size-4 text-primary" aria-hidden="true" />
             Admin
           </p>
-            <ul className="flex gap-1 overflow-x-auto lg:flex-col">
+            <ul className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap lg:flex-col">
             {navItems.map((item) => (
-              <li key={item.to}>
+              <li key={item.to} className="min-w-0">
                 <NavLink
                   to={item.to}
                   className={({ isActive }) =>
                     cn(
-                      "flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all",
+                      "flex min-h-10 min-w-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium leading-tight transition-all",
                       isActive
                         ? "bg-secondary text-primary shadow-sm"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",

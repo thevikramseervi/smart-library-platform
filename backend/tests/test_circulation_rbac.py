@@ -59,12 +59,55 @@ def test_student_active_loans_endpoint(
     )
     assert response.status_code == 200
     matching = [
-        loan for loan in response.json()
+        loan
+        for loan in response.json()
         if loan["book_copy_id"] == catalog_book_with_copy["copy_id"]
     ]
     assert len(matching) == 1
     assert matching[0]["status"] == "ISSUED"
     assert "inventory_code" not in matching[0]["book_copy"]
+
+
+def test_student_history_can_list_returned_loans_only(
+    client: TestClient,
+    librarian_token: str,
+    student_token: str,
+    catalog_book_with_copy: dict,
+) -> None:
+    """Returned-loan history excludes currently active loans when filtered."""
+    staff_headers = {"Authorization": f"Bearer {librarian_token}"}
+    student_headers = {"Authorization": f"Bearer {student_token}"}
+    issue = client.post(
+        "/api/v1/transactions/issue",
+        headers=staff_headers,
+        json={
+            "book_copy_id": catalog_book_with_copy["copy_id"],
+            "student_id": catalog_book_with_copy["student_id"],
+        },
+    )
+    assert issue.status_code == 201
+
+    returned_only = client.get(
+        "/api/v1/transactions/me",
+        headers=student_headers,
+        params={"status": "RETURNED"},
+    )
+    assert returned_only.status_code == 200
+    assert all(item["status"] == "RETURNED" for item in returned_only.json()["items"])
+    assert all(item["id"] != issue.json()["id"] for item in returned_only.json()["items"])
+
+    returned = client.post(
+        "/api/v1/transactions/return",
+        headers=staff_headers,
+        json={"book_copy_id": catalog_book_with_copy["copy_id"]},
+    )
+    assert returned.status_code == 200
+    returned_only = client.get(
+        "/api/v1/transactions/me",
+        headers=student_headers,
+        params={"status": "RETURNED"},
+    )
+    assert any(item["id"] == issue.json()["id"] for item in returned_only.json()["items"])
 
 
 def test_student_cannot_view_other_student_transactions(

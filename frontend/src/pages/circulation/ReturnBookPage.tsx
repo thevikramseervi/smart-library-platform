@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,8 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { formatDate } from "@/lib/format";
 import { useDebouncedValue } from "@/lib/hooks";
 import { appToast } from "@/lib/toast";
+import { formatInr } from "@/lib/formatCurrency";
 import { ReturnReservationNoticeActions } from "@/pages/circulation/components/ReservationQueueWarning";
 import {
   CirculationPageHeader,
@@ -33,8 +36,10 @@ interface ReturnQueueNotice {
 }
 
 export function ReturnBookPage() {
+  const location = useLocation();
+  const locationState = location.state as { inventoryCode?: string } | null;
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(locationState?.inventoryCode ?? "");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const debouncedSearch = useDebouncedValue(search.trim());
@@ -54,21 +59,29 @@ export function ReturnBookPage() {
       }),
   });
 
+  const isSearching =
+    debouncedSearch !== search.trim() || activeLoansQuery.isFetching;
   const loans = activeLoansQuery.data?.items ?? [];
 
   const returnMutation = useMutation({
-    mutationFn: (bookCopyId: string) => returnBook({ book_copy_id: bookCopyId }),
+    mutationFn: ({ bookCopyId, payFine }: { bookCopyId: string; payFine: boolean }) =>
+      returnBook({ book_copy_id: bookCopyId, ...(payFine ? { pay_fine: true } : {}) }),
     onMutate: () => {
       setErrorMessage(null);
       setQueueLookupWarning(null);
     },
-    onSuccess: async (transaction) => {
-      appToast.returned(`Returned ${transaction.book_copy.book.title}`);
+    onSuccess: async (transaction, variables) => {
+      const fineText = transaction.fine_amount && Number(transaction.fine_amount) > 0
+        ? ` Fine: ${formatInr(transaction.fine_amount)}${variables.payFine ? " (payment recorded)." : ""}`
+        : "";
+      appToast.returned(`Returned ${transaction.book_copy.book.title}.${fineText}`);
       setErrorMessage(null);
       setPendingReturn(null);
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["circulation", "copies"] });
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["fines"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 
       const bookId = transaction.book_copy.book_id;
       try {
@@ -115,9 +128,7 @@ export function ReturnBookPage() {
           placeholder="Search by book title, student name, or inventory code"
         />
         <p className="text-xs text-muted-foreground">
-          {activeLoansQuery.isLoading
-            ? "Loading active loans..."
-            : `Showing ${loans.length} of ${activeLoansQuery.data?.total ?? 0} matching active loans.`}
+          Search by book title, student name, or inventory code.
         </p>
       </div>
 
@@ -133,6 +144,10 @@ export function ReturnBookPage() {
           message="Unable to load active loans."
           onRetry={() => void activeLoansQuery.refetch()}
         />
+      ) : isSearching ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Searching active loans...
+        </p>
       ) : loans.length ? (
         <div className="space-y-3">
           {loans.map((transaction) => (
@@ -146,9 +161,14 @@ export function ReturnBookPage() {
                     {transaction.student.student_code
                       ? ` (${transaction.student.student_code})`
                       : ""}{" "}
-                    · Due {transaction.due_at}
+                    · Due {formatDate(transaction.due_at)}
                   </p>
                 </div>
+                {transaction.is_overdue && transaction.fine_amount ? (
+                  <p className="text-sm font-medium text-destructive">
+                    Current unpaid fine: {formatInr(transaction.fine_amount)}
+                  </p>
+                ) : null}
                 <Button variant="outline" onClick={() => setPendingReturn(transaction)}>
                   Return
                 </Button>
@@ -207,22 +227,67 @@ export function ReturnBookPage() {
                 <dt className="font-medium text-muted-foreground">Inventory code</dt>
                 <dd className="mt-1">{pendingReturn.book_copy.inventory_code}</dd>
               </div>
+              {pendingReturn.is_overdue && pendingReturn.fine_amount ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <dt className="font-medium text-destructive">Unpaid overdue fine</dt>
+                  <dd className="mt-1 font-semibold">{formatInr(pendingReturn.fine_amount)}</dd>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    This is the current accrued amount. Returning finalizes it. You can record
+                    payment now or leave it unpaid.
+                  </p>
+                </div>
+              ) : null}
             </dl>
           ) : null}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingReturn(null)}>
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button className="w-full" variant="outline" onClick={() => setPendingReturn(null)}>
               Cancel
             </Button>
-            <Button
-              disabled={!pendingReturn || returnMutation.isPending}
-              onClick={() => {
-                if (pendingReturn) {
-                  returnMutation.mutate(pendingReturn.book_copy_id);
-                }
-              }}
-            >
-              {returnMutation.isPending ? "Returning..." : "Confirm Return"}
-            </Button>
+            {pendingReturn?.is_overdue && pendingReturn.fine_amount ? (
+              <>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  disabled={returnMutation.isPending}
+                  onClick={() => {
+                    if (pendingReturn) {
+                      returnMutation.mutate({
+                        bookCopyId: pendingReturn.book_copy_id,
+                        payFine: false,
+                      });
+                    }
+                  }}
+                >
+                  Return without payment
+                </Button>
+                <Button
+                  className="w-full"
+                  disabled={returnMutation.isPending}
+                  onClick={() => {
+                    if (pendingReturn) {
+                      returnMutation.mutate({
+                        bookCopyId: pendingReturn.book_copy_id,
+                        payFine: true,
+                      });
+                    }
+                  }}
+                >
+                  {returnMutation.isPending ? "Returning..." : "Return & record payment"}
+                </Button>
+              </>
+            ) : (
+              <Button
+                className="w-full"
+                disabled={!pendingReturn || returnMutation.isPending}
+                onClick={() => {
+                  if (pendingReturn) {
+                    returnMutation.mutate({ bookCopyId: pendingReturn.book_copy_id, payFine: false });
+                  }
+                }}
+              >
+                {returnMutation.isPending ? "Returning..." : "Confirm Return"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

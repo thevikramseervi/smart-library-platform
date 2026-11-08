@@ -85,7 +85,7 @@ export function MainLayout() {
 
         {user ? (
           <div className="mx-auto max-w-[1440px] px-3 pb-3 sm:px-7 lg:px-10">
-            <nav aria-label="Main navigation" className="flex gap-1 overflow-x-auto rounded-2xl border border-border/60 bg-card/70 p-1.5 shadow-sm shadow-foreground/[0.025]">
+            <nav aria-label="Main navigation" className="flex min-w-0 flex-wrap gap-1 rounded-2xl border border-border/60 bg-card/70 p-1.5 shadow-sm shadow-foreground/[0.025]">
               {mainNavItems.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navLinkClass}>
                   <item.icon className="size-4" aria-hidden="true" />

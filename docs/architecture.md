@@ -240,7 +240,7 @@ Server-side enforcement:
 
 ### Fine Workflow (Sprint 4)
 
-Calendar-day overdue calculation clamped to `max_fine_amount`. Payment is exactly-once via a conditional update. Staff mark fines paid. INR display in frontend.
+Calendar-day overdue balances accrue for open overdue loans when fine lists, dashboards, or issue eligibility are checked, clamped to `max_fine_amount`. The same fine is finalized on return; staff can mark it paid only after return. Payment is exactly-once via a conditional update. INR display in frontend.
 
 ### Circulation Policy Management Module (Sprint 4.9)
 
@@ -250,7 +250,8 @@ Provides database-backed circulation configuration for loan duration, reservatio
 * **Latest-editor attribution:** `updated_by` points to the user who last changed the policy; the UI shows this attribution. There is no history of prior policy values or a general audit log.
 * **Concurrency:** `CirculationPolicyRepository.update_active` uses row-level locking (`SELECT ... FOR UPDATE`) to prevent concurrent race conditions on policy updates.
 * **Service integration:**
-  * `FineService.create_overdue_fine`: uses `policy.daily_overdue_fine_rate` and `policy.max_fine_amount`.
+  * `FineService.sync_open_overdue_fines`: refreshes the accrued balance from `policy.daily_overdue_fine_rate` and `policy.max_fine_amount`.
+  * `FineService.create_overdue_fine`: finalizes the accrued fine on return using the return date.
   * `TransactionService.issue_copy`: uses `policy.loan_period_days` and `policy.max_active_loans`.
   * `ReservationService.create_reservation`: uses `policy.reservation_expiry_days`.
 * Fine rate and cap are read when a late book is returned. A policy edit during an open loan therefore applies to that loan's fine; the policy is not snapshotted at issue time.
@@ -261,9 +262,10 @@ Provides database-backed circulation configuration for loan duration, reservatio
 
 * Canonical text per book built from title/authors/categories/publisher/language/year/description (`app/search/document_builder.py`)
 * Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), lazy-loaded per process
-* Offline reindex command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
-* Catalog create/update marks the embedding `PENDING`; soft delete removes it
-* `GET /api/v1/books/search?q=` ranks by cosine similarity over the HNSW index only while all active catalog embeddings are current; it uses keyword matching if any book is pending/stale, no index exists, or semantic inference fails
+* Catalog create/update marks the embedding `PENDING` and schedules a targeted background reindex after the response; failures remain recorded for an admin retry in the app or the offline command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
+* Admins can inspect indexing counts and start a pending/failed retry or confirmed full rebuild at `/admin/search-index`; matching admin-only API endpoints report job outcome while the server process remains running
+* Soft delete removes the embedding row
+* `GET /api/v1/books/search?q=` prioritizes exact title/ISBN, title-prefix, and other catalog text matches before semantically ranked results. ISBN-shaped queries use text matching only; other queries apply BGE v1.5's query instruction, keep pending/stale books findable, diversify leading semantic results across titles while retaining editions, and fall back to text if no usable vectors exist or inference fails
 * Smart-search toggle on the frontend books catalog renders scored results
 
 ### Ratings Module (Sprint 5)

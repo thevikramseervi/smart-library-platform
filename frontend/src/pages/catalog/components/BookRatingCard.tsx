@@ -14,6 +14,7 @@ import {
 import { getApiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { appToast } from "@/lib/toast";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
   deleteMyRating,
   fetchRatingSummary,
@@ -115,16 +116,22 @@ export function BookRatingCard({ bookId }: BookRatingCardProps) {
       <CardHeader>
         <CardTitle className="text-base">Ratings</CardTitle>
         <CardDescription>
-          {count === 0
+          {summaryQuery.isLoading
+            ? "Loading ratings..."
+            : summaryQuery.isError
+              ? "Ratings could not be loaded."
+              : count === 0
             ? "No ratings yet — be the first."
             : `Average ${average!.toFixed(1)} out of 5 · ${count} rating${count === 1 ? "" : "s"}`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-4">
+        {summaryQuery.isError ? <QueryErrorState message="Unable to load rating summary." onRetry={() => void summaryQuery.refetch()} /> : null}
+        {myRatingQuery.isError ? <QueryErrorState message="Unable to load your rating." onRetry={() => void myRatingQuery.refetch()} /> : null}
+        {!summaryQuery.isError && !myRatingQuery.isError ? <div className="flex items-center justify-between gap-4">
           <StarPicker
             value={myScore}
-            pending={upsertMutation.isPending}
+            pending={summaryQuery.isLoading || myRatingQuery.isLoading || upsertMutation.isPending}
             onSelect={(score) => upsertMutation.mutate(score)}
           />
           {myScore > 0 ? (
@@ -137,7 +144,7 @@ export function BookRatingCard({ bookId }: BookRatingCardProps) {
               Remove my rating
             </Button>
           ) : null}
-        </div>
+        </div> : null}
         {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
       </CardContent>
     </Card>

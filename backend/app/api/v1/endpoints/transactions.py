@@ -80,6 +80,7 @@ def list_transactions(
 def list_my_transactions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    status_filter: TransactionStatus | None = Query(default=None, alias="status"),
     current_user: User = Depends(get_current_user),
     service: TransactionService = Depends(get_transaction_service),
 ) -> PaginatedResponse[TransactionResponse]:
@@ -90,6 +91,7 @@ def list_my_transactions(
         current_user=current_user,
         is_staff=False,
         student_id=current_user.id,
+        status_filter=status_filter,
     )
 
 

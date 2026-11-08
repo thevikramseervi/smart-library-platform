@@ -18,6 +18,7 @@ import {
 } from "@/pages/dashboard/components/DashboardShared";
 import {
   CirculationActionBadge,
+  CirculationRecordCard,
   CirculationTable,
   CirculationTableHead,
   RoleBadge,
@@ -82,7 +83,7 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
           value={data.active_loans}
           icon={ClipboardList}
           accent="amber"
-          to="/circulation/active-loans"
+          to="/circulation/loans"
           description="Books currently on loan"
         />
       </div>
@@ -96,7 +97,21 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
           compact
           recordCount={data.recent_user_activity.length}
         >
-          <CirculationTable ariaLabel="Recent user activity">
+          <CirculationTable
+            ariaLabel="Recent user activity"
+            mobileContent={data.recent_user_activity.map((activity, index) => (
+              <CirculationRecordCard
+                key={`${activity.email}-${activity.occurred_at}-${index}`}
+                title={activity.user_name}
+                subtitle={activity.email}
+                status={<UserActivityBadge activityType={activity.activity_type} />}
+                fields={[
+                  { label: "Role", value: <RoleBadge role={activity.role_name} /> },
+                  { label: "When", value: formatDashboardDateTime(activity.occurred_at), wide: true },
+                ]}
+              />
+            ))}
+          >
             <CirculationTableHead columns={["Activity", "User", "Role", "When"]} />
             <tbody>
               {data.recent_user_activity.map((activity, index) => (
@@ -134,7 +149,20 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
           compact
           recordCount={data.recent_circulation_activity.length}
         >
-          <CirculationTable ariaLabel="Recent circulation activity">
+          <CirculationTable
+            ariaLabel="Recent circulation activity"
+            mobileContent={data.recent_circulation_activity.map((activity, index) => (
+              <CirculationRecordCard
+                key={`${activity.book_title}-${activity.occurred_at}-${index}`}
+                title={activity.book_title}
+                status={<CirculationActionBadge action={activity.action} />}
+                fields={[
+                  { label: "Student", value: activity.student_name },
+                  { label: "When", value: formatDashboardDateTime(activity.occurred_at), wide: true },
+                ]}
+              />
+            ))}
+          >
             <CirculationTableHead columns={["Action", "Book", "Student", "When"]} />
             <tbody>
               {data.recent_circulation_activity.map((activity, index) => (

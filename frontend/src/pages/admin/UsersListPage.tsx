@@ -20,6 +20,7 @@ import { useDebouncedValue } from "@/lib/hooks";
 import { appToast } from "@/lib/toast";
 import {
   CatalogPageHeader,
+  CatalogRecordCard,
   CatalogTable,
   CatalogTableHead,
   FormSelect,
@@ -87,12 +88,12 @@ export function UsersListPage() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search users..." />
+        <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search users..." />
         <FormSelect
           id="role-filter"
           label="Role"
           value={roleFilter}
-          onChange={setRoleFilter}
+          onChange={(value) => { setRoleFilter(value); setPage(1); }}
           placeholder="All roles"
           options={[
             { value: "ADMIN", label: "Admin" },
@@ -104,7 +105,7 @@ export function UsersListPage() {
           id="department-filter"
           label="Department"
           value={departmentFilter}
-          onChange={setDepartmentFilter}
+          onChange={(value) => { setDepartmentFilter(value); setPage(1); }}
           placeholder="All departments"
           options={(departmentsQuery.data ?? []).map((department) => ({
             value: department.id,
@@ -115,7 +116,7 @@ export function UsersListPage() {
           id="active-filter"
           label="Status"
           value={activeFilter}
-          onChange={setActiveFilter}
+          onChange={(value) => { setActiveFilter(value); setPage(1); }}
           placeholder="All statuses"
           options={[
             { value: "active", label: "Active" },
@@ -135,7 +136,25 @@ export function UsersListPage() {
         />
       ) : (
         <>
-          <CatalogTable>
+          <CatalogTable
+            mobileContent={(usersQuery.data?.items ?? []).map((user) => (
+              <CatalogRecordCard
+                key={user.id}
+                title={`${user.first_name} ${user.last_name}`}
+                subtitle={user.student_code}
+                fields={[
+                  { label: "Email", value: user.email, wide: true },
+                  { label: "Role", value: <RoleBadge role={user.role.name} /> },
+                  { label: "Department", value: user.department ? `${user.department.code} — ${user.department.name}` : "—" },
+                  { label: "Status", value: user.is_active ? "Active" : "Inactive" },
+                ]}
+                actions={<>
+                  <Button variant="outline" size="sm" asChild><Link to={`/admin/users/${user.id}/edit`}>Edit</Link></Button>
+                  <Button variant="outline" size="sm" onClick={() => { setErrorMessage(null); setPendingDeactivate(user); }}>Deactivate</Button>
+                </>}
+              />
+            ))}
+          >
             <CatalogTableHead
               columns={["Name", "Email", "Role", "Department", "Status", "Actions"]}
             />
@@ -170,6 +189,9 @@ export function UsersListPage() {
                   </td>
                 </tr>
               ))}
+              {usersQuery.data?.items.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">{debouncedSearch || roleFilter || departmentFilter || activeFilter ? "No users match these filters." : "No user accounts have been added yet."}</td></tr>
+              ) : null}
             </tbody>
           </CatalogTable>
           {usersQuery.data ? (

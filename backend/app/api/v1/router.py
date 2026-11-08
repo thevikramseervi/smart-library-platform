@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
     ratings,
     reservations,
     roles,
+    search_index,
     transactions,
     users,
 )
@@ -37,6 +38,7 @@ api_router.include_router(categories.router, prefix="/categories", tags=["catego
 api_router.include_router(book_search.router, prefix="/books", tags=["books"])
 api_router.include_router(ratings.router, tags=["ratings"])
 api_router.include_router(books.router, prefix="/books", tags=["books"])
+api_router.include_router(search_index.router, prefix="/search-index", tags=["search-index"])
 api_router.include_router(book_copies.router, prefix="/book-copies", tags=["book-copies"])
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(reservations.router, prefix="/reservations", tags=["reservations"])

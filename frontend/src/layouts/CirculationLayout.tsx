@@ -2,7 +2,7 @@ import {
   AlertCircle,
   ArrowLeftRight,
   Bookmark,
-  CircleDollarSign,
+  IndianRupee,
   ClipboardList,
   LogIn,
   LogOut,
@@ -19,13 +19,13 @@ const staffLinks: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/circulation/loans", label: "Active Loans", icon: ClipboardList },
   { to: "/circulation/overdue", label: "Overdue Loans", icon: AlertCircle },
   { to: "/circulation/reservations", label: "Reservations", icon: Bookmark },
-  { to: "/circulation/fines", label: "Fines", icon: CircleDollarSign },
+  { to: "/circulation/fines", label: "Fines", icon: IndianRupee },
 ];
 
 const studentLinks: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/circulation/my-loans", label: "My Loans", icon: ClipboardList },
   { to: "/circulation/my-reservations", label: "My Reservations", icon: Bookmark },
-  { to: "/circulation/my-fines", label: "My Fines", icon: CircleDollarSign },
+  { to: "/circulation/my-fines", label: "My Fines", icon: IndianRupee },
 ];
 
 export function CirculationLayout() {
@@ -47,14 +47,14 @@ export function CirculationLayout() {
           </p>
         </div>
       </div>
-      <nav aria-label="Circulation sections" className="flex gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm">
+      <nav aria-label="Circulation sections" className="grid grid-cols-2 gap-1 rounded-2xl border border-border/70 bg-card/70 p-1.5 shadow-sm sm:flex sm:flex-wrap">
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             className={({ isActive }) =>
               cn(
-                "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
+                "inline-flex min-h-10 min-w-0 items-center justify-start gap-2 rounded-xl px-3.5 text-left text-sm font-medium leading-tight transition-all",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",

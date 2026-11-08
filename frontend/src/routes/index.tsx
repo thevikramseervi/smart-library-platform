@@ -43,6 +43,9 @@ const DashboardPage = lazy(() =>
 const CirculationPolicyPage = lazy(() =>
   import("@/pages/admin/CirculationPolicyPage").then((m) => ({ default: m.CirculationPolicyPage })));
 
+const SearchIndexPage = lazy(() =>
+  import("@/pages/admin/SearchIndexPage").then((m) => ({ default: m.SearchIndexPage })));
+
 const DepartmentFormPage = lazy(() =>
   import("@/pages/admin/DepartmentFormPage").then((m) => ({ default: m.DepartmentFormPage })));
 
@@ -390,6 +393,14 @@ export const router = createBrowserRouter([
                     element: (
               <Suspense fallback={<TableListSkeleton columns={3} />}>
                 <CirculationPolicyPage />
+              </Suspense>
+            ),
+                  },
+                  {
+                    path: "search-index",
+                    element: (
+              <Suspense fallback={<TableListSkeleton columns={4} />}>
+                <SearchIndexPage />
               </Suspense>
             ),
                   },

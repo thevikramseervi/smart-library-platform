@@ -14,6 +14,7 @@ from app.schemas.dashboard import (
     StudentRecentLoan,
     StudentRecentReservation,
 )
+from app.services.fine_service import FineService
 
 
 class DashboardService:
@@ -21,9 +22,11 @@ class DashboardService:
 
     def __init__(self, db: Session) -> None:
         self.repository = DashboardRepository(db)
+        self.fine_service = FineService(db)
 
     def get_student_dashboard(self, student: User) -> StudentDashboardResponse:
         """Build the student dashboard summary."""
+        self.fine_service.sync_open_overdue_fines(student.id)
         recent_loans = [
             StudentRecentLoan(
                 book_title=transaction.book_copy.book.title,
@@ -54,6 +57,7 @@ class DashboardService:
 
     def get_librarian_dashboard(self) -> LibrarianDashboardResponse:
         """Build the librarian dashboard summary."""
+        self.fine_service.sync_open_overdue_fines()
         recent_transactions = [
             LibrarianRecentTransaction(
                 book_title=transaction.book_copy.book.title,
@@ -77,6 +81,7 @@ class DashboardService:
 
     def get_admin_dashboard(self) -> AdminDashboardResponse:
         """Build the admin dashboard summary."""
+        self.fine_service.sync_open_overdue_fines()
         created_activity = [
             AdminUserActivity(
                 activity_type="CREATED",

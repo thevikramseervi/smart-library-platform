@@ -188,19 +188,24 @@ export interface BookListParams extends CatalogListParams {
 }
 
 export interface SemanticSearchResult {
-  score: number;
+  score: number | null;
   id: string;
   title: string;
+  cover_image_url: string | null;
+  publisher: string | null;
   isbn: string | null;
   publication_year: number | null;
   authors: string[];
   categories: string[];
+  total_copies: number;
+  available_copies: number;
 }
 
 export interface SemanticSearchResponse {
   query: string;
   indexed_books: number;
   used_semantic: boolean;
+  text_match_count: number;
   results: SemanticSearchResult[];
 }
 

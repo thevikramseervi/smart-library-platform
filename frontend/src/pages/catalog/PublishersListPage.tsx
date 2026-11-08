@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/lib/roles";
 import { appToast } from "@/lib/toast";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { deletePublisher, listPublishers } from "@/services/catalog";
 import {
   CatalogPageHeader,
+  CatalogRecordCard,
   CatalogTable,
   CatalogTableHead,
   SearchInput,
@@ -19,6 +21,7 @@ import {
 export function PublishersListPage() {
   const [search, setSearch] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
@@ -47,8 +50,11 @@ export function PublishersListPage() {
     mutationFn: deletePublisher,
     onSuccess: () => {
       appToast.deleted("Publisher");
+      setPendingDelete(null);
+      setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ["publishers"] });
     },
+    onError: (error) => setDeleteError(getApiErrorMessage(error, "Unable to delete publisher.")),
   });
 
   return (
@@ -68,7 +74,22 @@ export function PublishersListPage() {
         <QueryErrorState message="Unable to load publishers." onRetry={() => void refetch()} />
       ) : (
         <>
-          <CatalogTable>
+          <CatalogTable
+            mobileContent={filteredPublishers.map((publisher) => (
+              <CatalogRecordCard
+                key={publisher.id}
+                title={publisher.name}
+                fields={[
+                  { label: "Country", value: publisher.country ?? "—" },
+                  { label: "Website", value: publisher.website ? <a href={publisher.website} target="_blank" rel="noreferrer" className="break-all text-primary underline-offset-4 hover:underline">{publisher.website}</a> : "—", wide: true },
+                ]}
+                actions={isStaff ? <>
+                  <Button variant="outline" size="sm" asChild><Link to={`/catalog/publishers/${publisher.id}/edit`}>Edit</Link></Button>
+                  <Button variant="outline" size="sm" disabled={deleteMutation.isPending} onClick={() => { setDeleteError(null); setPendingDelete({ id: publisher.id, name: publisher.name }); }}>Delete</Button>
+                </> : undefined}
+              />
+            ))}
+          >
             <CatalogTableHead
               columns={
                 isStaff ? ["Name", "Country", "Website", "Actions"] : ["Name", "Country", "Website"]
@@ -103,7 +124,7 @@ export function PublishersListPage() {
                           variant="outline"
                           size="sm"
                           disabled={deleteMutation.isPending}
-                          onClick={() => setPendingDelete({ id: publisher.id, name: publisher.name })}
+                          onClick={() => { setDeleteError(null); setPendingDelete({ id: publisher.id, name: publisher.name }); }}
                         >
                           Delete
                         </Button>
@@ -112,6 +133,9 @@ export function PublishersListPage() {
                   ) : null}
                 </tr>
               ))}
+              {filteredPublishers.length === 0 ? (
+                <tr><td colSpan={isStaff ? 4 : 3} className="px-4 py-8 text-center text-sm text-muted-foreground">{search.trim() ? "No publishers match your search." : "No publishers have been added yet."}</td></tr>
+              ) : null}
             </tbody>
           </CatalogTable>
         </>
@@ -128,10 +152,10 @@ export function PublishersListPage() {
         confirmLabel="Delete"
         destructive
         pending={deleteMutation.isPending}
+        errorMessage={deleteError}
         onConfirm={() => {
           if (pendingDelete) {
             deleteMutation.mutate(pendingDelete.id);
-            setPendingDelete(null);
           }
         }}
       />

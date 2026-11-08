@@ -34,6 +34,7 @@ def list_fines(
     page_size: int = Query(default=20, ge=1, le=100),
     paid: bool | None = Query(default=None),
     student_id: UUID | None = Query(default=None),
+    q: str | None = Query(default=None, min_length=1, max_length=100),
     _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: FineService = Depends(get_fine_service),
 ) -> PaginatedResponse[FineResponse]:
@@ -43,6 +44,7 @@ def list_fines(
         page_size=page_size,
         paid=paid,
         student_id=student_id,
+        q=q,
     )
 
 

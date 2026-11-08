@@ -32,22 +32,34 @@ class EmbeddingRepository:
             .where(Book.deleted_at.is_(None))
         )
 
-    def get_book_with_relations(self, book_id: UUID) -> Book | None:
+    def get_book_with_relations(
+        self,
+        book_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> Book | None:
         """Fetch one active book with all relations needed for canonical text."""
         statement = self._book_with_relations().where(
             Book.id == book_id,
             Book.deleted_at.is_(None),
         )
+        if for_update:
+            statement = statement.with_for_update(of=Book).execution_options(
+                populate_existing=True,
+            )
         return self.db.execute(statement).unique().scalar_one_or_none()
 
-    def count_indexed(self) -> int:
-        """Count books with a usable embedding."""
+    def count_indexed(self, *, model_name: str) -> int:
+        """Count active books with a usable vector from the requested model."""
         statement = (
             select(func.count())
             .select_from(BookEmbedding)
+            .join(Book, Book.id == BookEmbedding.book_id)
             .where(
+                Book.deleted_at.is_(None),
                 BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
                 BookEmbedding.embedding.is_not(None),
+                BookEmbedding.model_name == model_name,
             )
         )
         return self.db.execute(statement).scalar_one()
@@ -61,6 +73,7 @@ class EmbeddingRepository:
         *,
         limit: int,
         force: bool,
+        model_name: str,
         hash_for_book: Callable[[Book], str],
     ) -> list[Book]:
         """Return active books whose embedding is missing or out of date.
@@ -81,6 +94,7 @@ class EmbeddingRepository:
                     row is None
                     or row.embedding_status != EmbeddingStatus.INDEXED
                     or row.embedding is None
+                    or row.model_name != model_name
                     or row.content_hash != hash_for_book(book)
                 )
                 if needs_work:
@@ -89,9 +103,21 @@ class EmbeddingRepository:
                 break
         return stale
 
-    def has_stale_books(self, *, hash_for_book: Callable[[Book], str]) -> bool:
+    def has_stale_books(
+        self,
+        *,
+        model_name: str,
+        hash_for_book: Callable[[Book], str],
+    ) -> bool:
         """Return whether any active catalog entry is not represented by its current vector."""
-        return bool(self.list_stale_books(limit=1, force=False, hash_for_book=hash_for_book))
+        return bool(
+            self.list_stale_books(
+                limit=1,
+                force=False,
+                model_name=model_name,
+                hash_for_book=hash_for_book,
+            )
+        )
 
     def upsert_indexed(
         self,
@@ -148,16 +174,19 @@ class EmbeddingRepository:
         *,
         query_vector: list[float],
         limit: int,
+        model_name: str,
     ) -> list[tuple[Book, float]]:
-        """Return nearest active books by cosine similarity with scores."""
+        """Return nearest active books indexed with the current model."""
         distance = BookEmbedding.embedding.cosine_distance(query_vector).label("distance")
         statement = (
             self._book_with_relations()
+            .options(selectinload(Book.copies))
             .join(BookEmbedding, BookEmbedding.book_id == Book.id)
             .add_columns(distance)
             .where(
                 BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
                 BookEmbedding.embedding.is_not(None),
+                BookEmbedding.model_name == model_name,
             )
             .order_by(distance)
             .limit(limit)

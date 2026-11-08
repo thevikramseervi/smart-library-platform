@@ -53,6 +53,9 @@ describe("MyReservationsPage", () => {
 
     expect(await screen.findByRole("link", { name: "The Test Book" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(await screen.findByRole("heading", { name: "Cancel this reservation?" })).toBeInTheDocument();
+    expect(screen.getByText(/give up your current queue position/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel reservation" }));
 
     expect(await screen.findByText("You have no reservations.")).toBeInTheDocument();
     expect(vi.mocked(cancelReservation).mock.calls[0]?.[0]).toBe("reservation-1");

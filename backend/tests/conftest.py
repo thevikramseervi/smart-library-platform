@@ -19,6 +19,7 @@ from app.db.seed import (
     seed_roles,
 )
 from app.main import app
+from app.services.embedding_service import get_embedding_reindexer
 from tests.db import TestingSessionLocal, test_engine
 
 pytest_plugins = ["tests.conftest_circulation"]
@@ -84,6 +85,9 @@ def client(_seed_reference_data: None, db_session: Session) -> Generator[TestCli
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
+    # API tests isolate DB writes in a rollback transaction; never let an
+    # in-process background task connect to the application's main DATABASE_URL.
+    app.dependency_overrides[get_embedding_reindexer] = lambda: lambda _book_id: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

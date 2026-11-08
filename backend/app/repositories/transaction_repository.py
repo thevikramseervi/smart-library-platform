@@ -26,6 +26,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             selectinload(Transaction.book_copy).selectinload(BookCopy.book),
             selectinload(Transaction.student).selectinload(User.role),
             selectinload(Transaction.issuer).selectinload(User.role),
+            selectinload(Transaction.fine),
         )
 
     def get_by_id_with_relations(self, transaction_id: UUID) -> Transaction | None:
@@ -132,6 +133,16 @@ class TransactionRepository(BaseRepository[Transaction]):
             .order_by(Transaction.due_at.asc())
         )
         return list(self.db.execute(statement).unique().scalars().all())
+
+    def list_open_overdue(self, student_id: UUID | None = None) -> list[Transaction]:
+        """Return open loans that are past their due date."""
+        statement = select(Transaction).where(
+            Transaction.status == TransactionStatus.ISSUED,
+            Transaction.due_at < utc_today(),
+        )
+        if student_id is not None:
+            statement = statement.where(Transaction.student_id == student_id)
+        return list(self.db.execute(statement).scalars().all())
 
     def count_active_for_student(self, student_id: UUID) -> int:
         """Count a student's open loans."""

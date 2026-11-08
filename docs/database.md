@@ -127,7 +127,7 @@ FAILED
 
 Used by `book_embeddings.embedding_status`. Only rows with `INDEXED` and a non-null embedding participate in semantic search.
 
-Indexing runs offline via the reindex command (`uv run python -m app.scripts.reindex_embeddings`) using FastEmbed with `BAAI/bge-small-en-v1.5`. Catalog writes mark their row `PENDING`; a stored content-hash mismatch flags edited books as stale.
+Book create/update requests mark the row `PENDING` and schedule a targeted background embedding update using FastEmbed with `BAAI/bge-small-en-v1.5`. If that task fails or is interrupted, the row remains `FAILED`/`PENDING` and can be retried or rebuilt with `uv run python -m app.scripts.reindex_embeddings`; a stored content-hash mismatch also flags edited books as stale.
 
 ---
 
@@ -316,7 +316,8 @@ also adds a duplicate unique index on the same column.
 
 Business rules:
 
-* Created on late return: `(return_date - due_at)` **calendar days** × `daily_overdue_fine_rate` (active policy, default ₹10.00/day), clamped to `max_fine_amount` (default ₹500.00)
+* Accrues on overdue open loans when fine lists, dashboards, or borrowing eligibility are read: `(today - due_at)` **calendar days** × `daily_overdue_fine_rate` (active policy, default ₹10.00/day), clamped to `max_fine_amount` (default ₹500.00)
+* The same fine row is finalized on return using `(return_date - due_at)` calendar days; staff can mark it paid only after the book is returned
 * One fine per transaction
 * Unpaid fines block new issues
 * Payment is exactly-once: a conditional update on `paid = false` makes concurrent double-pays return 409

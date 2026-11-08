@@ -43,12 +43,14 @@ interface CirculationTableProps {
   children: ReactNode;
   recordCount?: number;
   ariaLabel?: string;
+  mobileContent?: ReactNode;
 }
 
 export function CirculationTable({
   children,
   recordCount,
   ariaLabel = "Circulation table",
+  mobileContent,
 }: CirculationTableProps) {
   return (
     <div className="space-y-2">
@@ -57,15 +59,60 @@ export function CirculationTable({
           {recordCount} record{recordCount === 1 ? "" : "s"}
         </p>
       ) : null}
-      <div
-        className="overflow-x-auto rounded-2xl border border-border/70 bg-card/70 shadow-sm"
-        role="region"
-        aria-label={ariaLabel}
-        tabIndex={0}
-      >
-        <table className="w-full text-sm">{children}</table>
+      {mobileContent ? <div className="space-y-3 md:hidden">{mobileContent}</div> : null}
+      <div className={mobileContent ? "hidden md:block" : undefined}>
+        <div
+          className="max-w-full touch-pan-x overflow-x-auto overscroll-x-contain rounded-2xl border border-border/70 bg-card/70 shadow-sm"
+          role="region"
+          aria-label={ariaLabel}
+          tabIndex={0}
+        >
+          <table className="w-full min-w-[42rem] text-sm sm:min-w-full">{children}</table>
+        </div>
+        {!mobileContent ? (
+          <p className="px-1 pt-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to see all columns.</p>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+interface CirculationRecordCardProps {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  status?: ReactNode;
+  fields: Array<{ label: string; value: ReactNode; wide?: boolean }>;
+  action?: ReactNode;
+}
+
+export function CirculationRecordCard({
+  title,
+  subtitle,
+  status,
+  fields,
+  action,
+}: CirculationRecordCardProps) {
+  return (
+    <article className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words text-sm font-semibold leading-snug">{title}</h3>
+          {subtitle ? <div className="mt-1 break-words text-xs text-muted-foreground">{subtitle}</div> : null}
+        </div>
+        {status ? <div className="shrink-0">{status}</div> : null}
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/60 pt-3">
+        {fields.map((field) => (
+          <div key={field.label} className={field.wide ? "col-span-2 min-w-0" : "min-w-0"}>
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {field.label}
+            </dt>
+            <dd className="mt-1 break-words text-sm">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {action ? <div className="mt-4 flex justify-end border-t border-border/60 pt-3">{action}</div> : null}
+    </article>
   );
 }
 

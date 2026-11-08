@@ -887,7 +887,7 @@ Librarian, Admin
 Request body:
 
 ```json
-{ "book_copy_id": "uuid" }
+{ "book_copy_id": "uuid", "pay_fine": false }
 ```
 
 or
@@ -907,6 +907,11 @@ Business rules:
 * If returned after `due_at` (UTC calendar), creates an unpaid fine linked
   to the transaction: `days_late × DAILY_OVERDUE_FINE_RATE`, clamped to a
   maximum of `MAX_FINE_AMOUNT`.
+* Optional `pay_fine: true` records payment of that finalized fine in the same
+  return transaction. Omit or set false to return the book and leave the fine unpaid.
+* Transaction responses include `fine_amount` when a fine exists. Open overdue
+  balances are shown in the staff active-loan list and finalized in the return
+  response so staff can confirm the amount due.
 
 ---
 
@@ -938,6 +943,8 @@ Access:
 Student
 ```
 
+Query params: `page`, `page_size`, and optional `status` (`ISSUED` or `RETURNED`).
+
 ---
 
 ## My Active Loans
@@ -952,7 +959,10 @@ Access:
 Student
 ```
 
-Returns all open (`ISSUED`) loans for the authenticated student, including computed `is_overdue`.
+Returns all open (`ISSUED`) loans for the authenticated student, including computed
+`is_overdue`. Responses may include `fine_amount` when an overdue balance has
+accrued, and `fine_is_capped` indicates whether that balance has reached the
+active policy's maximum fine amount (`null` when no fine exists).
 
 The active-loan response omits `book_copy.inventory_code`. Inventory codes
 remain in staff transaction and circulation responses.
@@ -1162,6 +1172,9 @@ Student
 GET /api/v1/fines
 ```
 
+Query params: `page`, `page_size`, `paid`, `student_id`, and `q`. Search `q`
+matches student name/code/email, book title, and physical copy inventory code.
+
 Access:
 
 ```text
@@ -1184,10 +1197,14 @@ Librarian, Admin
 
 Business rules:
 
+* Fine responses include `is_accruing`, true while the linked book remains on an overdue open loan, and `is_capped`, true when that open loan's accrued fine has reached the active policy's maximum. Finalized fines are not marked as accruing or capped.
+* Fine responses identify the borrower (`student_name`, `student_code`), title (`book_title`), physical copy (`inventory_code`), and loan `due_at` so staff can tell which circulation record the charge belongs to and when it was due.
+* Open overdue balances are refreshed when fine lists, dashboards, or borrowing eligibility are read. The existing fine is finalized with the return date when the book is returned.
+* An accruing fine cannot be paid until the book is returned (409).
 * Marks fine as paid and records `paid_at`; the update is conditional on
   `paid = false`, so concurrent double-pay attempts return 409 instead of
   silently overwriting `paid_at`.
-* Unpaid fines block new book issues for that student (409 on issue).
+* Unpaid positive balances block new book issues for that student (409 on issue).
 
 ---
 
@@ -1293,15 +1310,20 @@ Response: `200`
   "query": "machine learning",
   "indexed_books": 190,
   "used_semantic": true,
+  "text_match_count": 1,
   "results": [
     {
       "score": 0.7656,
       "id": "uuid",
       "title": "Machine learning",
+      "cover_image_url": "https://covers.example.org/machine-learning.jpg",
+      "publisher": "Example Academic Press",
       "isbn": "9780262018029",
       "publication_year": 2012,
       "authors": ["Kevin P. Murphy"],
-      "categories": ["Machine Learning"]
+      "categories": ["Machine Learning"],
+      "total_copies": 4,
+      "available_copies": 2
     }
   ]
 }
@@ -1309,11 +1331,29 @@ Response: `200`
 
 Business rules:
 
-* Results are ranked by cosine similarity over the HNSW index (`used_semantic: true`) only when at least one embedding exists and all active catalog entries have current embeddings.
-* Before any index is built the endpoint falls back to keyword matching over title/ISBN/author/publisher (`used_semantic: false`, scores fixed at `1.0`).
-* If semantic inference fails after indexing, the endpoint logs the failure and returns keyword matches (`used_semantic: false`).
+* Results are ranked by cosine similarity over current-model vectors in the HNSW index when at least one is available (`used_semantic: true`). Vectors for pending, failed, deleted, or different-model books are excluded.
+* A non-null `score` is the raw cosine similarity rounded to four decimal places. It is useful for comparing the ordering of results for the same query; it is not a calibrated relevance probability or confidence percentage. Results are not discarded using an absolute score threshold.
+* Keyword matches are ordered first by exact title/ISBN, title prefix, title substring, then other title/ISBN/author/publisher matches. ISBN search ignores separators for full ISBN-length queries. A keyword result without a returned vector score has `score: null`; `text_match_count` counts those text-only results.
+* ISBN-10 and ISBN-13 shaped queries bypass vector ranking and return catalog text matches only, avoiding unrelated semantic results for identifier input.
+* Semantic candidates are over-fetched and diversified so the first results favor distinct titles. Additional editions remain in the response after the first occurrence of each title when they fit within `limit`.
+* With `BAAI/bge-small-en-v1.5`, search queries receive the model's retrieval instruction prefix. Indexed book documents are embedded without that prefix; a query-instruction change does not require reindexing.
+* If there are no usable current-model vectors or semantic inference fails, the endpoint returns keyword matches (`used_semantic: false`, `score: null` for every result). Inference failures are logged.
 * Soft-deleted books never appear; indexing runs offline via `uv run python -m app.scripts.reindex_embeddings`.
-* Catalog writes mark their embedding row `PENDING`; while any active entry is pending or stale, search falls back to keyword matching so recently changed books remain discoverable. Reindexing restores semantic ranking.
+* Catalog writes mark their embedding row `PENDING`; this no longer disables vector ranking for the rest of the catalog. Reindexing adds the updated book back to semantic ranking.
+* Book create and update schedule a targeted background embedding job after saving the catalog record. Search can use text matching while that job runs; a failure is recorded and can be retried from the admin UI or with the offline reindex command.
+
+## Admin Index Maintenance
+
+```http
+GET /api/v1/search-index/status
+POST /api/v1/search-index/reindex
+```
+
+Access: **Admin only** for both endpoints. The status response reports active catalog total, indexed, pending, and failed books, the configured model, whether semantic search is enabled, and the latest manually requested job. Pending includes books without a usable current-model vector; failed is also reported separately.
+
+`POST` accepts `{ "force": false }` to process missing, stale, pending, and failed embeddings, or `{ "force": true }` to regenerate every active book embedding. It returns `202` with a job ID. A second bulk job while one is running returns `409`; requests are also rejected with `409` while semantic search is disabled. The full rebuild requires explicit confirmation in the admin UI.
+
+The admin interface is available at `/admin/search-index`. Job progress is held in server process memory; after a server restart, database indexing states remain available for a new retry, but the prior job's displayed outcome is lost. The CLI reindex command remains available for operations outside the app.
 
 ---
 

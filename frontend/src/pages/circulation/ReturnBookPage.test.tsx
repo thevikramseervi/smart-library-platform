@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +20,8 @@ const loan = {
   id: "loan-1",
   book_copy_id: "copy-1",
   due_at: "2026-11-10T00:00:00Z",
+  is_overdue: false,
+  fine_amount: null,
   book_copy: {
     id: "copy-1",
     book_id: "book-1",
@@ -40,6 +42,25 @@ describe("ReturnBookPage", () => {
     } as never);
     vi.mocked(returnBook).mockResolvedValue(loan as never);
     vi.mocked(getReservationQueue).mockRejectedValue(new Error("Queue service unavailable"));
+  });
+
+  it("shows the active-loan search status once in the results area while loading", () => {
+    vi.mocked(listTransactions).mockReturnValue(new Promise(() => {}) as never);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReturnBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getAllByText("Searching active loans...")).toHaveLength(1);
+    expect(screen.getByText("Search by book title, student name, or inventory code.")).toBeInTheDocument();
+    queryClient.clear();
   });
 
   it("keeps a successful return successful when the queue lookup fails", async () => {
@@ -106,6 +127,38 @@ describe("ReturnBookPage", () => {
       "href",
       "/circulation/issue",
     );
+
+    queryClient.clear();
+  });
+
+  it("shows the current unpaid fine before confirming an overdue return", async () => {
+    vi.mocked(listTransactions).mockResolvedValue({
+      items: [{ ...loan, is_overdue: true, fine_amount: "30.00" }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      total_pages: 1,
+    } as never);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReturnBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/Current unpaid fine: ₹30\.00/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Return" }));
+    expect(await screen.findByText("Unpaid overdue fine")).toBeInTheDocument();
+    expect(screen.getByText(/current accrued amount/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Return & record payment" }));
+    await waitFor(() => {
+      expect(returnBook).toHaveBeenCalledWith({ book_copy_id: "copy-1", pay_fine: true });
+    });
 
     queryClient.clear();
   });

@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/lib/roles";
 import { appToast } from "@/lib/toast";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { deleteCategory, listCategories } from "@/services/catalog";
 import {
   CatalogPageHeader,
+  CatalogRecordCard,
   CatalogTable,
   CatalogTableHead,
   SearchInput,
@@ -19,6 +21,7 @@ import {
 export function CategoriesListPage() {
   const [search, setSearch] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
@@ -46,8 +49,11 @@ export function CategoriesListPage() {
     mutationFn: deleteCategory,
     onSuccess: () => {
       appToast.deleted("Category");
+      setPendingDelete(null);
+      setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
+    onError: (error) => setDeleteError(getApiErrorMessage(error, "Unable to delete category.")),
   });
 
   return (
@@ -67,7 +73,19 @@ export function CategoriesListPage() {
         <QueryErrorState message="Unable to load categories." onRetry={() => void refetch()} />
       ) : (
         <>
-          <CatalogTable>
+          <CatalogTable
+            mobileContent={filteredCategories.map((category) => (
+              <CatalogRecordCard
+                key={category.id}
+                title={category.name}
+                fields={[{ label: "Description", value: category.description ?? "—", wide: true }]}
+                actions={isStaff ? <>
+                  <Button variant="outline" size="sm" asChild><Link to={`/catalog/categories/${category.id}/edit`}>Edit</Link></Button>
+                  <Button variant="outline" size="sm" disabled={deleteMutation.isPending} onClick={() => { setDeleteError(null); setPendingDelete({ id: category.id, name: category.name }); }}>Delete</Button>
+                </> : undefined}
+              />
+            ))}
+          >
             <CatalogTableHead
               columns={isStaff ? ["Name", "Description", "Actions"] : ["Name", "Description"]}
             />
@@ -88,7 +106,7 @@ export function CategoriesListPage() {
                           variant="outline"
                           size="sm"
                           disabled={deleteMutation.isPending}
-                          onClick={() => setPendingDelete({ id: category.id, name: category.name })}
+                          onClick={() => { setDeleteError(null); setPendingDelete({ id: category.id, name: category.name }); }}
                         >
                           Delete
                         </Button>
@@ -97,6 +115,9 @@ export function CategoriesListPage() {
                   ) : null}
                 </tr>
               ))}
+              {filteredCategories.length === 0 ? (
+                <tr><td colSpan={isStaff ? 3 : 2} className="px-4 py-8 text-center text-sm text-muted-foreground">{search.trim() ? "No categories match your search." : "No categories have been added yet."}</td></tr>
+              ) : null}
             </tbody>
           </CatalogTable>
         </>
@@ -113,10 +134,10 @@ export function CategoriesListPage() {
         confirmLabel="Delete"
         destructive
         pending={deleteMutation.isPending}
+        errorMessage={deleteError}
         onConfirm={() => {
           if (pendingDelete) {
             deleteMutation.mutate(pendingDelete.id);
-            setPendingDelete(null);
           }
         }}
       />

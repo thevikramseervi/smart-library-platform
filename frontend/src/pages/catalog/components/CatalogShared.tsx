@@ -41,25 +41,61 @@ export function CatalogPageHeader({
 interface CatalogTableProps {
   children: ReactNode;
   recordCount?: number;
+  mobileContent?: ReactNode;
 }
 
-export function CatalogTable({ children, recordCount }: CatalogTableProps) {
+export function CatalogTable({ children, recordCount, mobileContent }: CatalogTableProps) {
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       {recordCount != null ? (
         <p className="text-xs text-muted-foreground">
           {recordCount} record{recordCount === 1 ? "" : "s"}
         </p>
       ) : null}
-      <div
-        className="overflow-x-auto rounded-2xl border border-border/70 bg-card/70 shadow-sm"
-        role="region"
-        aria-label="Catalog table"
-        tabIndex={0}
-      >
-        <table className="w-full text-sm">{children}</table>
+      {mobileContent ? <div className="space-y-3 md:hidden">{mobileContent}</div> : null}
+      <div className={mobileContent ? "hidden md:block" : undefined}>
+        <div
+          className="max-w-full touch-pan-x overflow-x-auto overscroll-x-contain rounded-2xl border border-border/70 bg-card/70 shadow-sm"
+          role="region"
+          aria-label="Catalog table"
+          tabIndex={0}
+        >
+          <table className="w-full min-w-[42rem] text-sm sm:min-w-full">{children}</table>
+        </div>
+        {!mobileContent ? (
+          <p className="px-1 pt-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to see all columns.</p>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+interface CatalogRecordCardProps {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  fields: Array<{ label: string; value: ReactNode; wide?: boolean }>;
+  actions?: ReactNode;
+}
+
+export function CatalogRecordCard({ title, subtitle, fields, actions }: CatalogRecordCardProps) {
+  return (
+    <article className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+      <div className="min-w-0">
+        <h3 className="break-words text-sm font-semibold leading-snug">{title}</h3>
+        {subtitle ? <div className="mt-1 break-words text-xs text-muted-foreground">{subtitle}</div> : null}
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/60 pt-3">
+        {fields.map((field) => (
+          <div key={field.label} className={field.wide ? "col-span-2 min-w-0" : "min-w-0"}>
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {field.label}
+            </dt>
+            <dd className="mt-1 break-words text-sm">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {actions ? <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-border/60 pt-3">{actions}</div> : null}
+    </article>
   );
 }
 
@@ -136,7 +172,7 @@ export function FormSelect({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
-        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
 import { useIsStaff } from "@/lib/roles";
 import { appToast } from "@/lib/toast";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { createLanguage, listLanguages } from "@/services/catalog";
 import {
   CatalogPageHeader,
+  CatalogRecordCard,
   CatalogTable,
   CatalogTableHead,
   SearchInput,
@@ -21,6 +23,7 @@ export function LanguagesListPage() {
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const isStaff = useIsStaff();
 
@@ -50,8 +53,10 @@ export function LanguagesListPage() {
       appToast.created("Language");
       setName("");
       setCode("");
+      setCreateError(null);
       queryClient.invalidateQueries({ queryKey: ["languages"] });
     },
+    onError: (error) => setCreateError(getApiErrorMessage(error, "Unable to add language.")),
   });
 
   return (
@@ -75,6 +80,7 @@ export function LanguagesListPage() {
               className="grid gap-4 sm:grid-cols-3"
               onSubmit={(event) => {
                 event.preventDefault();
+                setCreateError(null);
                 createMutation.mutate();
               }}
             >
@@ -102,6 +108,7 @@ export function LanguagesListPage() {
                 </Button>
               </div>
             </form>
+            {createError ? <p role="alert" className="mt-3 text-sm text-destructive">{createError}</p> : null}
           </CardContent>
         </Card>
       ) : null}
@@ -114,7 +121,18 @@ export function LanguagesListPage() {
         <QueryErrorState message="Unable to load languages." onRetry={() => void refetch()} />
       ) : (
         <>
-          <CatalogTable>
+          <CatalogTable
+            mobileContent={filteredLanguages.map((language) => (
+              <CatalogRecordCard
+                key={language.id}
+                title={language.name}
+                fields={[
+                  { label: "Code", value: language.code },
+                  { label: "Created", value: new Date(language.created_at).toLocaleDateString() },
+                ]}
+              />
+            ))}
+          >
             <CatalogTableHead columns={["Name", "Code", "Created"]} />
             <tbody>
               {filteredLanguages.map((language) => (
@@ -126,6 +144,9 @@ export function LanguagesListPage() {
                   </td>
                 </tr>
               ))}
+              {filteredLanguages.length === 0 ? (
+                <tr><td colSpan={3} className="px-4 py-8 text-center text-sm text-muted-foreground">{search.trim() ? "No languages match your search." : "No languages have been added yet."}</td></tr>
+              ) : null}
             </tbody>
           </CatalogTable>
         </>

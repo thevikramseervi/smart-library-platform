@@ -42,6 +42,8 @@ export interface Transaction {
   returned_at: string | null;
   status: "ISSUED" | "RETURNED";
   is_overdue: boolean;
+  fine_amount: string | null;
+  fine_is_capped: boolean | null;
   book_copy: TransactionCopySummary;
   student: TransactionUserSummary;
   issuer: TransactionUserSummary;
@@ -62,6 +64,7 @@ export interface TransactionIssueRequest {
 export interface TransactionReturnRequest {
   book_copy_id?: string;
   inventory_code?: string;
+  pay_fine?: boolean;
 }
 
 export interface ReservationBookSummary {
@@ -96,11 +99,18 @@ export interface ReservationCreate {
 export interface Fine {
   id: string;
   transaction_id: string;
+  student_name: string;
+  student_code: string | null;
+  book_title: string;
+  inventory_code: string;
+  due_at: string;
   amount: string;
   reason: string;
   paid: boolean;
   paid_at: string | null;
   created_at: string;
+  is_accruing: boolean;
+  is_capped: boolean;
 }
 
 export interface StudentSearchResult {
@@ -141,4 +151,5 @@ export interface FineListParams {
   page_size?: number;
   paid?: boolean;
   student_id?: string;
+  q?: string;
 }

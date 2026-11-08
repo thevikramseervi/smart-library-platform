@@ -3,7 +3,7 @@ import {
   ArrowLeftRight,
   Bookmark,
   BookOpen,
-  CircleDollarSign,
+  IndianRupee,
   ClipboardList,
   Layers,
   LogIn,
@@ -22,6 +22,7 @@ import {
 } from "@/pages/dashboard/components/DashboardShared";
 import {
   CirculationActionBadge,
+  CirculationRecordCard,
   CirculationTable,
   CirculationTableHead,
 } from "@/pages/circulation/components/CirculationShared";
@@ -89,7 +90,7 @@ export function LibrarianDashboardView({ data, firstName }: LibrarianDashboardVi
         <DashboardStatCard
           label="Unpaid fines"
           value={data.unpaid_fines_count}
-          icon={CircleDollarSign}
+          icon={IndianRupee}
           accent="green"
           tone={data.unpaid_fines_count > 0 ? "danger" : "success"}
           to="/circulation/fines"
@@ -108,7 +109,20 @@ export function LibrarianDashboardView({ data, firstName }: LibrarianDashboardVi
         emptyIcon={ArrowLeftRight}
         recordCount={data.recent_transactions.length}
       >
-        <CirculationTable ariaLabel="Recent transactions">
+        <CirculationTable
+          ariaLabel="Recent transactions"
+          mobileContent={data.recent_transactions.map((transaction, index) => (
+            <CirculationRecordCard
+              key={`${transaction.book_title}-${transaction.occurred_at}-${index}`}
+              title={transaction.book_title}
+              status={<CirculationActionBadge action={transaction.action} />}
+              fields={[
+                { label: "Student", value: <>{transaction.student_name}{transaction.student_code ? <span className="block text-xs text-muted-foreground">{transaction.student_code}</span> : null}</> },
+                { label: "Date", value: formatDashboardDateTime(transaction.occurred_at), wide: true },
+              ]}
+            />
+          ))}
+        >
           <CirculationTableHead columns={["Book", "Student", "Action", "Date"]} />
           <tbody>
             {data.recent_transactions.map((transaction, index) => (
@@ -146,7 +160,7 @@ export function LibrarianDashboardView({ data, firstName }: LibrarianDashboardVi
             description: "Review reservation queues.",
             icon: Bookmark,
           },
-          { to: "/circulation/fines", label: "Fines", description: "Review and mark fines paid.", icon: CircleDollarSign },
+          { to: "/circulation/fines", label: "Fines", description: "Review and mark fines paid.", icon: IndianRupee },
         ]}
       />
     </section>

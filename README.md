@@ -32,11 +32,11 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
 | **Circulation** | Issue, return, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination |
 | **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions |
-| **Fines** | Automatic overdue fines (calendar days, capped), unpaid-fine borrowing block, exactly-once staff mark-paid |
+| **Fines** | Overdue balances accrue on open loans (calendar days, capped), finalize on return, block new borrowing while unpaid, and can be marked paid exactly once after return |
 | **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, hold expiry), latest editor attribution, and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
 | **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
-| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; keyword fallback when no index exists or semantic inference fails; offline reindex command |
+| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits queue a targeted background reindex, with text matching while pending, admin UI for indexing status/retry/full rebuild, and the offline reindex command |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
 

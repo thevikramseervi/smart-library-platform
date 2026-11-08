@@ -1,13 +1,18 @@
 """Fine repository."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.sql import contains_pattern
+from app.models.book import Book
+from app.models.book_copy import BookCopy
 from app.models.fine import Fine
 from app.models.transaction import Transaction
+from app.models.user import User
 from app.repositories.base import BaseRepository
 
 
@@ -16,6 +21,16 @@ class FineRepository(BaseRepository[Fine]):
 
     def __init__(self, db: Session) -> None:
         super().__init__(Fine, db)
+
+    @staticmethod
+    def _with_relations():
+        """Load the borrower and physical book copy for fine display."""
+        return select(Fine).options(
+            selectinload(Fine.transaction).selectinload(Transaction.student),
+            selectinload(Fine.transaction)
+            .selectinload(Transaction.book_copy)
+            .selectinload(BookCopy.book),
+        )
 
     def get_by_transaction_id(self, transaction_id: UUID) -> Fine | None:
         """Return a fine for a transaction, if any."""
@@ -50,6 +65,7 @@ class FineRepository(BaseRepository[Fine]):
             .where(
                 Transaction.student_id == student_id,
                 Fine.paid.is_(False),
+                Fine.amount > Decimal("0"),
             )
         )
         return self.db.execute(statement).scalar_one() > 0
@@ -57,7 +73,7 @@ class FineRepository(BaseRepository[Fine]):
     def list_for_student(self, student_id: UUID) -> list[Fine]:
         """Return fines for a student."""
         statement = (
-            select(Fine)
+            self._with_relations()
             .join(Transaction, Fine.transaction_id == Transaction.id)
             .where(Transaction.student_id == student_id)
             .order_by(Fine.created_at.desc())
@@ -71,17 +87,33 @@ class FineRepository(BaseRepository[Fine]):
         page_size: int,
         paid: bool | None = None,
         student_id: UUID | None = None,
+        q: str | None = None,
     ) -> tuple[list[Fine], int]:
         """Return paginated fines with optional filters."""
-        statement = select(Fine).join(Transaction, Fine.transaction_id == Transaction.id)
+        statement = self._with_relations().join(Transaction, Fine.transaction_id == Transaction.id)
         if paid is not None:
             statement = statement.where(Fine.paid.is_(paid))
         if student_id is not None:
             statement = statement.where(Transaction.student_id == student_id)
+        if q:
+            pattern = contains_pattern(q)
+            statement = (
+                statement.join(BookCopy, Transaction.book_copy_id == BookCopy.id)
+                .join(Book, BookCopy.book_id == Book.id)
+                .join(User, Transaction.student_id == User.id)
+                .where(
+                    or_(
+                        Book.title.ilike(pattern),
+                        BookCopy.inventory_code.ilike(pattern),
+                        User.first_name.ilike(pattern),
+                        User.last_name.ilike(pattern),
+                        User.student_code.ilike(pattern),
+                        User.email.ilike(pattern),
+                    )
+                )
+            )
 
-        total = self.db.execute(
-            select(func.count()).select_from(statement.subquery())
-        ).scalar_one()
+        total = self.db.execute(select(func.count()).select_from(statement.subquery())).scalar_one()
         statement = (
             statement.order_by(Fine.created_at.desc())
             .offset((page - 1) * page_size)
@@ -92,15 +124,28 @@ class FineRepository(BaseRepository[Fine]):
 
     def get_by_id(self, fine_id: UUID) -> Fine | None:
         """Fetch a fine by id."""
-        statement = (
-            select(Fine)
-            .options(selectinload(Fine.transaction))
-            .where(Fine.id == fine_id)
-        )
+        statement = self._with_relations().where(Fine.id == fine_id)
         return self.db.execute(statement).scalar_one_or_none()
 
     def create(self, fine: Fine) -> Fine:
         """Persist a new fine."""
         self.db.add(fine)
         self.db.flush()
+        return fine
+
+    def save_accrued(self, transaction_id: UUID, amount, days_late: int) -> Fine:
+        """Create or refresh the single unpaid fine for an overdue open loan."""
+        fine = self.get_by_transaction_id(transaction_id)
+        if fine is None:
+            fine = Fine(
+                transaction_id=transaction_id,
+                amount=amount,
+                reason=f"Currently overdue: {days_late} day(s)",
+                paid=False,
+            )
+            return self.create(fine)
+        if not fine.paid:
+            fine.amount = amount
+            fine.reason = f"Currently overdue: {days_late} day(s)"
+            self.db.flush()
         return fine

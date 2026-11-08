@@ -156,6 +156,35 @@ def test_book_search_by_author_and_publisher(
     assert by_publisher.json()["total"] >= 1
 
 
+def test_book_search_by_isbn_ignores_formatting(
+    client: TestClient,
+    admin_token: str,
+    catalog_setup: dict,
+) -> None:
+    """An unformatted ISBN query finds the same ISBN stored with separators."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    created = client.post(
+        "/api/v1/books",
+        headers=headers,
+        json={
+            "title": "Formatted ISBN Search Book",
+            "isbn": "978-0-13-235088-4",
+            "publisher_id": catalog_setup["publisher_id"],
+            "language_id": catalog_setup["language_id"],
+        },
+    )
+    assert created.status_code == 201
+
+    response = client.get(
+        "/api/v1/books",
+        headers=headers,
+        params={"q": "9780132350884"},
+    )
+
+    assert response.status_code == 200
+    assert any(book["id"] == created.json()["id"] for book in response.json()["items"])
+
+
 def test_book_soft_delete_hidden_from_list(
     client: TestClient,
     admin_token: str,

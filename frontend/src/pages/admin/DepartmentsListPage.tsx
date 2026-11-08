@@ -18,6 +18,7 @@ import { getApiErrorMessage } from "@/lib/apiError";
 import { appToast } from "@/lib/toast";
 import {
   CatalogPageHeader,
+  CatalogRecordCard,
   CatalogTable,
   CatalogTableHead,
   SearchInput,
@@ -82,7 +83,22 @@ export function DepartmentsListPage() {
       ) : isError ? (
         <QueryErrorState message="Unable to load departments." onRetry={() => void refetch()} />
       ) : (
-        <CatalogTable>
+        <CatalogTable
+          mobileContent={filteredDepartments.map((department) => (
+            <CatalogRecordCard
+              key={department.id}
+              title={department.name}
+              subtitle={department.code}
+              fields={[{ label: "Description", value: department.description ?? "—", wide: true }]}
+              actions={(
+                <>
+                  <Button variant="outline" size="sm" asChild><Link to={`/admin/departments/${department.id}/edit`}>Edit</Link></Button>
+                  <Button variant="outline" size="sm" onClick={() => { setErrorMessage(null); setPendingDelete(department); }}>Delete</Button>
+                </>
+              )}
+            />
+          ))}
+        >
           <CatalogTableHead columns={["Code", "Name", "Description", "Actions"]} />
           <tbody>
             {filteredDepartments.map((department) => (

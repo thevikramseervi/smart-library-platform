@@ -2,7 +2,7 @@ import {
   Bookmark,
   BookMarked,
   BookOpen,
-  CircleDollarSign,
+  IndianRupee,
   History,
   Search,
   Sparkles,
@@ -19,6 +19,7 @@ import {
 } from "@/pages/dashboard/components/DashboardShared";
 import { cn } from "@/lib/utils";
 import {
+  CirculationRecordCard,
   CirculationTable,
   CirculationTableHead,
   LoanStatusBadge,
@@ -71,7 +72,7 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
         <DashboardStatCard
           label="Unpaid fines"
           value={formatInr(data.unpaid_fines)}
-          icon={CircleDollarSign}
+          icon={IndianRupee}
           accent="green"
           tone={hasUnpaidFines ? "danger" : "success"}
           to="/circulation/my-fines"
@@ -99,7 +100,20 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
           emptyIcon={Sparkles}
           recordCount={data.recent_loans.length}
         >
-          <CirculationTable ariaLabel="Recent loans">
+          <CirculationTable
+            ariaLabel="Recent loans"
+            mobileContent={data.recent_loans.map((loan, index) => (
+              <CirculationRecordCard
+                key={`${loan.book_title}-${loan.issued_at}-${index}`}
+                title={loan.book_title}
+                status={<LoanStatusBadge status={loan.status} isOverdue={loan.is_overdue} />}
+                fields={[
+                  { label: "Issued", value: formatDashboardDate(loan.issued_at) },
+                  { label: "Due", value: formatDashboardDate(loan.due_at) },
+                ]}
+              />
+            ))}
+          >
             <CirculationTableHead columns={["Book", "Issued", "Due", "Status"]} />
             <tbody>
               {data.recent_loans.map((loan, index) => (
@@ -129,7 +143,19 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
           emptyIcon={Bookmark}
           recordCount={data.recent_reservations.length}
         >
-          <CirculationTable ariaLabel="Recent reservations">
+          <CirculationTable
+            ariaLabel="Recent reservations"
+            mobileContent={data.recent_reservations.map((reservation, index) => (
+              <CirculationRecordCard
+                key={`${reservation.book_title}-${reservation.reservation_date}-${index}`}
+                title={reservation.book_title}
+                fields={[
+                  { label: "Queue", value: reservation.queue_position != null ? <StatusBadge label={`#${reservation.queue_position}`} variant="warning" /> : "—" },
+                  { label: "Reserved", value: formatDashboardDateTime(reservation.reservation_date) },
+                ]}
+              />
+            ))}
+          >
             <CirculationTableHead columns={["Book", "Queue", "Reserved"]} />
             <tbody>
               {data.recent_reservations.map((reservation, index) => (
@@ -181,7 +207,7 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
             to: "/circulation/my-fines",
             label: "My fines",
             description: "View unpaid and paid fines.",
-            icon: CircleDollarSign,
+            icon: IndianRupee,
           },
         ]}
       />

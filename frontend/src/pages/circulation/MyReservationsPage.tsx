@@ -3,22 +3,26 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { appToast } from "@/lib/toast";
 import {
   CirculationPageHeader,
+  CirculationRecordCard,
   CirculationTable,
   CirculationTableHead,
   ReservationStatusBadge,
 } from "@/pages/circulation/components/CirculationShared";
 import { formatDate } from "@/lib/format";
 import { cancelReservation, listMyReservations } from "@/services/circulation";
+import type { Reservation } from "@/types/circulation";
 
 export function MyReservationsPage() {
   const queryClient = useQueryClient();
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["reservations", "me"],
@@ -30,7 +34,9 @@ export function MyReservationsPage() {
     onSuccess: () => {
       appToast.cancelled("Reservation cancelled");
       setCancelError(null);
-      queryClient.invalidateQueries({ queryKey: ["reservations", "me"] });
+      setReservationToCancel(null);
+      queryClient.invalidateQueries({ queryKey: ["reservations"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error) => {
       setCancelError(getApiErrorMessage(error, "Unable to cancel reservation."));
@@ -51,7 +57,34 @@ export function MyReservationsPage() {
       ) : isError ? (
         <QueryErrorState message="Unable to load reservations." onRetry={() => void refetch()} />
       ) : data?.length ? (
-        <CirculationTable>
+        <CirculationTable
+          mobileContent={data.map((reservation) => (
+            <CirculationRecordCard
+              key={reservation.id}
+              title={(
+                <Link to={`/catalog/books/${reservation.book_id}`} className="hover:underline">
+                  {reservation.book.title}
+                </Link>
+              )}
+              status={<ReservationStatusBadge status={reservation.status} />}
+              fields={[
+                { label: "Queue position", value: reservation.queue_position ?? "—" },
+                { label: "Reserved", value: formatDate(reservation.reservation_date) },
+                { label: "Expires", value: formatDate(reservation.expiry_date) },
+              ]}
+              action={reservation.status === "ACTIVE" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={cancelMutation.isPending}
+                  onClick={() => setReservationToCancel(reservation)}
+                >
+                  Cancel reservation
+                </Button>
+              ) : undefined}
+            />
+          ))}
+        >
           <CirculationTableHead
             columns={["Book", "Queue position", "Reserved", "Expires", "Status", "Actions"]}
           />
@@ -78,7 +111,7 @@ export function MyReservationsPage() {
                       variant="outline"
                       size="sm"
                       disabled={cancelMutation.isPending}
-                      onClick={() => cancelMutation.mutate(reservation.id)}
+                      onClick={() => setReservationToCancel(reservation)}
                     >
                       Cancel
                     </Button>
@@ -97,6 +130,24 @@ export function MyReservationsPage() {
           actionTo="/catalog/books"
         />
       )}
+      <ConfirmDialog
+        open={reservationToCancel !== null}
+        onOpenChange={(open) => {
+          if (!open && !cancelMutation.isPending) setReservationToCancel(null);
+        }}
+        title="Cancel this reservation?"
+        description={
+          reservationToCancel
+            ? `Cancel your reservation for ${reservationToCancel.book.title}? You will give up your current queue position.`
+            : "This will remove your active reservation from the queue."
+        }
+        confirmLabel="Cancel reservation"
+        destructive
+        pending={cancelMutation.isPending}
+        onConfirm={() => {
+          if (reservationToCancel) cancelMutation.mutate(reservationToCancel.id);
+        }}
+      />
     </section>
   );
 }

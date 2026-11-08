@@ -1,6 +1,7 @@
 """Circulation transaction business logic."""
 
 from datetime import timedelta
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -37,18 +38,22 @@ class TransactionService:
         self.fine_repository = FineRepository(db)
         self.fine_service = FineService(db)
         self.policy_repository = CirculationPolicyRepository(db)
+        self._max_fine_amount: Decimal | None = None
         self.db = db
 
     @staticmethod
     def _is_overdue(transaction: Transaction) -> bool:
         """Return True when an issued loan is past its due date."""
-        return (
-            transaction.status == TransactionStatus.ISSUED
-            and transaction.due_at < utc_today()
-        )
+        return transaction.status == TransactionStatus.ISSUED and transaction.due_at < utc_today()
 
     def _to_response(self, transaction: Transaction) -> TransactionResponse:
         """Build a transaction API response."""
+        fine_amount = transaction.fine.amount if transaction.fine is not None else None
+        fine_is_capped = None
+        if fine_amount is not None:
+            if self._max_fine_amount is None:
+                self._max_fine_amount = self.policy_repository.get_active().max_fine_amount
+            fine_is_capped = fine_amount >= self._max_fine_amount
         return TransactionResponse(
             id=transaction.id,
             book_copy_id=transaction.book_copy_id,
@@ -59,6 +64,8 @@ class TransactionService:
             returned_at=transaction.returned_at,
             status=transaction.status.value,
             is_overdue=self._is_overdue(transaction),
+            fine_amount=fine_amount,
+            fine_is_capped=fine_is_capped,
             book_copy=transaction.book_copy,
             student=transaction.student,
             issuer=transaction.issuer,
@@ -105,6 +112,7 @@ class TransactionService:
         copy_id, student_id = self._resolve_issue_targets(payload)
         self._expire_stale_reservations()
 
+        self.fine_service.sync_open_overdue_fines(student_id)
         if self.fine_repository.has_unpaid_for_student(student_id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -168,8 +176,7 @@ class TransactionService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    f"Student has reached the limit of "
-                    f"{policy.max_active_loans} concurrent loans"
+                    f"Student has reached the limit of {policy.max_active_loans} concurrent loans"
                 ),
             )
         if self.repository.get_open_for_copy(copy_id) is not None:
@@ -228,12 +235,14 @@ class TransactionService:
         transaction.status = TransactionStatus.RETURNED
         transaction.returned_by = returned_by.id
         queue_waiting = self.reservation_repository.list_queue_for_book(copy.book_id)
-        copy.status = (
-            BookCopyStatus.RESERVED if queue_waiting else BookCopyStatus.AVAILABLE
-        )
+        copy.status = BookCopyStatus.RESERVED if queue_waiting else BookCopyStatus.AVAILABLE
 
+        fine = None
         if returned_at.date() > transaction.due_at:
-            self.fine_service.create_overdue_fine(transaction, returned_at)
+            fine = self.fine_service.create_overdue_fine(transaction, returned_at)
+        if payload.pay_fine and fine is not None:
+            fine.paid = True
+            fine.paid_at = returned_at
 
         self.db.commit()
         refreshed = self.repository.get_by_id_with_relations(transaction.id)
@@ -276,6 +285,8 @@ class TransactionService:
             if student_id is not None and student_id != current_user.id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
             student_id = current_user.id
+        elif status_filter == TransactionStatus.ISSUED:
+            self.fine_service.sync_open_overdue_fines(student_id)
 
         items, total = self.repository.list_transactions(
             page=page,
@@ -291,6 +302,7 @@ class TransactionService:
 
     def list_active_for_student(self, student: User) -> list[StudentActiveTransactionResponse]:
         """Return open loans for the authenticated student."""
+        self.fine_service.sync_open_overdue_fines(student.id)
         items = self.repository.list_active_for_student(student.id)
         return [
             StudentActiveTransactionResponse.model_validate(

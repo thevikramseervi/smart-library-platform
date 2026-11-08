@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -7,6 +8,7 @@ import { useIsStaff } from "@/lib/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { createBookCopy, getBook, listBookCopies, updateBookCopy } from "@/services/catalog";
@@ -17,7 +19,7 @@ import type { Book } from "@/types/catalog";
 import type { Reservation } from "@/types/circulation";
 import { BookRatingCard } from "@/pages/catalog/components/BookRatingCard";
 import {
-  CatalogPageHeader,
+  CatalogRecordCard,
   CatalogTable,
   CatalogTableHead,
 } from "@/pages/catalog/components/CatalogShared";
@@ -130,6 +132,9 @@ export function BookDetailPage() {
   const [location, setLocation] = useState("");
   const [copyError, setCopyError] = useState<string | null>(null);
   const [reservationError, setReservationError] = useState<string | null>(null);
+  const [editingCopy, setEditingCopy] = useState<BookCopy | null>(null);
+  const [editLocation, setEditLocation] = useState("");
+  const [editAcquiredDate, setEditAcquiredDate] = useState("");
 
   const bookQuery = useQuery({
     queryKey: ["books", id],
@@ -190,6 +195,22 @@ export function BookDetailPage() {
     },
   });
 
+  const updateCopyMutation = useMutation({
+    mutationFn: () => updateBookCopy(editingCopy!.id, {
+      location: editLocation.trim() || null,
+      acquired_date: editAcquiredDate || null,
+    }),
+    onSuccess: () => {
+      appToast.updated("Book copy");
+      setEditingCopy(null);
+      setCopyError(null);
+      queryClient.invalidateQueries({ queryKey: ["book-copies", id] });
+      queryClient.invalidateQueries({ queryKey: ["books", id] });
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+    },
+    onError: (error) => setCopyError(getApiErrorMessage(error, "Unable to update book copy.")),
+  });
+
   if (bookQuery.isLoading) {
     return <p className="text-sm text-muted-foreground">Loading book...</p>;
   }
@@ -211,92 +232,90 @@ export function BookDetailPage() {
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <CatalogPageHeader
-          title={book.title}
-          description={
-            isStaff
-              ? `${book.total_copies} copies · ${book.available_copies} available`
-              : undefined
-          }
-        />
-        <div className="flex gap-2">
-          {isStaff ? (
-            <Button variant="outline" asChild>
-              <Link to={`/catalog/books/${book.id}/edit`}>Edit book</Link>
-            </Button>
-          ) : null}
-          <Button variant="outline" asChild>
-            <Link to="/catalog/books">Back to books</Link>
-          </Button>
-        </div>
-      </div>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 w-fit text-muted-foreground">
+        <Link to="/catalog/books">
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to catalog
+        </Link>
+      </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Book information</CardTitle>
+      <Card className="overflow-hidden border-primary/10 bg-[linear-gradient(112deg,oklch(0.97_0.025_149),oklch(0.995_0.012_94)_72%)] py-0">
+        <CardContent className="grid gap-0 p-0 lg:grid-cols-[250px_1fr]">
+          <div className="flex items-center justify-center bg-secondary/45 p-6 sm:p-8">
+            <div className="relative aspect-[3/4] w-40 overflow-hidden rounded-2xl bg-[linear-gradient(145deg,oklch(0.91_0.055_149),oklch(0.96_0.025_94))] text-primary/70 shadow-xl shadow-primary/10 sm:w-48">
+              <div className="flex size-full items-center justify-center">
+                <BookOpen className="size-14" aria-hidden="true" />
+              </div>
+              {book.cover_image_url ? (
+                <img
+                  src={book.cover_image_url}
+                  alt={`Cover of ${book.title}`}
+                  className="absolute inset-0 size-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {book.categories?.slice(0, 3).map((category) => (
+                <span key={category.id} className="rounded-full border border-primary/10 bg-card/70 px-3 py-1 text-xs font-medium text-primary">
+                  {category.name}
+                </span>
+              ))}
+              {book.is_digital ? (
+                <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-900">Digital</span>
+              ) : null}
+            </div>
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">{book.title}</h1>
+            <p className="mt-2 text-base text-muted-foreground">
+              {book.authors?.map((author) => author.name).join(", ") || "Author not listed"}
+            </p>
+            <p className="mt-5 max-w-3xl leading-7 text-muted-foreground">
+              {book.description || "No description is available for this title yet."}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              {isStaff ? (
+                <Button asChild>
+                  <Link to={`/catalog/books/${book.id}/edit`}>Edit book details</Link>
+                </Button>
+              ) : availability ? (
+                <StatusBadge
+                  label={`${availability.status} · ${book.available_copies} of ${book.total_copies} copies`}
+                  variant={availability.statusVariant}
+                  className="px-3 py-1.5 text-sm"
+                />
+              ) : myReservationsQuery.isError ? (
+                <StatusBadge label="Availability unavailable" variant="default" />
+              ) : (
+                <span role="status" className="rounded-full bg-muted px-3 py-1.5 text-sm text-muted-foreground">
+                  Checking availability…
+                </span>
+              )}
+              <span className="text-sm text-muted-foreground">
+                {book.publisher?.name ?? "Publisher not listed"}
+                {book.publication_year ? ` · ${book.publication_year}` : ""}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader className="border-b border-border/60 pb-4">
+          <CardTitle className="text-base font-semibold">Book details</CardTitle>
         </CardHeader>
-        <CardContent>
-          <dl className="grid gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="font-medium text-muted-foreground">ISBN</dt>
-              <dd className="mt-1">{book.isbn ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Edition</dt>
-              <dd className="mt-1">{book.edition ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Publisher</dt>
-              <dd className="mt-1">{book.publisher?.name ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Language</dt>
-              <dd className="mt-1">
-                {book.language ? `${book.language.name} (${book.language.code})` : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Publication year</dt>
-              <dd className="mt-1">{book.publication_year ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Digital</dt>
-              <dd className="mt-1">{book.is_digital ? "Yes" : "No"}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Authors</dt>
-              <dd className="mt-1">
-                {book.authors?.length
-                  ? book.authors.map((author) => author.name).join(", ")
-                  : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium text-muted-foreground">Categories</dt>
-              <dd className="mt-1">
-                {book.categories?.length
-                  ? book.categories.map((category) => category.name).join(", ")
-                  : "—"}
-              </dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="font-medium text-muted-foreground">Description</dt>
-              <dd className="mt-1">{book.description ?? "—"}</dd>
-            </div>
+        <CardContent className="pt-5">
+          <dl className="grid gap-x-8 gap-y-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ISBN</dt><dd className="mt-1.5 font-medium">{book.isbn ?? "—"}</dd></div>
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Edition</dt><dd className="mt-1.5 font-medium">{book.edition ?? "—"}</dd></div>
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Language</dt><dd className="mt-1.5 font-medium">{book.language ? `${book.language.name} (${book.language.code})` : "—"}</dd></div>
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Authors</dt><dd className="mt-1.5 font-medium">{book.authors?.map((author) => author.name).join(", ") || "—"}</dd></div>
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categories</dt><dd className="mt-1.5 font-medium">{book.categories?.map((category) => category.name).join(", ") || "—"}</dd></div>
             {isStaff ? (
-              <>
-                <div>
-                  <dt className="font-medium text-muted-foreground">Copy count</dt>
-                  <dd className="mt-1">{book.copy_count}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-muted-foreground">Total / Available</dt>
-                  <dd className="mt-1">
-                    {book.total_copies} / {book.available_copies}
-                  </dd>
-                </div>
-              </>
+              <div><dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Inventory</dt><dd className="mt-1.5 font-medium">{book.copy_count} copies · {book.available_copies} available</dd></div>
             ) : null}
           </dl>
         </CardContent>
@@ -414,8 +433,28 @@ export function BookDetailPage() {
                 onRetry={() => void copiesQuery.refetch()}
               />
             ) : (
-              <CatalogTable>
-                <CatalogTableHead columns={["Inventory code", "Location", "Status", "Acquired"]} />
+              <CatalogTable
+                mobileContent={(copiesQuery.data ?? []).map((copy) => (
+                  <CatalogRecordCard
+                    key={copy.id}
+                    title={copy.inventory_code}
+                    fields={[
+                      { label: "Location", value: copy.location ?? "—" },
+                      { label: "Status", value: <CopyStatusCell copy={copy} bookId={book.id} onError={setCopyError} /> },
+                      { label: "Acquired", value: copy.acquired_date ? new Date(copy.acquired_date).toLocaleDateString() : "—" },
+                    ]}
+                    actions={(
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setCopyError(null);
+                        setEditingCopy(copy);
+                        setEditLocation(copy.location ?? "");
+                        setEditAcquiredDate(copy.acquired_date ?? "");
+                      }}>Edit copy</Button>
+                    )}
+                  />
+                ))}
+              >
+                <CatalogTableHead columns={["Inventory code", "Location", "Status", "Acquired", "Actions"]} />
                 <tbody>
                   {copiesQuery.data?.length ? (
                     copiesQuery.data.map((copy) => (
@@ -430,11 +469,19 @@ export function BookDetailPage() {
                             ? new Date(copy.acquired_date).toLocaleDateString()
                             : "—"}
                         </td>
+                        <td className="px-4 py-3">
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setCopyError(null);
+                            setEditingCopy(copy);
+                            setEditLocation(copy.location ?? "");
+                            setEditAcquiredDate(copy.acquired_date ?? "");
+                          }}>Edit</Button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                      <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                         No copies yet. Add the first physical copy above.
                       </td>
                     </tr>
@@ -445,6 +492,23 @@ export function BookDetailPage() {
           </CardContent>
         </Card>
       ) : null}
+      <Dialog open={editingCopy !== null} onOpenChange={(open) => { if (!open && !updateCopyMutation.isPending) setEditingCopy(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit physical copy</DialogTitle>
+            <DialogDescription>Update the location or acquisition date for {editingCopy?.inventory_code}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2"><Label htmlFor="edit-copy-location">Location</Label><Input id="edit-copy-location" value={editLocation} onChange={(event) => setEditLocation(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="edit-copy-acquired">Acquired date</Label><Input id="edit-copy-acquired" type="date" value={editAcquiredDate} onChange={(event) => setEditAcquiredDate(event.target.value)} /></div>
+            {copyError ? <p role="alert" className="text-sm text-destructive">{copyError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={updateCopyMutation.isPending} onClick={() => setEditingCopy(null)}>Cancel</Button>
+            <Button disabled={updateCopyMutation.isPending} onClick={() => updateCopyMutation.mutate()}>{updateCopyMutation.isPending ? "Saving..." : "Save changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

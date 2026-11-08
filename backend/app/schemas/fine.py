@@ -1,6 +1,6 @@
 """Fine schemas."""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -14,8 +14,15 @@ class FineResponse(BaseModel):
 
     id: UUID
     transaction_id: UUID
+    student_name: str
+    student_code: str | None
+    book_title: str
+    inventory_code: str
+    due_at: date
     amount: Decimal
     reason: str
     paid: bool
     paid_at: datetime | None
     created_at: datetime
+    is_accruing: bool = False
+    is_capped: bool = False
