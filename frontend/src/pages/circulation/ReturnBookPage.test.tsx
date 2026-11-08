@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,6 +44,28 @@ describe("ReturnBookPage", () => {
     vi.mocked(getReservationQueue).mockRejectedValue(new Error("Queue service unavailable"));
   });
 
+  it("shows a desktop table and mobile cards for returnable loans", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReturnBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const table = await screen.findByRole("region", { name: "Returnable active loans" });
+    expect(within(table).getByRole("columnheader", { name: "Book" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Unpaid fine" })).toBeInTheDocument();
+    expect(within(table).getByRole("button", { name: "Return" })).toBeInTheDocument();
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+
+    queryClient.clear();
+  });
+
   it("shows the active-loan search status once in the results area while loading", () => {
     vi.mocked(listTransactions).mockReturnValue(new Promise(() => {}) as never);
     const queryClient = new QueryClient({
@@ -76,7 +98,8 @@ describe("ReturnBookPage", () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Return" }));
+    const table = await screen.findByRole("region", { name: "Returnable active loans" });
+    fireEvent.click(within(table).getByRole("button", { name: "Return" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Return" }));
 
     expect(
@@ -118,7 +141,8 @@ describe("ReturnBookPage", () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Return" }));
+    const table = await screen.findByRole("region", { name: "Returnable active loans" });
+    fireEvent.click(within(table).getByRole("button", { name: "Return" }));
     fireEvent.click(screen.getByRole("button", { name: "Confirm Return" }));
 
     expect(await screen.findByRole("heading", { name: "Return complete" })).toBeInTheDocument();
@@ -151,8 +175,9 @@ describe("ReturnBookPage", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText(/Current unpaid fine: ₹30\.00/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Return" }));
+    expect(await screen.findAllByText("₹30.00")).toHaveLength(2);
+    const table = screen.getByRole("region", { name: "Returnable active loans" });
+    fireEvent.click(within(table).getByRole("button", { name: "Return" }));
     expect(await screen.findByText("Unpaid overdue fine")).toBeInTheDocument();
     expect(screen.getByText(/current accrued amount/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Return & record payment" }));

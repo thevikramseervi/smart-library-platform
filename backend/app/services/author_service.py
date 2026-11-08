@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.author import Author
 from app.repositories.author_repository import AuthorRepository
 from app.schemas.author import AuthorCreate, AuthorResponse, AuthorUpdate
+from app.services.embedding_service import EmbeddingService
 
 
 class AuthorService:
@@ -37,20 +38,31 @@ class AuthorService:
         self.db.refresh(created)
         return AuthorResponse.model_validate(created)
 
-    def update_author(self, author_id: UUID, payload: AuthorUpdate) -> AuthorResponse:
+    def update_author(
+        self,
+        author_id: UUID,
+        payload: AuthorUpdate,
+    ) -> tuple[AuthorResponse, list[UUID]]:
         """Update an active author."""
         author = self.repository.get_active_by_id(author_id)
         if author is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Author not found")
 
+        affected_book_ids = (
+            self.repository.list_active_book_ids(author_id)
+            if payload.name is not None and payload.name != author.name
+            else []
+        )
         if payload.name is not None:
             author.name = payload.name
         if payload.bio is not None:
             author.bio = payload.bio
 
+        if affected_book_ids:
+            EmbeddingService(self.db).mark_books_pending(affected_book_ids)
         self.db.commit()
         self.db.refresh(author)
-        return AuthorResponse.model_validate(author)
+        return AuthorResponse.model_validate(author), affected_book_ids
 
     def delete_author(self, author_id: UUID) -> None:
         """Soft delete an author."""

@@ -262,10 +262,10 @@ Provides database-backed circulation configuration for loan duration, reservatio
 
 * Canonical text per book built from title/authors/categories/publisher/language/year/description (`app/search/document_builder.py`)
 * Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), lazy-loaded per process
-* Catalog create/update marks the embedding `PENDING` and schedules a targeted background reindex after the response; failures remain recorded for an admin retry in the app or the offline command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
+* Catalog book create/update and author/category/publisher renames mark affected embeddings `PENDING` and schedule targeted background reindexing after the response; failures remain recorded for admin retry in the app or the offline command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
 * Admins can inspect indexing counts and start a pending/failed retry or confirmed full rebuild at `/admin/search-index`; matching admin-only API endpoints report job outcome while the server process remains running
 * Soft delete removes the embedding row
-* `GET /api/v1/books/search?q=` prioritizes exact title/ISBN, title-prefix, and other catalog text matches before semantically ranked results. ISBN-shaped queries use text matching only; other queries apply BGE v1.5's query instruction, keep pending/stale books findable, diversify leading semantic results across titles while retaining editions, and fall back to text if no usable vectors exist or inference fails
+* `GET /api/v1/books/search?q=` prioritizes exact title/ISBN, title-prefix, and other catalog text matches before semantically ranked results. ISBN-shaped queries use text matching only; other queries apply BGE v1.5's query instruction, keep pending/stale books findable through text matches, diversify leading semantic results across titles while retaining editions, and fall back to text if no usable vectors exist or inference fails
 * Smart-search toggle on the frontend books catalog renders scored results
 
 ### Ratings Module (Sprint 5)

@@ -96,6 +96,52 @@ def test_create_book_with_relations(
     assert data["available_copies"] == 0
 
 
+def test_book_update_can_clear_optional_metadata(
+    client: TestClient,
+    admin_token: str,
+    catalog_setup: dict,
+) -> None:
+    """Explicit null values from the edit form clear nullable book fields."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    created = client.post(
+        "/api/v1/books",
+        headers=headers,
+        json={
+            "title": "Clearable Metadata Book",
+            "isbn": f"978-{uuid.uuid4().hex[:10]}",
+            "publisher_id": catalog_setup["publisher_id"],
+            "language_id": catalog_setup["language_id"],
+            "edition": "Second",
+            "publication_year": 2024,
+            "description": "A description to remove",
+            "cover_image_url": "https://covers.example.test/book.jpg",
+        },
+    )
+    assert created.status_code == 201
+
+    updated = client.put(
+        f"/api/v1/books/{created.json()['id']}",
+        headers=headers,
+        json={
+            "isbn": None,
+            "edition": None,
+            "publication_year": None,
+            "description": None,
+            "cover_image_url": None,
+        },
+    )
+
+    assert updated.status_code == 200
+    fields = ("isbn", "edition", "publication_year", "description", "cover_image_url")
+    assert {field: updated.json()[field] for field in fields} == {
+        "isbn": None,
+        "edition": None,
+        "publication_year": None,
+        "description": None,
+        "cover_image_url": None,
+    }
+
+
 def test_duplicate_isbn_rejected(
     client: TestClient,
     admin_token: str,

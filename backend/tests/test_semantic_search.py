@@ -16,6 +16,7 @@ from app.api.v1.endpoints.book_search import (
 )
 from app.main import app
 from app.models.book_embedding import BookEmbedding
+from app.models.publisher import Publisher
 from app.schemas.book import SemanticSearchResult
 from app.search import provider as provider_module
 from app.services.embedding_service import (
@@ -239,6 +240,103 @@ def test_create_and_update_schedule_background_reindex(
         app.dependency_overrides[get_embedding_reindexer] = previous
 
     assert scheduled == [book["id"], book["id"]]
+
+
+@pytest.mark.parametrize("metadata_type", ["author", "category", "publisher"])
+def test_searchable_metadata_rename_marks_books_pending_and_reindexes(
+    client: TestClient,
+    admin_token: str,  # noqa: F811
+    metadata_type: str,
+) -> None:
+    """Renaming a referenced catalog entity invalidates affected book vectors."""
+    headers = _headers(admin_token)
+    book = _create_book(client, admin_token, f"Metadata Rename {metadata_type}", "Search terms")
+    if metadata_type == "author":
+        entity = client.post("/api/v1/authors", headers=headers, json={"name": "Old Author"}).json()
+        attached = client.put(
+            f"/api/v1/books/{book['id']}",
+            headers=headers,
+            json={"author_ids": [entity["id"]]},
+        )
+        assert attached.status_code == 200
+    elif metadata_type == "category":
+        entity = client.post(
+            "/api/v1/categories", headers=headers, json={"name": "Old Category"}
+        ).json()
+        attached = client.put(
+            f"/api/v1/books/{book['id']}",
+            headers=headers,
+            json={"category_ids": [entity["id"]]},
+        )
+        assert attached.status_code == 200
+    else:
+        entity = {"id": book["publisher_id"]}
+
+    service = EmbeddingService(_request_db())  # type: ignore[arg-type]
+    assert service.reindex_book(book["id"]) is True
+    indexed_row = (
+        _request_db()
+        .execute(select(BookEmbedding).where(BookEmbedding.book_id == book["id"]))  # type: ignore[union-attr]
+        .scalar_one()
+    )
+    assert indexed_row.embedding_status.value == "INDEXED"
+    scheduled: list[str] = []
+    previous = app.dependency_overrides[get_embedding_reindexer]
+    app.dependency_overrides[get_embedding_reindexer] = lambda: scheduled.append
+    try:
+        endpoint = {"author": "authors", "category": "categories", "publisher": "publishers"}[
+            metadata_type
+        ]
+        response = client.put(
+            f"/api/v1/{endpoint}/{entity['id']}",
+            headers=headers,
+            json={"name": f"Renamed {metadata_type}"},
+        )
+    finally:
+        app.dependency_overrides[get_embedding_reindexer] = previous
+
+    assert response.status_code == 200
+    assert scheduled == [book["id"]]
+    row = (
+        _request_db()
+        .execute(select(BookEmbedding).where(BookEmbedding.book_id == book["id"]))  # type: ignore[union-attr]
+        .scalar_one()
+    )
+    assert row.embedding_status.value == "PENDING"
+    assert row.embedding is None
+
+    status_response = client.get("/api/v1/search-index/status", headers=headers)
+    assert status_response.status_code == 200
+    assert status_response.json()["indexed_books"] == 0
+    assert status_response.json()["pending_books"] == 1
+
+
+def test_index_status_counts_unmarked_content_hash_mismatch_as_pending(
+    client: TestClient,
+    admin_token: str,  # noqa: F811
+) -> None:
+    """Index status detects old stale vectors even if no update hook marked them."""
+    book = _create_book(client, admin_token, "Legacy Stale Index Book", "Original metadata")
+    service = EmbeddingService(_request_db())  # type: ignore[arg-type]
+    assert service.reindex_book(book["id"]) is True
+
+    db = _request_db()
+    publisher = db.get(Publisher, UUID(book["publisher_id"]))  # type: ignore[union-attr]
+    assert publisher is not None
+    publisher.name = "Publisher changed outside the indexing hook"
+    db.commit()  # type: ignore[union-attr]
+    stale_row = (
+        db.execute(select(BookEmbedding).where(BookEmbedding.book_id == book["id"]))  # type: ignore[union-attr]
+        .scalar_one()
+    )
+    assert stale_row.embedding_status.value == "INDEXED"
+    assert stale_row.embedding is not None
+
+    response = client.get("/api/v1/search-index/status", headers=_headers(admin_token))
+
+    assert response.status_code == 200
+    assert response.json()["indexed_books"] == 0
+    assert response.json()["pending_books"] == 1
 
 
 def test_reindex_book_indexes_only_the_current_book(

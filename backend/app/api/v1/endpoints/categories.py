@@ -1,14 +1,17 @@
 """Category endpoints."""
 
+from collections.abc import Callable
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_roles
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.services.category_service import CategoryService
+from app.services.embedding_service import get_embedding_reindexer
 
 router = APIRouter()
 
@@ -51,11 +54,17 @@ def create_category(
 def update_category(
     category_id: UUID,
     payload: CategoryUpdate,
+    background_tasks: BackgroundTasks,
     _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: CategoryService = Depends(get_category_service),
+    reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> CategoryResponse:
     """Update a category."""
-    return service.update_category(category_id, payload)
+    response, affected_book_ids = service.update_category(category_id, payload)
+    if settings.SEMANTIC_SEARCH_ENABLED:
+        for book_id in affected_book_ids:
+            background_tasks.add_task(reindex_book, str(book_id))
+    return response
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)

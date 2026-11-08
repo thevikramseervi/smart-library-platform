@@ -167,7 +167,7 @@ class BookService:
         if book is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 
-        if payload.isbn is not None:
+        if "isbn" in payload.model_fields_set:
             self._validate_isbn(payload.isbn, exclude_id=book_id)
             book.isbn = payload.isbn
 
@@ -204,14 +204,9 @@ class BookService:
 
         if payload.title is not None:
             book.title = payload.title
-        if payload.edition is not None:
-            book.edition = payload.edition
-        if payload.publication_year is not None:
-            book.publication_year = payload.publication_year
-        if payload.description is not None:
-            book.description = payload.description
-        if payload.cover_image_url is not None:
-            book.cover_image_url = payload.cover_image_url
+        for field_name in ("edition", "publication_year", "description", "cover_image_url"):
+            if field_name in payload.model_fields_set:
+                setattr(book, field_name, getattr(payload, field_name))
         if payload.is_digital is not None:
             book.is_digital = payload.is_digital
 

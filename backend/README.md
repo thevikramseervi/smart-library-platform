@@ -95,6 +95,7 @@ Migration files live in `alembic/versions/`:
 | `011_embedding_384_dims` | Updates embedding dimensions to 384 for bge-small-en-v1.5 |
 | `012_ratings` | Book ratings 1-5 with unique constraint per student |
 | `013_circulation_policies` | Dynamic database-backed circulation policies |
+| `014_model_index_alignment` | Adds model-declared copy-status and rating indexes; removes the redundant fine unique index |
 
 ---
 

@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.book import Book
 from app.models.publisher import Publisher
 from app.repositories.base import BaseRepository
 
@@ -36,6 +37,14 @@ class PublisherRepository(BaseRepository[Publisher]):
             select(Publisher)
             .where(Publisher.deleted_at.is_(None))
             .order_by(Publisher.name)
+        )
+        return list(self.db.execute(statement).scalars().all())
+
+    def list_active_book_ids(self, publisher_id: UUID) -> list[UUID]:
+        """Return active books whose embedding text includes this publisher."""
+        statement = select(Book.id).where(
+            Book.publisher_id == publisher_id,
+            Book.deleted_at.is_(None),
         )
         return list(self.db.execute(statement).scalars().all())
 

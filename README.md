@@ -36,7 +36,7 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, hold expiry), latest editor attribution, and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
 | **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
-| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits queue a targeted background reindex, with text matching while pending, admin UI for indexing status/retry/full rebuild, and the offline reindex command |
+| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits and searchable author/category/publisher renames queue affected books for background reindexing, with admin status/retry/full rebuild and an offline reindex command |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
 
@@ -168,7 +168,7 @@ smart-library-platform/
 │   ├── setup.md
 │   ├── deployment.md
 │   └── sprint-4-summary.md
-├── .github/workflows/          # CI: backend (migrations + ruff + pytest), frontend (eslint + build)
+├── .github/workflows/          # CI: backend (migrations + Ruff + pytest), frontend (ESLint + tests + build)
 ├── docker-compose.yml          # Local PostgreSQL (pgvector image)
 └── README.md
 ```

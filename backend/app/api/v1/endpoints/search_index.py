@@ -15,6 +15,7 @@ from app.schemas.search_index import (
     SearchIndexStatus,
 )
 from app.services.embedding_jobs import get_current_job, run_job, start_job
+from app.services.embedding_service import EmbeddingService
 
 router = APIRouter()
 
@@ -28,17 +29,22 @@ def get_search_index_status(
     total = db.execute(
         select(func.count()).select_from(Book).where(Book.deleted_at.is_(None))
     ).scalar_one()
-    indexed = db.execute(
-        select(func.count())
-        .select_from(BookEmbedding)
-        .join(Book, Book.id == BookEmbedding.book_id)
-        .where(
-            Book.deleted_at.is_(None),
-            BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
-            BookEmbedding.embedding.is_not(None),
-            BookEmbedding.model_name == settings.EMBEDDING_MODEL,
-        )
-    ).scalar_one()
+    embedding_service = EmbeddingService(db)
+    provider_model = embedding_service.provider.model_name
+    indexed = embedding_service.repository.count_indexed(model_name=provider_model)
+    stale_books = embedding_service.repository.list_stale_books(
+        limit=max(total, 1),
+        force=False,
+        model_name=provider_model,
+        hash_for_book=embedding_service.hash_for_book,
+    )
+    stale_indexed = sum(
+        book.embedding is not None
+        and book.embedding.embedding_status == EmbeddingStatus.INDEXED
+        and book.embedding.model_name == provider_model
+        for book in stale_books
+    )
+    indexed = max(indexed - stale_indexed, 0)
     failed = db.execute(
         select(func.count())
         .select_from(BookEmbedding)
@@ -54,7 +60,7 @@ def get_search_index_status(
         pending_books=max(total - indexed - failed, 0),
         failed_books=failed,
         enabled=settings.SEMANTIC_SEARCH_ENABLED,
-        model_name=settings.EMBEDDING_MODEL,
+        model_name=provider_model,
         job=get_current_job(),
     )
 

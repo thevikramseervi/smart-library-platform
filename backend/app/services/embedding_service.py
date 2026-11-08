@@ -46,14 +46,18 @@ class EmbeddingService:
         heavy work later. Relations are re-fetched so the stored hash always
         reflects committed content.
         """
-        book = self.repository.get_book_with_relations(UUID(book_id))
-        if book is None:
-            return
-        self.repository.mark_pending(
-            book_id=book.id,
-            content_hash=self.hash_for_book(book),
-        )
+        self.mark_books_pending([UUID(book_id)])
         self.db.commit()
+
+    def mark_books_pending(self, book_ids: list[UUID]) -> None:
+        """Mark existing active books pending in the current transaction."""
+        for book_id in set(book_ids):
+            book = self.repository.get_book_with_relations(book_id)
+            if book is not None:
+                self.repository.mark_pending(
+                    book_id=book.id,
+                    content_hash=self.hash_for_book(book),
+                )
 
     def reindex_book(self, book_id: str) -> bool:
         """Regenerate one book vector if its catalog content is still current."""

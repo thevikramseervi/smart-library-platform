@@ -127,7 +127,13 @@ FAILED
 
 Used by `book_embeddings.embedding_status`. Only rows with `INDEXED` and a non-null embedding participate in semantic search.
 
-Book create/update requests mark the row `PENDING` and schedule a targeted background embedding update using FastEmbed with `BAAI/bge-small-en-v1.5`. If that task fails or is interrupted, the row remains `FAILED`/`PENDING` and can be retried or rebuilt with `uv run python -m app.scripts.reindex_embeddings`; a stored content-hash mismatch also flags edited books as stale.
+Book create/update requests mark the row `PENDING` and schedule a targeted
+background embedding update using FastEmbed with `BAAI/bge-small-en-v1.5`.
+Renaming a linked author, category, or publisher also marks each affected book
+pending and schedules reindexing. The admin status view compares content hashes
+so stale vectors count as pending. If indexing fails or is interrupted, the row
+remains `FAILED`/`PENDING` and can be retried or rebuilt with
+`uv run python -m app.scripts.reindex_embeddings`.
 
 ---
 

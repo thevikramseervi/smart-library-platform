@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,10 @@ import { appToast } from "@/lib/toast";
 import { formatInr } from "@/lib/formatCurrency";
 import { ReturnReservationNoticeActions } from "@/pages/circulation/components/ReservationQueueWarning";
 import {
+  CirculationRecordCard,
   CirculationPageHeader,
+  CirculationTable,
+  CirculationTableHead,
   PaginationControls,
 } from "@/pages/circulation/components/CirculationShared";
 import { getReservationQueue, listTransactions, returnBook } from "@/services/circulation";
@@ -149,33 +151,82 @@ export function ReturnBookPage() {
           Searching active loans...
         </p>
       ) : loans.length ? (
-        <div className="space-y-3">
-          {loans.map((transaction) => (
-            <Card key={transaction.id}>
-              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">{transaction.book_copy.book.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {transaction.book_copy.inventory_code} · {transaction.student.first_name}{" "}
-                    {transaction.student.last_name}
-                    {transaction.student.student_code
-                      ? ` (${transaction.student.student_code})`
-                      : ""}{" "}
-                    · Due {formatDate(transaction.due_at)}
-                  </p>
-                </div>
-                {transaction.is_overdue && transaction.fine_amount ? (
-                  <p className="text-sm font-medium text-destructive">
-                    Current unpaid fine: {formatInr(transaction.fine_amount)}
-                  </p>
-                ) : null}
-                <Button variant="outline" onClick={() => setPendingReturn(transaction)}>
+        <CirculationTable
+          ariaLabel="Returnable active loans"
+          mobileContent={loans.map((transaction) => (
+            <CirculationRecordCard
+              key={transaction.id}
+              title={transaction.book_copy.book.title}
+              subtitle={transaction.book_copy.inventory_code}
+              fields={[
+                {
+                  label: "Student",
+                  value: (
+                    <>
+                      {transaction.student.first_name} {transaction.student.last_name}
+                      {transaction.student.student_code ? (
+                        <span className="block text-xs text-muted-foreground">
+                          {transaction.student.student_code}
+                        </span>
+                      ) : null}
+                    </>
+                  ),
+                  wide: true,
+                },
+                { label: "Due", value: formatDate(transaction.due_at) },
+                {
+                  label: "Unpaid fine",
+                  value:
+                    transaction.is_overdue && transaction.fine_amount
+                      ? (
+                          <span className="font-medium text-destructive">
+                            {formatInr(transaction.fine_amount)}
+                          </span>
+                        )
+                      : "—",
+                },
+              ]}
+              action={
+                <Button variant="outline" size="sm" onClick={() => setPendingReturn(transaction)}>
                   Return
                 </Button>
-              </CardContent>
-            </Card>
+              }
+            />
           ))}
-        </div>
+        >
+          <CirculationTableHead
+            columns={["Book", "Copy", "Student", "Due", "Unpaid fine", "Action"]}
+          />
+          <tbody>
+            {loans.map((transaction) => (
+              <tr key={transaction.id} className="border-b last:border-b-0">
+                <td className="px-4 py-3">{transaction.book_copy.book.title}</td>
+                <td className="px-4 py-3">{transaction.book_copy.inventory_code}</td>
+                <td className="px-4 py-3">
+                  <p>{transaction.student.first_name} {transaction.student.last_name}</p>
+                  {transaction.student.student_code ? (
+                    <p className="text-xs text-muted-foreground">{transaction.student.student_code}</p>
+                  ) : null}
+                </td>
+                <td className="px-4 py-3">{formatDate(transaction.due_at)}</td>
+                <td className="px-4 py-3">
+                  {transaction.is_overdue && transaction.fine_amount ? (
+                    <span className="font-medium text-destructive">
+                      {formatInr(transaction.fine_amount)}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <Button variant="outline" size="sm" onClick={() => setPendingReturn(transaction)}>
+                    Return
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </CirculationTable>
       ) : (
         <p className="text-sm text-muted-foreground">
           {search.trim() ? "No active loans match your search." : "No active loans to return."}

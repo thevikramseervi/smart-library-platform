@@ -40,8 +40,12 @@ pnpm test
 pnpm test:watch
 ```
 
-Frontend component tests use Vitest, React Testing Library, and jsdom. The suite
-covers catalog search pagination, dashboard activity counts and accessible table
-labels, and request-specific retry behavior.
+Frontend component tests use Vitest, React Testing Library, and jsdom. Current
+coverage includes login and route behavior, catalog search and responsive views,
+circulation issue/return and student loans/reservations/fines, dashboard counts,
+admin search-index controls, formatting, and query error/retry behavior. API
+services are mocked in component tests; this suite does not replace a browser
+workflow against a running backend and database.
 
-GitHub Actions installs the pnpm 12.18.0 version pinned in `package.json`.
+GitHub Actions installs the pnpm 12.18.0 version pinned in `package.json`, then
+runs lint, tests, and a type-checked production build.

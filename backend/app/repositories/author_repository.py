@@ -6,6 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.author import Author
+from app.models.book import Book
+from app.models.book_author import BookAuthor
 from app.repositories.base import BaseRepository
 
 
@@ -39,6 +41,15 @@ class AuthorRepository(BaseRepository[Author]):
         statement = select(Author).where(
             Author.id.in_(author_ids),
             Author.deleted_at.is_(None),
+        )
+        return list(self.db.execute(statement).scalars().all())
+
+    def list_active_book_ids(self, author_id: UUID) -> list[UUID]:
+        """Return active books whose embedding text includes this author."""
+        statement = (
+            select(Book.id)
+            .join(BookAuthor, BookAuthor.book_id == Book.id)
+            .where(BookAuthor.author_id == author_id, Book.deleted_at.is_(None))
         )
         return list(self.db.execute(statement).scalars().all())
 

@@ -5,6 +5,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.book import Book
+from app.models.book_category import BookCategory
 from app.models.category import Category
 from app.repositories.base import BaseRepository
 
@@ -46,6 +48,15 @@ class CategoryRepository(BaseRepository[Category]):
         statement = select(Category).where(
             Category.id.in_(category_ids),
             Category.deleted_at.is_(None),
+        )
+        return list(self.db.execute(statement).scalars().all())
+
+    def list_active_book_ids(self, category_id: UUID) -> list[UUID]:
+        """Return active books whose embedding text includes this category."""
+        statement = (
+            select(Book.id)
+            .join(BookCategory, BookCategory.book_id == Book.id)
+            .where(BookCategory.category_id == category_id, Book.deleted_at.is_(None))
         )
         return list(self.db.execute(statement).scalars().all())
 

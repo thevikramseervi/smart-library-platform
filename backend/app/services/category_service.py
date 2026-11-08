@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.category import Category
 from app.repositories.category_repository import CategoryRepository
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.services.embedding_service import EmbeddingService
 
 
 class CategoryService:
@@ -43,12 +44,21 @@ class CategoryService:
         self.db.refresh(created)
         return CategoryResponse.model_validate(created)
 
-    def update_category(self, category_id: UUID, payload: CategoryUpdate) -> CategoryResponse:
+    def update_category(
+        self,
+        category_id: UUID,
+        payload: CategoryUpdate,
+    ) -> tuple[CategoryResponse, list[UUID]]:
         """Update an active category."""
         category = self.repository.get_active_by_id(category_id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
+        affected_book_ids = (
+            self.repository.list_active_book_ids(category_id)
+            if payload.name is not None and payload.name != category.name
+            else []
+        )
         if payload.name is not None and payload.name != category.name:
             existing = self.repository.get_by_name(payload.name, active_only=False)
             if existing is not None and existing.id != category.id:
@@ -61,9 +71,11 @@ class CategoryService:
         if payload.description is not None:
             category.description = payload.description
 
+        if affected_book_ids:
+            EmbeddingService(self.db).mark_books_pending(affected_book_ids)
         self.db.commit()
         self.db.refresh(category)
-        return CategoryResponse.model_validate(category)
+        return CategoryResponse.model_validate(category), affected_book_ids
 
     def delete_category(self, category_id: UUID) -> None:
         """Soft delete a category."""

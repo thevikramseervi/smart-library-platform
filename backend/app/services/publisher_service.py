@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.publisher import Publisher
 from app.repositories.publisher_repository import PublisherRepository
 from app.schemas.publisher import PublisherCreate, PublisherResponse, PublisherUpdate
+from app.services.embedding_service import EmbeddingService
 
 
 class PublisherService:
@@ -47,12 +48,21 @@ class PublisherService:
         self.db.refresh(created)
         return PublisherResponse.model_validate(created)
 
-    def update_publisher(self, publisher_id: UUID, payload: PublisherUpdate) -> PublisherResponse:
+    def update_publisher(
+        self,
+        publisher_id: UUID,
+        payload: PublisherUpdate,
+    ) -> tuple[PublisherResponse, list[UUID]]:
         """Update an active publisher."""
         publisher = self.repository.get_active_by_id(publisher_id)
         if publisher is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Publisher not found")
 
+        affected_book_ids = (
+            self.repository.list_active_book_ids(publisher_id)
+            if payload.name is not None and payload.name != publisher.name
+            else []
+        )
         if payload.name is not None and payload.name != publisher.name:
             existing = self.repository.get_by_name(payload.name, active_only=False)
             if existing is not None and existing.id != publisher.id:
@@ -67,9 +77,11 @@ class PublisherService:
         if payload.country is not None:
             publisher.country = payload.country
 
+        if affected_book_ids:
+            EmbeddingService(self.db).mark_books_pending(affected_book_ids)
         self.db.commit()
         self.db.refresh(publisher)
-        return PublisherResponse.model_validate(publisher)
+        return PublisherResponse.model_validate(publisher), affected_book_ids
 
     def delete_publisher(self, publisher_id: UUID) -> None:
         """Soft delete a publisher."""

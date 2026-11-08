@@ -1,13 +1,16 @@
 """Publisher endpoints."""
 
+from collections.abc import Callable
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_roles
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.publisher import PublisherCreate, PublisherResponse, PublisherUpdate
+from app.services.embedding_service import get_embedding_reindexer
 from app.services.publisher_service import PublisherService
 
 router = APIRouter()
@@ -51,11 +54,17 @@ def create_publisher(
 def update_publisher(
     publisher_id: UUID,
     payload: PublisherUpdate,
+    background_tasks: BackgroundTasks,
     _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: PublisherService = Depends(get_publisher_service),
+    reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> PublisherResponse:
     """Update a publisher."""
-    return service.update_publisher(publisher_id, payload)
+    response, affected_book_ids = service.update_publisher(publisher_id, payload)
+    if settings.SEMANTIC_SEARCH_ENABLED:
+        for book_id in affected_book_ids:
+            background_tasks.add_task(reindex_book, str(book_id))
+    return response
 
 
 @router.delete("/{publisher_id}", status_code=status.HTTP_204_NO_CONTENT)

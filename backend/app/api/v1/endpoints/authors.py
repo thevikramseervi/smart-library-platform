@@ -1,14 +1,17 @@
 """Author endpoints."""
 
+from collections.abc import Callable
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_roles
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.author import AuthorCreate, AuthorResponse, AuthorUpdate
 from app.services.author_service import AuthorService
+from app.services.embedding_service import get_embedding_reindexer
 
 router = APIRouter()
 
@@ -51,11 +54,17 @@ def create_author(
 def update_author(
     author_id: UUID,
     payload: AuthorUpdate,
+    background_tasks: BackgroundTasks,
     _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: AuthorService = Depends(get_author_service),
+    reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> AuthorResponse:
     """Update an author."""
-    return service.update_author(author_id, payload)
+    response, affected_book_ids = service.update_author(author_id, payload)
+    if settings.SEMANTIC_SEARCH_ENABLED:
+        for book_id in affected_book_ids:
+            background_tasks.add_task(reindex_book, str(book_id))
+    return response
 
 
 @router.delete("/{author_id}", status_code=status.HTTP_204_NO_CONTENT)
