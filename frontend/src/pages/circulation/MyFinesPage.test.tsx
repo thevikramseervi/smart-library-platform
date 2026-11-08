@@ -79,9 +79,19 @@ describe("MyFinesPage", () => {
 
     expect(await screen.findByText("Total outstanding")).toBeInTheDocument();
     expect(screen.getByText(/512\.50/)).toBeInTheDocument();
-    expect(within(screen.getByText("Unpaid Book").closest("tr")!).getByText("₹12.50")).toBeInTheDocument();
+    const unpaidFineCards = screen.getAllByRole("article").filter((card) =>
+      within(card).queryByText("Unpaid Book"),
+    );
+    expect(unpaidFineCards).toHaveLength(1);
+    expect(within(unpaidFineCards[0]).getByText("₹12.50")).toBeInTheDocument();
+    const desktopTable = within(screen.getByRole("region", { name: "Circulation table" }));
+    expect(within(desktopTable.getByText("Unpaid Book").closest("tr")!).getByText("₹12.50")).toBeInTheDocument();
     expect(screen.getByText(/includes overdue books that have not yet been returned/i)).toBeInTheDocument();
-    expect(screen.getByText("Maximum fine reached")).toBeInTheDocument();
+    const cappedFineCard = screen.getAllByRole("article").find((card) =>
+      within(card).queryByText("Capped Book"),
+    )!;
+    expect(within(cappedFineCard).getByText("Maximum fine reached")).toBeInTheDocument();
+    expect(desktopTable.getByText("Maximum fine reached")).toBeInTheDocument();
 
     queryClient.clear();
   });

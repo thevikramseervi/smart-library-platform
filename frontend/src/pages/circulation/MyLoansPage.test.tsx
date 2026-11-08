@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,12 +48,20 @@ describe("MyLoansPage", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByRole("link", { name: /20\.00/ })).toHaveAttribute(
+    const mobileCard = await screen.findByRole("article");
+    const desktopTable = within(screen.getByRole("region", { name: "Circulation table" }));
+    expect(within(mobileCard).getByRole("link", { name: /20\.00/ })).toHaveAttribute(
       "href",
       "/circulation/my-fines",
     );
-    expect(await screen.findByText("Overdue by 3 days")).toBeInTheDocument();
-    expect(screen.getByText("Accruing until returned")).toBeInTheDocument();
+    expect(desktopTable.getByRole("link", { name: /20\.00/ })).toHaveAttribute(
+      "href",
+      "/circulation/my-fines",
+    );
+    expect(within(mobileCard).getByText("Overdue by 3 days")).toBeInTheDocument();
+    expect(desktopTable.getByText("Overdue by 3 days")).toBeInTheDocument();
+    expect(within(mobileCard).getByText("Accruing until returned")).toBeInTheDocument();
+    expect(desktopTable.getByText("Accruing until returned")).toBeInTheDocument();
     expect(screen.queryByText("On loan")).not.toBeInTheDocument();
     expect(listMyTransactions).toHaveBeenCalledWith({
       page: 1,
@@ -80,7 +88,10 @@ describe("MyLoansPage", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByText("Maximum reached")).toBeInTheDocument();
+    const mobileCard = await screen.findByRole("article");
+    const desktopTable = within(screen.getByRole("region", { name: "Circulation table" }));
+    expect(within(mobileCard).getByText("Maximum reached")).toBeInTheDocument();
+    expect(desktopTable.getByText("Maximum reached")).toBeInTheDocument();
     expect(screen.queryByText("Accruing until returned")).not.toBeInTheDocument();
     queryClient.clear();
   });

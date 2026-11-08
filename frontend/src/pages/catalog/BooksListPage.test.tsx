@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -235,8 +235,9 @@ describe("BooksListPage", () => {
     expect(screen.getByRole("columnheader", { name: "Match" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Authors" })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Categories" })).not.toBeInTheDocument();
-    expect(screen.getByText("9781234567890")).toBeInTheDocument();
-    expect(screen.getByText("2 / 5")).toHaveAttribute(
+    const catalogTable = within(screen.getByRole("region", { name: "Catalog table" }));
+    expect(catalogTable.getByText("9781234567890")).toBeInTheDocument();
+    expect(catalogTable.getByText("2 / 5")).toHaveAttribute(
       "aria-label",
       "2 available out of 5 total copies",
     );
