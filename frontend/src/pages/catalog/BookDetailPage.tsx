@@ -18,6 +18,7 @@ import { createReservation, listMyReservations } from "@/services/circulation";
 import type { Book } from "@/types/catalog";
 import type { Reservation } from "@/types/circulation";
 import { BookRatingCard } from "@/pages/catalog/components/BookRatingCard";
+import { BookCoverImage } from "@/pages/catalog/components/BookCoverImage";
 import {
   CatalogRecordCard,
   CatalogTable,
@@ -247,13 +248,11 @@ export function BookDetailPage() {
                 <BookOpen className="size-14" aria-hidden="true" />
               </div>
               {book.cover_image_url ? (
-                <img
+                <BookCoverImage
+                  key={book.cover_image_url}
                   src={book.cover_image_url}
-                  alt={`Cover of ${book.title}`}
+                  title={book.title}
                   className="absolute inset-0 size-full object-cover"
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
                 />
               ) : null}
             </div>

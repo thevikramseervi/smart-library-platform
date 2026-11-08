@@ -24,6 +24,7 @@ import {
   SearchInput,
   FormSelect,
 } from "@/pages/catalog/components/CatalogShared";
+import { BookCoverImage } from "@/pages/catalog/components/BookCoverImage";
 
 const SEMANTIC_SEARCH_LIMIT = 20;
 
@@ -44,14 +45,11 @@ function BookCover({ book }: { book: Pick<Book, "title" | "cover_image_url"> }) 
     <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-xl bg-[linear-gradient(145deg,oklch(0.91_0.055_149),oklch(0.96_0.025_94))] text-primary/70">
       <BookOpen className="size-10" aria-hidden="true" />
       {book.cover_image_url ? (
-        <img
+        <BookCoverImage
+          key={book.cover_image_url}
           src={book.cover_image_url}
-          alt={`Cover of ${book.title}`}
-          loading="lazy"
+          title={book.title}
           className="absolute inset-0 size-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
         />
       ) : null}
     </div>

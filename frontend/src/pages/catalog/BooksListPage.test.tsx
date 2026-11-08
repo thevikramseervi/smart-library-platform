@@ -218,10 +218,14 @@ describe("BooksListPage", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Smart search/ }));
 
     expect(await screen.findByRole("link", { name: "Practical Database Design" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Cover of Practical Database Design" })).toHaveAttribute(
+    const coverImage = screen.getByRole("img", { name: "Cover of Practical Database Design" });
+    expect(coverImage).toHaveAttribute(
       "src",
       "https://covers.example.test/database-design.jpg",
     );
+    expect(coverImage).toHaveClass("opacity-0");
+    fireEvent.load(coverImage);
+    expect(coverImage).toHaveClass("opacity-100");
     expect(screen.getByText("ISBN 9781234567890")).toBeInTheDocument();
     expect(screen.getByText("A. Author")).toBeInTheDocument();
     expect(screen.getByText("Campus Press")).toBeInTheDocument();
