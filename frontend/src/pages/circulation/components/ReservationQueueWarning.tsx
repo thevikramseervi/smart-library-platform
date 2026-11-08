@@ -127,6 +127,7 @@ export function ReturnReservationNoticeActions({
             to="/circulation/issue"
             state={{
               bookId,
+              bookTitle,
               copyId,
               studentId: next.student.id,
               student: {

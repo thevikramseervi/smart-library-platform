@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IssueBookPage } from "@/pages/circulation/IssueBookPage";
+import { getBookCopy } from "@/services/catalog/book-copies";
 import {
   getReservationQueue,
   issueBook,
@@ -11,6 +12,10 @@ import {
   listTransactions,
   searchStudents,
 } from "@/services/circulation";
+
+vi.mock("@/services/catalog/book-copies", () => ({
+  getBookCopy: vi.fn(),
+}));
 
 vi.mock("@/services/circulation", () => ({
   getReservationQueue: vi.fn(),
@@ -47,7 +52,7 @@ describe("IssueBookPage", () => {
     } as never);
   });
 
-  it("clears the selected copy when staff changes the student", async () => {
+  it("keeps an available copy selected when staff changes the student", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
@@ -65,14 +70,14 @@ describe("IssueBookPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Sam Reader/ }));
     const copyButton = await screen.findByRole("button", { name: /INV-001/ });
     fireEvent.click(copyButton);
-    expect(copyButton).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("INV-001 · Shelf A")).toBeInTheDocument();
 
     fireEvent.change(studentInput, { target: { value: "Jane" } });
     fireEvent.click(await screen.findByRole("button", { name: /Jane Reader/ }));
 
     await waitFor(() => expect(listTransactions).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: /INV-001/ })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Issue book" })).toBeDisabled();
+    expect(screen.getByText("INV-001 · Shelf A")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Issue book" })).toBeEnabled());
 
     queryClient.clear();
   });
@@ -102,6 +107,74 @@ describe("IssueBookPage", () => {
       expect(issueBook).toHaveBeenCalledWith({
         student_id: "student-1",
         book_copy_id: "copy-1",
+        bypass_reservation: undefined,
+      });
+    });
+
+    queryClient.clear();
+  });
+
+  it("loads and issues a reserved copy to the next student from the return flow", async () => {
+    vi.mocked(listAvailableCopies).mockResolvedValue([]);
+    vi.mocked(getBookCopy).mockResolvedValue({
+      id: copy.id,
+      book_id: copy.book_id,
+      inventory_code: copy.inventory_code,
+      location: copy.location,
+      status: "RESERVED",
+    } as never);
+    vi.mocked(getReservationQueue).mockResolvedValue([
+      {
+        id: "reservation-1",
+        book_id: copy.book_id,
+        student_id: students[0].id,
+        queue_position: 1,
+        reservation_date: "2026-11-01T00:00:00Z",
+        expiry_date: "2026-11-15T00:00:00Z",
+        status: "ACTIVE",
+        student: {
+          id: students[0].id,
+          first_name: students[0].first_name,
+          last_name: students[0].last_name,
+          email: students[0].email,
+          student_code: students[0].student_code,
+        },
+      },
+    ] as never);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: "/circulation/issue",
+              state: {
+                bookId: copy.book_id,
+                bookTitle: copy.book_title,
+                copyId: copy.id,
+                studentId: students[0].id,
+                student: students[0],
+              },
+            },
+          ]}
+        >
+          <IssueBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText(/Reserved for the queue head/)).toBeInTheDocument();
+    const issueButton = screen.getByRole("button", { name: "Issue book" });
+    await waitFor(() => expect(issueButton).toBeEnabled());
+    fireEvent.click(issueButton);
+
+    await waitFor(() => {
+      expect(issueBook).toHaveBeenCalledWith({
+        student_id: students[0].id,
+        book_copy_id: copy.id,
         bypass_reservation: undefined,
       });
     });
