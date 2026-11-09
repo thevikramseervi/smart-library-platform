@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, BookCopy, Check, LoaderCircle, MapPin, Search, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useDebouncedValue } from "@/lib/hooks";
+import { QrCodeScanner } from "@/components/circulation/QrCodeScanner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,10 @@ export function IssueBookPage() {
   const [selectedCopy, setSelectedCopy] = useState<SelectableCopy | null>(null);
   const [showIssueConfirm, setShowIssueConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const handleQrScan = useCallback((code: string) => {
+    setSelectedCopy(null);
+    setCopySearch(code);
+  }, []);
   const debouncedStudentSearch = useDebouncedValue(studentSearch.trim(), 300);
   const debouncedCopySearch = useDebouncedValue(copySearch.trim(), 300);
 
@@ -432,21 +437,24 @@ export function IssueBookPage() {
           <CardContent className="space-y-4 px-5 py-5 sm:px-6">
             <div className="space-y-2">
               <Label htmlFor="copy-search">Search books and copies</Label>
-              <div className="relative">
-                <Search
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  id="copy-search"
-                  className="h-11 rounded-xl bg-background pl-10 shadow-sm"
-                  value={copySearch}
-                  onChange={(event) => {
-                    setCopySearch(event.target.value);
-                    setSelectedCopy(null);
-                  }}
-                  placeholder="Type a title or inventory code"
-                />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
+                  <Search
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    id="copy-search"
+                    className="h-11 rounded-xl bg-background pl-10 shadow-sm"
+                    value={copySearch}
+                    onChange={(event) => {
+                      setCopySearch(event.target.value);
+                      setSelectedCopy(null);
+                    }}
+                    placeholder="Type a title or inventory code"
+                  />
+                </div>
+                <QrCodeScanner onScan={handleQrScan} />
               </div>
               {!copiesQuery.isError ? (
                 <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted-foreground">

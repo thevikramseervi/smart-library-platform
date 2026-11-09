@@ -8,7 +8,7 @@ Smart Library Platform is a cloud-based Library Management System developed as a
 
 The current implementation manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
 
-Digital resources, QR scanning, recommendations, and analytics remain future work. Semantic book search, ratings, and in-app circulation notifications are implemented.
+Staff QR label printing and issue/return scanning are implemented. Digital resources, recommendations, and analytics remain future work. Semantic book search, ratings, and in-app circulation notifications are implemented.
 
 ---
 
@@ -25,7 +25,6 @@ Digital resources, QR scanning, recommendations, and analytics remain future wor
 
 ### Future Objectives (Not Yet Built)
 
-* QR-based issue and return
 * Digital books and cloud storage
 * AI-powered recommendations
 * Analytics dashboards
@@ -86,7 +85,7 @@ Responsible for:
 * Catalog, circulation, and admin modules
 * TanStack Query data fetching
 
-Not yet implemented: QR scanning, PDF viewer, analytics charts.
+Not yet implemented: PDF viewer and analytics charts. Staff QR label printing and copy scanning are implemented in the frontend.
 
 ### Backend Layer
 
@@ -279,18 +278,13 @@ Provides database-backed circulation configuration for loan duration, reservatio
 
 ---
 
-## 10. Future Architecture (Not Yet Implemented)
+## 10. Additional Architecture Notes and Planned Work
 
-The sections below describe **planned** design. No production code paths exist yet.
+QR circulation below describes the implemented staff workflow. The remaining sections describe future design.
 
-### QR-Based Circulation (Sprint 5+)
+### QR-Based Circulation
 
-```text
-Scan Student QR → Scan Book QR → Issue
-Scan Book QR → Return → Fine Calculation
-```
-
-Copy `qr_code_value` is stored today; QR API and scanner UI are not built.
+Staff can print a label for one or all physical copies from the book detail page. The frontend generates a QR image locally from the copy's existing `qr_code_value` (currently the inventory code); it is not stored as an image and requires no database migration. Issue and return pages can scan the label using the camera, then use the scanned inventory code to filter the existing copy or active-loan list. The existing student selection, reservation, fine, and confirmation checks still apply. Manual search remains available.
 
 ### Digital Library (Sprint 5+)
 

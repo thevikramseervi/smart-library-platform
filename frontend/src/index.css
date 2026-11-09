@@ -124,3 +124,90 @@
     @apply transition-colors hover:bg-primary/[0.035];
   }
 }
+
+.qr-print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 8mm;
+  }
+
+  body {
+    margin: 0;
+    background: white !important;
+  }
+
+  body > #root {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .qr-print-root,
+  .qr-print-root * {
+    visibility: visible !important;
+  }
+
+  .qr-print-root {
+    position: static;
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(2, 55mm);
+    grid-auto-rows: 35mm;
+    gap: 3mm;
+    align-content: start;
+    padding: 4mm;
+    background: white;
+  }
+
+  .qr-print-label {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    width: 55mm;
+    height: 35mm;
+    overflow: hidden;
+    border: 0.25mm solid #cbd5d1;
+    border-radius: 2mm;
+    padding: 2mm;
+    color: #172b23;
+    break-inside: avoid;
+  }
+
+  .qr-print-label img {
+    width: 26mm;
+    height: 26mm;
+    flex: none;
+  }
+
+  .qr-print-title,
+  .qr-print-code,
+  .qr-print-location {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .qr-print-title {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 8pt;
+    font-weight: 700;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .qr-print-code {
+    margin-top: 1.5mm;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .qr-print-location {
+    margin-top: 1mm;
+    font-size: 6pt;
+  }
+}

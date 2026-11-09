@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDate } from "@/lib/format";
 import { useDebouncedValue } from "@/lib/hooks";
+import { QrCodeScanner } from "@/components/circulation/QrCodeScanner";
 import { appToast } from "@/lib/toast";
 import { formatInr } from "@/lib/formatCurrency";
 import { ReturnReservationNoticeActions } from "@/pages/circulation/components/ReservationQueueWarning";
@@ -49,6 +50,10 @@ export function ReturnBookPage() {
   const [queueNotice, setQueueNotice] = useState<ReturnQueueNotice | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [queueLookupWarning, setQueueLookupWarning] = useState<string | null>(null);
+  const handleQrScan = useCallback((code: string) => {
+    setSearch(code);
+    setPage(1);
+  }, []);
 
   const activeLoansQuery = useQuery({
     queryKey: ["transactions", "issued", "return", page, pageSize, debouncedSearch],
@@ -120,15 +125,19 @@ export function ReturnBookPage() {
 
       <div className="space-y-2">
         <Label htmlFor="return-search">Filter active loans</Label>
-        <Input
-          id="return-search"
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Search by book title, student name, or inventory code"
-        />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            id="return-search"
+            className="min-w-0 flex-1"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by book title, student name, or inventory code"
+          />
+          <QrCodeScanner onScan={handleQrScan} />
+        </div>
         <p className="text-xs text-muted-foreground">
           Search by book title, student name, or inventory code.
         </p>

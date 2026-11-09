@@ -257,7 +257,7 @@ Many-to-many junction tables.
 | updated_at     | TIMESTAMPTZ    |
 
 `inventory_code` and `qr_code_value` are both UNIQUE. The service defaults
-`qr_code_value` to `inventory_code` for possible future QR workflows.
+`qr_code_value` to `inventory_code`; the frontend uses it to generate printable copy labels and decode staff issue/return scans.
 
 ## transactions
 

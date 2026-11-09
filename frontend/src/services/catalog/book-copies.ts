@@ -25,10 +25,3 @@ export async function updateBookCopy(id: string, payload: BookCopyUpdate): Promi
   const response = await api.put<BookCopy>(`/book-copies/${id}`, payload);
   return response.data;
 }
-
-export async function getBookCopyQr(id: string): Promise<Blob> {
-  const response = await api.get<Blob>(`/book-copies/${id}/qr`, {
-    responseType: "blob",
-  });
-  return response.data;
-}

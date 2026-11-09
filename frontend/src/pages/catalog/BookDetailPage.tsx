@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookOpen } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, BookOpen, Printer } from "lucide-react";
+import QRCode from "qrcode";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -136,6 +138,7 @@ export function BookDetailPage() {
   const [editingCopy, setEditingCopy] = useState<BookCopy | null>(null);
   const [editLocation, setEditLocation] = useState("");
   const [editAcquiredDate, setEditAcquiredDate] = useState("");
+  const [qrPrintLabels, setQrPrintLabels] = useState<Array<{ copy: BookCopy; image: string }>>([]);
 
   const bookQuery = useQuery({
     queryKey: ["books", id],
@@ -160,6 +163,33 @@ export function BookDetailPage() {
         (reservation) => reservation.book_id === id && reservation.status === "ACTIVE",
       )
     : undefined;
+
+  async function printQrLabels(copies: BookCopy[]) {
+    try {
+      const labels = await Promise.all(copies.map(async (copy) => ({
+        copy,
+        image: await QRCode.toDataURL(copy.qr_code_value, {
+          width: 320,
+          margin: 1,
+          errorCorrectionLevel: "M",
+        }),
+      })));
+      setQrPrintLabels(labels);
+    } catch {
+      setCopyError("Unable to prepare QR labels for printing.");
+    }
+  }
+
+  useEffect(() => {
+    if (!qrPrintLabels.length) return;
+    const printTimer = window.setTimeout(() => window.print(), 250);
+    const clearLabels = () => setQrPrintLabels([]);
+    window.addEventListener("afterprint", clearLabels, { once: true });
+    return () => {
+      window.clearTimeout(printTimer);
+      window.removeEventListener("afterprint", clearLabels);
+    };
+  }, [qrPrintLabels]);
 
   const reserveMutation = useMutation({
     mutationFn: () => createReservation({ book_id: id! }),
@@ -388,7 +418,18 @@ export function BookDetailPage() {
       {isStaff ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Physical copies</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-base">Physical copies</CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!copiesQuery.data?.length}
+                onClick={() => void printQrLabels(copiesQuery.data ?? [])}
+              >
+                <Printer aria-hidden="true" className="mr-2 size-4" /> Print all labels
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <form
@@ -443,12 +484,17 @@ export function BookDetailPage() {
                       { label: "Acquired", value: copy.acquired_date ? new Date(copy.acquired_date).toLocaleDateString() : "—" },
                     ]}
                     actions={(
-                      <Button variant="outline" size="sm" onClick={() => {
-                        setCopyError(null);
-                        setEditingCopy(copy);
-                        setEditLocation(copy.location ?? "");
-                        setEditAcquiredDate(copy.acquired_date ?? "");
-                      }}>Edit copy</Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => void printQrLabels([copy])}>
+                          <Printer aria-hidden="true" className="mr-1.5 size-3.5" /> QR label
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => {
+                          setCopyError(null);
+                          setEditingCopy(copy);
+                          setEditLocation(copy.location ?? "");
+                          setEditAcquiredDate(copy.acquired_date ?? "");
+                        }}>Edit copy</Button>
+                      </div>
                     )}
                   />
                 ))}
@@ -469,12 +515,17 @@ export function BookDetailPage() {
                             : "—"}
                         </td>
                         <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" onClick={() => void printQrLabels([copy])}>
+                            <Printer aria-hidden="true" className="mr-1.5 size-3.5" /> QR label
+                          </Button>
                           <Button variant="outline" size="sm" onClick={() => {
                             setCopyError(null);
                             setEditingCopy(copy);
                             setEditLocation(copy.location ?? "");
                             setEditAcquiredDate(copy.acquired_date ?? "");
                           }}>Edit</Button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -508,6 +559,23 @@ export function BookDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {qrPrintLabels.length ? (
+        createPortal(
+          <div className="qr-print-root" aria-hidden="true">
+            {qrPrintLabels.map(({ copy, image }) => (
+              <article className="qr-print-label" key={copy.id}>
+                <img src={image} alt="" />
+                <div>
+                  <p className="qr-print-title">{book?.title}</p>
+                  <p className="qr-print-code">{copy.inventory_code}</p>
+                  {copy.location ? <p className="qr-print-location">{copy.location}</p> : null}
+                </div>
+              </article>
+            ))}
+          </div>,
+          document.body,
+        )
+      ) : null}
     </section>
   );
 }

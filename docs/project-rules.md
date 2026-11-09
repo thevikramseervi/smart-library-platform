@@ -508,10 +508,13 @@ for version 1.
 
 ---
 
-# QR Rules (Future Workflow)
+# QR Rules (Implemented Staff Workflow)
 
-QR scanning is future work. Current copies store `qr_code_value` equal to the
-inventory code, but there is no QR image endpoint or scanner workflow.
+Each copy stores `qr_code_value`, currently equal to its inventory code. The
+frontend creates printable labels locally and staff can scan them on the issue
+and return pages. The scan only filters the existing copy/loan search; it does
+not bypass student selection, circulation rules, or confirmation. There is no
+QR image API endpoint and no student QR workflow.
 
 Each Book Copy must have:
 

@@ -815,7 +815,7 @@ PUT /api/v1/book-copies/{id}
 
 Staff may update copy `status`, `location`, and `acquired_date`. Status changes validate open loans and circulation-managed statuses (`BORROWED`, `RESERVED`).
 
-> **Not yet implemented:** `GET /book-copies/{id}/qr` — QR image generation is planned for Sprint 5+. Copies store `qr_code_value` equal to `inventory_code` for future use.
+The frontend generates printable QR labels locally from `qr_code_value` (currently equal to `inventory_code`). No QR image API endpoint is used; camera scans pass the decoded inventory code into the existing issue/return search flows.
 
 ---
 

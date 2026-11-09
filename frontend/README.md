@@ -18,6 +18,11 @@ server-side only when a password changes or resets.
 Route guards control navigation for user experience; backend role checks are
 authoritative. The books catalog includes optional semantic search. Staff return
 search is server-side and paginated.
+Staff can print a copy label or all labels for a book from its detail page. Issue
+and return forms can scan those QR labels; scanning filters the existing list and
+does not bypass the usual eligibility checks or confirmation. Labels encode the
+copy inventory code and are generated in the browser. Camera use needs permission
+and HTTPS (localhost is allowed); manual search remains available.
 
 ## Local development
 

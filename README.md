@@ -2,7 +2,7 @@
 
 An AI-powered, cloud-based Library Management System built as a final-year engineering project.
 
-This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, semantic book search, and in-app notifications are implemented. Digital resources, QR scanning, recommendations, and analytics remain future work.
+This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, semantic book search, in-app notifications, and QR-based copy labels/scanning are implemented. Digital resources, recommendations, and analytics remain future work.
 
 **Documentation snapshot:** 2026-11-09. See the sprint reports for dated
 delivery history; their old test counts and limitations are not current status.
@@ -30,7 +30,8 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
 | **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
-| **Circulation** | Issue, return, student self-service renewals, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination |
+| **Circulation** | Issue, return, student self-service renewals, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination; staff can scan a copy QR code to filter/select it |
+| **QR Copy Labels** | Staff can print a QR label per copy or print all labels for a book; the QR encodes the existing inventory code |
 | **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions |
 | **Fines** | Overdue balances accrue on open loans (calendar days, capped), finalize on return, block new borrowing while unpaid, and can be marked paid exactly once after return |
 | **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, renewal limit, hold expiry), latest editor attribution, and Admin UI |
@@ -50,7 +51,6 @@ The following remain **design targets not implemented** in the current codebase:
 | Area | Status |
 |------|--------|
 | Digital Resources (PDF upload, R2 storage) | Sprint 5+ |
-| QR-based issue/return workflows | Sprint 5+ |
 | Recommendation Engine | Future |
 | Analytics dashboards | Future |
 | Audit Logs | Future |
