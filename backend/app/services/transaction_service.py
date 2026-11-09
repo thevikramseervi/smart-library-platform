@@ -26,6 +26,7 @@ from app.schemas.transaction import (
     TransactionReturnRequest,
 )
 from app.services.fine_service import FineService
+from app.services.notification_service import NotificationService
 
 
 class TransactionService:
@@ -37,6 +38,7 @@ class TransactionService:
         self.reservation_repository = ReservationRepository(db)
         self.fine_repository = FineRepository(db)
         self.fine_service = FineService(db)
+        self.notification_service = NotificationService(db)
         self.policy_repository = CirculationPolicyRepository(db)
         self._max_fine_amount: Decimal | None = None
         self._max_renewals: int | None = None
@@ -207,6 +209,18 @@ class TransactionService:
         if active_reservation is not None:
             active_reservation.status = ReservationStatus.FULFILLED
 
+        self.notification_service.create_once(
+            user_id=student.id,
+            event_key=f"loan-issued:{transaction.id}",
+            notification_type="BOOK_ISSUED",
+            title="Book issued to you",
+            message=(
+                f"{copy.book.title} was issued to you and is due on "
+                f"{due_at.strftime('%d %b %Y')}."
+            ),
+            link="/circulation/my-loans",
+        )
+
         commit_or_raise_conflict(
             self.db,
             detail="Book copy already has an open loan",
@@ -257,6 +271,7 @@ class TransactionService:
 
         transaction.due_at += timedelta(days=policy.loan_period_days)
         transaction.renewal_count += 1
+        self.notification_service.mark_due_reminders_read(student.id, transaction.id)
         commit_or_raise_conflict(self.db, detail="Failed to renew loan")
         refreshed = self.repository.get_by_id_with_relations(transaction_id)
         assert refreshed is not None
@@ -289,12 +304,50 @@ class TransactionService:
         queue_waiting = self.reservation_repository.list_queue_for_book(copy.book_id)
         copy.status = BookCopyStatus.RESERVED if queue_waiting else BookCopyStatus.AVAILABLE
 
+        self.notification_service.create_once(
+            user_id=transaction.student_id,
+            event_key=f"loan-returned:{transaction.id}",
+            notification_type="BOOK_RETURNED",
+            title="Book return recorded",
+            message=f"{copy.book.title} has been returned and removed from your active loans.",
+            link="/circulation/my-loans",
+        )
+
+        if queue_waiting:
+            next_reservation = queue_waiting[0]
+            self.notification_service.create_once(
+                user_id=next_reservation.student_id,
+                event_key=f"reservation-ready:{next_reservation.id}:{copy.id}",
+                notification_type="RESERVATION_READY",
+                title="Your reserved book is ready",
+                message=f"A copy of {copy.book.title} is ready for you to collect.",
+                link="/circulation/my-reservations",
+            )
+
         fine = None
         if returned_at.date() > transaction.due_at:
             fine = self.fine_service.create_overdue_fine(transaction, returned_at)
         if payload.pay_fine and fine is not None:
             fine.paid = True
             fine.paid_at = returned_at
+        if fine is not None:
+            fine_was_paid = payload.pay_fine
+            fine_status_message = (
+                "paid with the return" if fine_was_paid else "recorded after the overdue return"
+            )
+            self.notification_service.create_once(
+                user_id=transaction.student_id,
+                event_key=(
+                    f"fine-paid:{fine.id}" if fine_was_paid else f"fine-recorded:{fine.id}"
+                ),
+                notification_type="FINE_PAID" if fine_was_paid else "FINE_RECORDED",
+                title="Fine payment recorded" if fine_was_paid else "Overdue fine recorded",
+                message=(
+                    f"A fine of ₹{fine.amount:.2f} for {copy.book.title} was "
+                    f"{fine_status_message}."
+                ),
+                link="/circulation/my-fines",
+            )
 
         self.db.commit()
         refreshed = self.repository.get_by_id_with_relations(transaction.id)

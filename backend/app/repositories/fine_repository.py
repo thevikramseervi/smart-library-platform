@@ -53,7 +53,6 @@ class FineRepository(BaseRepository[Fine]):
             .values(paid=True, paid_at=datetime.now(UTC))
         )
         result = self.db.execute(statement)
-        self.db.commit()
         return result.rowcount
 
     def has_unpaid_for_student(self, student_id: UUID) -> bool:

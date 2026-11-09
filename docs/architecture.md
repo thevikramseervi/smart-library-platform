@@ -1,6 +1,6 @@
 # Smart Library Platform - Architecture Document
 
-**Implementation snapshot:** 2026-11-09 (Alembic head `015_book_renewals`)
+**Implementation snapshot:** 2026-11-09 (Alembic head `019_return_and_fine_paid_types`)
 
 ## 1. Project Overview
 
@@ -8,7 +8,7 @@ Smart Library Platform is a cloud-based Library Management System developed as a
 
 The current implementation manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
 
-Advanced capabilities (digital resources, QR scanning, recommendations, notifications, and analytics) are **planned** and documented separately as future architecture. Semantic book search and ratings are implemented.
+Digital resources, QR scanning, recommendations, and analytics remain future work. Semantic book search, ratings, and in-app circulation notifications are implemented.
 
 ---
 
@@ -28,7 +28,7 @@ Advanced capabilities (digital resources, QR scanning, recommendations, notifica
 * QR-based issue and return
 * Digital books and cloud storage
 * AI-powered recommendations
-* Notifications and analytics dashboards
+* Analytics dashboards
 * Audit logging
 
 ---
@@ -55,6 +55,7 @@ Advanced capabilities (digital resources, QR scanning, recommendations, notifica
 * Borrow books (via staff issue)
 * Reserve unavailable books
 * View loans, reservations, and fines
+* Receive issue/return confirmations, due-soon and overdue reminders, reservation-ready alerts, and fine notifications
 * Student dashboard
 
 ### Future Student/Staff Capabilities
@@ -62,7 +63,6 @@ Advanced capabilities (digital resources, QR scanning, recommendations, notifica
 * Digital resource viewing
 * Reviews and recommendations (ratings are live)
 * QR self-service (if added)
-* In-app notifications
 
 ---
 
@@ -86,7 +86,7 @@ Responsible for:
 * Catalog, circulation, and admin modules
 * TanStack Query data fetching
 
-Not yet implemented: QR scanning, PDF viewer, analytics charts, notification center.
+Not yet implemented: QR scanning, PDF viewer, analytics charts.
 
 ### Backend Layer
 
@@ -302,9 +302,13 @@ Cloudflare R2 → file URL → PostgreSQL metadata
 
 Popularity, content-based, and collaborative filtering over borrow/rating signals.
 
-### Notifications (Sprint 5+)
+### In-App Notifications (Implemented)
 
-Due reminders, reservation availability, fine alerts.
+Persistent, user-scoped in-app alerts for issued and returned books, due-soon
+and overdue loans, reservation-ready copies, overdue fines, and fine payments.
+The notification center supports unread counts and read state.
+Due and overdue reminders are generated when the authenticated user opens the
+app; no background scheduler, email provider, or push service is required.
 
 ### Analytics (Future)
 
@@ -351,7 +355,7 @@ Physical library catalog and inventory, circulation, reservations, fines, rating
 
 ### Excluded / Future
 
-Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, digital resources, notifications, QR, recommendations, audit logs, analytics.
+Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, digital resources, QR, recommendations, audit logs, analytics.
 
 ---
 

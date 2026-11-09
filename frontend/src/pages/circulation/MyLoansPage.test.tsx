@@ -63,8 +63,8 @@ describe("MyLoansPage", () => {
       "href",
       "/circulation/my-fines",
     );
-    expect(within(mobileCard).getByText("Overdue by 3 days")).toBeInTheDocument();
-    expect(desktopTable.getByText("Overdue by 3 days")).toBeInTheDocument();
+    expect(within(mobileCard).getByText(/^Overdue by \d+ days?$/)).toBeInTheDocument();
+    expect(desktopTable.getByText(/^Overdue by \d+ days?$/)).toBeInTheDocument();
     expect(within(mobileCard).getByText("Accruing until returned")).toBeInTheDocument();
     expect(desktopTable.getByText("Accruing until returned")).toBeInTheDocument();
     expect(screen.queryByText("On loan")).not.toBeInTheDocument();

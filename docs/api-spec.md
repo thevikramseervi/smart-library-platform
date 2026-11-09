@@ -1520,12 +1520,61 @@ Ratings are **implemented** — see the [Ratings](#ratings) section. Reviews rem
 | PUT | `/api/v1/books/{book_id}/reviews/{id}` |
 | DELETE | `/api/v1/books/{book_id}/reviews/{id}` |
 
-## Notifications (Sprint 5+)
+## Notifications
 
-| Method | Path |
-|--------|------|
-| GET | `/api/v1/notifications` |
-| POST | `/api/v1/notifications/{id}/read` |
+All notification endpoints require authentication and only return or modify
+records owned by the authenticated user.
+
+### List recent notifications
+
+```http
+GET /api/v1/notifications
+```
+
+Returns up to 50 newest notifications and the current unread count. For
+students, this also creates one reminder per active loan due today through the
+next three days, or one overdue alert per past-due active loan. Alerts are
+generated when the app is opened; no scheduled worker is used.
+
+```json
+{
+  "unread_count": 1,
+  "items": [
+    {
+      "id": "uuid",
+      "notification_type": "DUE_SOON",
+      "title": "Book due soon",
+      "message": "Clean Code is due on 12 Nov 2026.",
+      "link": "/circulation/my-loans",
+      "created_at": "2026-11-09T08:00:00Z",
+      "read_at": null
+    }
+  ]
+}
+```
+
+Supported types: `BOOK_ISSUED`, `BOOK_RETURNED`, `RESERVATION_READY`,
+`DUE_SOON`, `LOAN_OVERDUE`, `FINE_RECORDED`, and `FINE_PAID`. Issue and return
+confirmations and fine records are saved in the same database transaction as
+the circulation action.
+
+### Mark one notification read
+
+```http
+POST /api/v1/notifications/{id}/read
+```
+
+Returns the updated notification. Returns `404` if the notification does not
+belong to the authenticated user. Repeating the request is safe.
+
+### Mark all notifications read
+
+```http
+POST /api/v1/notifications/read-all
+```
+
+Marks all unread notifications belonging to the authenticated user as read and
+returns `204 No Content`.
 
 ## Analytics (Future)
 

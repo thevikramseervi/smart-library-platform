@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     fines,
     health,
     languages,
+    notifications,
     publishers,
     ratings,
     reservations,
@@ -43,6 +44,7 @@ api_router.include_router(book_copies.router, prefix="/book-copies", tags=["book
 api_router.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 api_router.include_router(reservations.router, prefix="/reservations", tags=["reservations"])
 api_router.include_router(fines.router, prefix="/fines", tags=["fines"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(circulation.router, prefix="/circulation", tags=["circulation"])
 api_router.include_router(
     circulation_policies.router, prefix="/circulation-policies", tags=["circulation-policies"]

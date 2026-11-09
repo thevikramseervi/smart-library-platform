@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  Bell,
   BookOpen,
   LayoutDashboard,
   LibraryBig,
@@ -7,6 +8,7 @@ import {
   Shield,
 } from "lucide-react";
 import { Link, NavLink, Outlet } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/status-badge";
@@ -14,6 +16,7 @@ import { useIsAdmin } from "@/lib/roles";
 import { logout } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+import { listNotifications } from "@/services/notifications";
 
 const mainNavItems = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -32,6 +35,13 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export function MainLayout() {
   const user = useAuthStore((state) => state.user);
   const isAdmin = useIsAdmin();
+  const { data: notificationCenter } = useQuery({
+    queryKey: ["notifications", "center"],
+    queryFn: listNotifications,
+    enabled: Boolean(user),
+    staleTime: 30_000,
+  });
+  const unreadCount = notificationCenter?.unread_count ?? 0;
   const initials = user ? `${user.first_name[0] ?? ""}${user.last_name[0] ?? ""}` : "";
 
   return (
@@ -54,6 +64,24 @@ export function MainLayout() {
 
           {user ? (
             <div className="flex items-center gap-2 sm:gap-3">
+              <NavLink
+                to="/notifications"
+                aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
+                title="Notifications"
+                className={({ isActive }) =>
+                  cn(
+                    "relative flex size-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isActive && "bg-accent text-accent-foreground",
+                  )
+                }
+              >
+                <Bell className="size-4.5" aria-hidden="true" />
+                {unreadCount > 0 ? (
+                  <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-5 font-bold text-destructive-foreground">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
+              </NavLink>
               <div className="hidden items-center gap-2.5 rounded-2xl border border-border/70 bg-card/80 py-1.5 pr-3 pl-1.5 sm:flex">
                 <span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-xs font-bold uppercase text-primary">
                   {initials}

@@ -2,7 +2,7 @@
 
 An AI-powered, cloud-based Library Management System built as a final-year engineering project.
 
-This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, and semantic book search are implemented. Digital resources, QR scanning, recommendations, notifications, and analytics remain future work.
+This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, semantic book search, and in-app notifications are implemented. Digital resources, QR scanning, recommendations, and analytics remain future work.
 
 **Documentation snapshot:** 2026-11-09. See the sprint reports for dated
 delivery history; their old test counts and limitations are not current status.
@@ -35,6 +35,7 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Fines** | Overdue balances accrue on open loans (calendar days, capped), finalize on return, block new borrowing while unpaid, and can be marked paid exactly once after return |
 | **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, renewal limit, hold expiry), latest editor attribution, and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
+| **In-app Notifications** | User-scoped confirmations for book issues/returns and fine payments, plus alerts for reservation-ready copies, due-soon or overdue loans, and recorded fines |
 | **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
 | **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits and searchable author/category/publisher renames queue affected books for background reindexing, with admin status/retry/full rebuild and an offline reindex command |
 
@@ -49,7 +50,6 @@ The following remain **design targets not implemented** in the current codebase:
 | Area | Status |
 |------|--------|
 | Digital Resources (PDF upload, R2 storage) | Sprint 5+ |
-| Notifications | Sprint 5+ |
 | QR-based issue/return workflows | Sprint 5+ |
 | Recommendation Engine | Future |
 | Analytics dashboards | Future |

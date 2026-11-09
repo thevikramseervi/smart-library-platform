@@ -1,6 +1,6 @@
 # Smart Library Platform - Database Design
 
-**Implementation snapshot:** 2026-11-09 (Alembic head `015_book_renewals`)
+**Implementation snapshot:** 2026-11-09 (Alembic head `019_return_and_fine_paid_types`)
 
 ## Overview
 
@@ -45,7 +45,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables and changes created by Alembic migrations `001` through `015`.
+Tables and changes created by Alembic migrations `001` through `016`.
 
 ## Migration History
 
@@ -66,6 +66,10 @@ Tables and changes created by Alembic migrations `001` through `015`.
 | `013_circulation_policies` | `circulation_policies`: database-backed active circulation rules and administrator attribution |
 | `014_model_index_alignment` | Adds model-declared copy-status and rating lookup indexes; removes the redundant unique index on `fines.transaction_id` (the unique constraint from `003` remains) |
 | `015_book_renewals` | Adds `transactions.renewal_count` and `circulation_policies.max_renewals` (default one renewal per loan) |
+| `016_in_app_notifications` | Adds persistent, user-scoped notifications and unread/read tracking |
+| `017_book_issued_type` | Allows `BOOK_ISSUED` notification records |
+| `018_loan_overdue_type` | Allows `LOAN_OVERDUE` notification records |
+| `019_return_and_fine_paid_types` | Allows `BOOK_RETURNED` and `FINE_PAID` notification records |
 
 Migration `014` aligns the copy and rating indexes with SQLAlchemy metadata.
 The `fines.transaction_id` uniqueness is represented once as a database
@@ -354,6 +358,31 @@ Added in migration `013_circulation_policies`; renewal limit added in migration 
 
 Constraints: Check constraints on non-negative fine rates, positive loan periods and loan limits, and a renewal limit from 0 through 5.
 
+## notifications
+
+Added in migration `016_in_app_notifications`. Each notification belongs to one
+user and has a unique event key per user so repeated reads or concurrent event
+processing do not create duplicates.
+
+| Column            | Type          | Notes |
+|-------------------|---------------|-------|
+| id                | UUID          | Primary key |
+| user_id           | UUID          | FK to `users.id`, cascades on user deletion |
+| event_key         | VARCHAR(200)  | Unique with `user_id`; idempotency key |
+| notification_type | VARCHAR(40)   | `BOOK_ISSUED`, `BOOK_RETURNED`, `RESERVATION_READY`, `DUE_SOON`, `LOAN_OVERDUE`, `FINE_RECORDED`, or `FINE_PAID` |
+| title             | VARCHAR(120)  | Short heading |
+| message           | TEXT          | User-facing detail |
+| link              | VARCHAR(255)  | Optional internal frontend path |
+| read_at           | TIMESTAMPTZ   | NULL until read |
+| created_at        | TIMESTAMPTZ   | Creation time |
+| updated_at        | TIMESTAMPTZ   | Updated time |
+
+Indexes: `(user_id, created_at)`, `(user_id, read_at)`; UNIQUE `(user_id, event_key)`.
+Due-soon reminders are created on authenticated notification-center reads for
+student loans due today through three days ahead. Overdue alerts are created
+once per overdue loan on the same app-driven check. Neither uses a background
+scheduler.
+
 Migration `013` inserts a default active policy (₹10/day, ₹500 cap, 14-day
 loan, five concurrent loans, seven-day reservation expiry); `015` adds a
 default maximum of one renewal per loan. The application
@@ -405,10 +434,6 @@ PDF and file metadata with URLs pointing to Cloudflare R2 (not PostgreSQL blobs)
 ## reviews
 
 One review text per student per book.
-
-## notifications
-
-In-app notification records per user.
 
 ## audit_logs
 

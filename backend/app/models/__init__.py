@@ -11,6 +11,7 @@ from app.models.circulation_policy import CirculationPolicy
 from app.models.department import Department
 from app.models.fine import Fine
 from app.models.language import Language
+from app.models.notification import Notification
 from app.models.publisher import Publisher
 from app.models.rating import Rating
 from app.models.reservation import Reservation, ReservationStatus
@@ -32,6 +33,7 @@ __all__ = [
     "Department",
     "Fine",
     "Language",
+    "Notification",
     "Publisher",
     "Rating",
     "Reservation",

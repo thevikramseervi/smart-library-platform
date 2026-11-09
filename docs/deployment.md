@@ -175,7 +175,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 ## Post-Deploy Checklist
 
 - [ ] `DATABASE_URL` set with `sslmode=require` (Neon)
-- [ ] `uv run alembic upgrade head` succeeded (through revision `015_book_renewals`)
+- [ ] `uv run alembic upgrade head` succeeded (through revision `019_return_and_fine_paid_types`)
 - [ ] `JWT_SECRET_KEY` is a strong unique value — the server **refuses to start** on known defaults or secrets under 32 characters
 - [ ] `CORS_ORIGINS` includes the exact Vercel frontend URL (scheme + host, no trailing slash)
 - [ ] `VITE_API_BASE_URL` points to the deployed backend `/api/v1`
@@ -237,9 +237,10 @@ Future features may require additional configuration:
 |---------|-------------------|
 | Digital resources | Cloudflare R2 (`CLOUD_STORAGE_*`) |
 | Semantic search | Already implemented. PostgreSQL must support pgvector; build embeddings with the reindex command. Keyword search is used if no index is available or semantic inference fails. |
-| Notifications | Email/push provider credentials |
 
-See [`architecture.md`](architecture.md) for planned modules.
+In-app notifications use the application database and need no external service.
+See [`architecture.md`](architecture.md) for the current module overview and
+remaining planned modules.
 
 ---
 

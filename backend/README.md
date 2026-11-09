@@ -97,6 +97,10 @@ Migration files live in `alembic/versions/`:
 | `013_circulation_policies` | Dynamic database-backed circulation policies |
 | `014_model_index_alignment` | Adds model-declared copy-status and rating indexes; removes the redundant fine unique index |
 | `015_book_renewals` | Tracks renewal counts and adds the configurable maximum renewals to circulation policy |
+| `016_in_app_notifications` | Adds persistent user-scoped notifications for circulation events |
+| `017_book_issued_type` | Allows book-issue confirmation notifications |
+| `018_loan_overdue_type` | Allows one-time overdue loan notifications |
+| `019_return_and_fine_paid_types` | Allows book-return and fine-payment notifications |
 
 ---
 

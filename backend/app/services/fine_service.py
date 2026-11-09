@@ -17,6 +17,7 @@ from app.repositories.fine_repository import FineRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.fine import FineResponse
 from app.schemas.pagination import PaginatedResponse
+from app.services.notification_service import NotificationService
 
 
 class FineService:
@@ -26,6 +27,7 @@ class FineService:
         self.repository = FineRepository(db)
         self.policy_repository = CirculationPolicyRepository(db)
         self.transaction_repository = TransactionRepository(db)
+        self.notification_service = NotificationService(db)
         self.db = db
         self._active_policy: CirculationPolicy | None = None
 
@@ -147,4 +149,16 @@ class FineService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fine not found")
         if updated_rows == 0:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Fine already paid")
+        self.notification_service.create_once(
+            user_id=fine.transaction.student_id,
+            event_key=f"fine-paid:{fine.id}",
+            notification_type="FINE_PAID",
+            title="Fine payment recorded",
+            message=(
+                f"Payment of ₹{fine.amount:.2f} for "
+                f"{fine.transaction.book_copy.book.title} has been recorded."
+            ),
+            link="/circulation/my-fines",
+        )
+        self.db.commit()
         return self._response(self.repository.get_by_id(fine_id))
