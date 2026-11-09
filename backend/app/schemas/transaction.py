@@ -96,6 +96,8 @@ class TransactionResponse(BaseModel):
     issued_by: UUID
     issued_at: datetime
     due_at: date
+    renewal_count: int
+    max_renewals: int
     returned_at: datetime | None
     status: str
     is_overdue: bool

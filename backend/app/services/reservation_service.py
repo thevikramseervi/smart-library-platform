@@ -58,7 +58,7 @@ class ReservationService:
         """Create a reservation when no copies are available."""
         self._expire_stale()
 
-        book = self.circulation_repository.get_active_book(payload.book_id)
+        book = self.circulation_repository.get_active_book_for_update(payload.book_id)
         if book is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
 

@@ -25,6 +25,11 @@ export async function returnBook(payload: TransactionReturnRequest): Promise<Tra
   return response.data;
 }
 
+export async function renewLoan(transactionId: string): Promise<Transaction> {
+  const response = await api.post<Transaction>(`/transactions/${transactionId}/renew`);
+  return response.data;
+}
+
 export async function listTransactions(
   params?: TransactionListParams,
 ): Promise<PaginatedResponse<Transaction>> {

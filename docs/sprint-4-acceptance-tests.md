@@ -4,7 +4,7 @@
 **Module:** Circulation & Reservations  
 **Sprint:** 4  
 **Document version:** 1.1
-**Last updated:** 2026-11-08
+**Last updated:** 2026-11-09
 
 The acceptance criteria remain useful for the current circulation workflow.
 The execution results below are historical Sprint 4 records and do not certify
@@ -64,7 +64,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | **Objective** | Verify a librarian can issue an available copy to a student. |
 | **Preconditions** | At least one book copy with status `AVAILABLE`; student account active. |
 | **Steps** | 1. Log in as librarian.<br>2. Navigate to **Circulation → Issue Book**.<br>3. Select student and available copy from lists.<br>4. Click **Issue book**.<br><br>*API alternative:* `POST /transactions/issue` with `book_copy_id` + `student_id` (or `inventory_code` + `student_code`). |
-| **Expected result** | HTTP 201; transaction `status = ISSUED`; copy status becomes `BORROWED`; `due_at` is 14 days after issue; `is_overdue = false`. |
+| **Expected result** | HTTP 201; transaction `status = ISSUED`; copy status becomes `BORROWED`; `due_at` follows the active policy's loan period (14 days with the default policy); `is_overdue = false`. |
 | **Automated coverage** | `test_issue_and_return_flow`, `test_issue_sets_fourteen_day_due_date`, `test_librarian_can_issue` |
 
 ---
@@ -124,7 +124,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | **Objective** | Verify an unpaid fine is created when a book is returned after `due_at`. |
 | **Preconditions** | Open loan; `due_at` set to at least 1 day before return date. |
 | **Steps** | 1. Issue copy.<br>2. Set `due_at` to 2 days ago (test/DB).<br>3. Return copy.<br>4. Check **My Fines** (student) or **Circulation → Fines** (staff). |
-| **Expected result** | Unpaid fine created; `amount = days_late × DAILY_OVERDUE_FINE_RATE`; reason includes overdue day count; linked to transaction. |
+| **Expected result** | Unpaid fine created; `amount = days_late × active policy daily rate`, capped at the active policy maximum; reason includes overdue day count; linked to transaction. |
 | **Automated coverage** | `test_overdue_return_creates_fine` |
 
 ---

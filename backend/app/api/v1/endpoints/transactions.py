@@ -50,6 +50,16 @@ def return_book(
     return service.return_copy(payload, current_user)
 
 
+@router.post("/{transaction_id}/renew", response_model=TransactionResponse)
+def renew_loan(
+    transaction_id: UUID,
+    current_user: User = Depends(require_roles("STUDENT")),
+    service: TransactionService = Depends(get_transaction_service),
+) -> TransactionResponse:
+    """Renew an active loan owned by the authenticated student."""
+    return service.renew_loan(transaction_id, current_user)
+
+
 @router.get("", response_model=PaginatedResponse[TransactionResponse])
 def list_transactions(
     page: int = Query(default=1, ge=1),

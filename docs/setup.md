@@ -314,8 +314,9 @@ uv run pytest -q
 
 Fixtures seed reference users inside an outer transaction and roll each test
 back. Do not run the development seed command against the test database. The
-frontend has no unit or browser-test script; configured checks are `pnpm lint`
-and `pnpm build`.
+frontend has a Vitest/React Testing Library component-test suite (`pnpm test`;
+`pnpm test:watch` for watch mode), plus `pnpm lint` and `pnpm build`. It does not
+currently define a browser end-to-end test script.
 
 ---
 

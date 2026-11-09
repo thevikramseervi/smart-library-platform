@@ -39,6 +39,8 @@ export interface Transaction {
   issued_by: string;
   issued_at: string;
   due_at: string;
+  renewal_count: number;
+  max_renewals: number;
   returned_at: string | null;
   status: "ISSUED" | "RETURNED";
   is_overdue: boolean;

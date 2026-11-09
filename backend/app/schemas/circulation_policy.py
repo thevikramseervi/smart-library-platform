@@ -29,6 +29,7 @@ class CirculationPolicyResponse(BaseModel):
     max_fine_amount: Decimal
     loan_period_days: int
     max_active_loans: int
+    max_renewals: int
     reservation_expiry_days: int
     is_active: bool
     updated_by: UUID | None = None
@@ -67,6 +68,12 @@ class CirculationPolicyUpdate(BaseModel):
         ge=1,
         le=90,
         description="Reservation hold expiry in days",
+    )
+    max_renewals: int = Field(
+        default=1,
+        ge=0,
+        le=5,
+        description="Maximum renewals allowed per loan; zero disables renewals",
     )
 
     @model_validator(mode="after")

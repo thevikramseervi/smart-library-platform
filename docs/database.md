@@ -1,6 +1,6 @@
 # Smart Library Platform - Database Design
 
-**Implementation snapshot:** 2026-11-08 (Alembic head `014_model_index_alignment`)
+**Implementation snapshot:** 2026-11-09 (Alembic head `015_book_renewals`)
 
 ## Overview
 
@@ -45,7 +45,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables and changes created by Alembic migrations `001` through `014`.
+Tables and changes created by Alembic migrations `001` through `015`.
 
 ## Migration History
 
@@ -65,6 +65,7 @@ Tables and changes created by Alembic migrations `001` through `014`.
 | `012_ratings` | `ratings`: one 1-5 score per student per book (UNIQUE + CHECK constraints, ON DELETE CASCADE) |
 | `013_circulation_policies` | `circulation_policies`: database-backed active circulation rules and administrator attribution |
 | `014_model_index_alignment` | Adds model-declared copy-status and rating lookup indexes; removes the redundant unique index on `fines.transaction_id` (the unique constraint from `003` remains) |
+| `015_book_renewals` | Adds `transactions.renewal_count` and `circulation_policies.max_renewals` (default one renewal per loan) |
 
 Migration `014` aligns the copy and rating indexes with SQLAlchemy metadata.
 The `fines.transaction_id` uniqueness is represented once as a database
@@ -266,6 +267,7 @@ Many-to-many junction tables.
 | reservation_id | UUID (nullable)   |
 | issued_at      | TIMESTAMPTZ       |
 | due_at         | DATE              |
+| renewal_count  | INTEGER (>= 0)    |
 | returned_at    | TIMESTAMPTZ       |
 | status         | TransactionStatus |
 | created_at     | TIMESTAMPTZ       |
@@ -277,9 +279,11 @@ Business rules:
 
 * Issue only when copy status is `AVAILABLE` (or `RESERVED` for the head of the book's queue)
 * Return sets transaction `RETURNED` and copy `AVAILABLE`, or copy `RESERVED` when an active queue remains
-* `due_at` = issue date + `LOAN_PERIOD_DAYS` (default 14, env-configurable)
+* `due_at` = issue date + the active policy's `loan_period_days` (default 14); runtime settings are used only when no active policy exists
 * Students with unpaid fines cannot borrow (HTTP 409)
-* Students cannot exceed `MAX_ACTIVE_LOANS` concurrent loans (default 5)
+* Students cannot exceed the active policy's `max_active_loans` concurrent-loan limit (default 5)
+* Students can renew their own active, non-overdue loan when no active reservation queue exists for the book and they have no unpaid fines; each renewal extends the current due date by the active policy's loan period
+* Each loan can be renewed up to the active policy's `max_renewals` (default 1; 0 disables renewals); the renewal count is stored on the transaction
 * Issue/return serialize on row locks: the student and copy rows are locked `FOR UPDATE` before status checks
 
 ## reservations
@@ -317,12 +321,13 @@ Business rules:
 | created_at     | TIMESTAMPTZ   |
 | updated_at     | TIMESTAMPTZ   |
 
-Constraint: `transaction_id` is UNIQUE from migration `003`; migration `007`
-also adds a duplicate unique index on the same column.
+Constraint: `transaction_id` is UNIQUE from migration `003`. Migration `007`
+added a redundant unique index on the same column; migration `014` removes that
+index, leaving the unique constraint in place.
 
 Business rules:
 
-* Accrues on overdue open loans when fine lists, dashboards, or borrowing eligibility are read: `(today - due_at)` **calendar days** × `daily_overdue_fine_rate` (active policy, default ₹10.00/day), clamped to `max_fine_amount` (default ₹500.00)
+* Accrues on overdue open loans when fine lists, dashboards, or borrowing eligibility are read: `(today - due_at)` **calendar days** × the active policy's `daily_overdue_fine_rate` (default ₹10.00/day), clamped to its `max_fine_amount` (default ₹500.00); runtime settings are used only when no active policy exists
 * The same fine row is finalized on return using `(return_date - due_at)` calendar days; staff can mark it paid only after the book is returned
 * One fine per transaction
 * Unpaid fines block new issues
@@ -330,7 +335,7 @@ Business rules:
 
 ## circulation_policies
 
-Added in migration `013_circulation_policies`.
+Added in migration `013_circulation_policies`; renewal limit added in migration `015_book_renewals`.
 
 | Column                  | Type          |
 | ----------------------- | ------------- |
@@ -340,16 +345,18 @@ Added in migration `013_circulation_policies`.
 | max_fine_amount         | DECIMAL(10,2) |
 | loan_period_days        | INTEGER       |
 | max_active_loans        | INTEGER       |
+| max_renewals            | INTEGER       |
 | reservation_expiry_days | INTEGER       |
 | is_active               | BOOLEAN       |
 | updated_by              | UUID (FK → users, SET NULL) |
 | created_at              | TIMESTAMPTZ   |
 | updated_at              | TIMESTAMPTZ   |
 
-Constraints: Check constraints on non-negative fine rates, positive loan periods, and positive loan limits.
+Constraints: Check constraints on non-negative fine rates, positive loan periods and loan limits, and a renewal limit from 0 through 5.
 
 Migration `013` inserts a default active policy (₹10/day, ₹500 cap, 14-day
-loan, five concurrent loans, seven-day reservation expiry). The application
+loan, five concurrent loans, seven-day reservation expiry); `015` adds a
+default maximum of one renewal per loan. The application
 uses the most recently updated active row; if none exists, it constructs a
 transient policy from the corresponding environment settings. The schema does
 not enforce that only one row is active.
@@ -367,9 +374,8 @@ Implemented in migration `012_ratings`. One rating (1–5) per student per book.
 | created_at / updated_at | TIMESTAMPTZ | Standard timestamps |
 
 Unique constraint on `(book_id, student_id)` creates a composite unique index.
-Migration `012` does not create separate indexes on each foreign key, although
-the SQLAlchemy model metadata declares them; this is a migration/model metadata
-drift to resolve in a future migration.
+Migration `014` also adds separate lookup indexes on `book_id` and `student_id`
+to match the SQLAlchemy model metadata.
 
 ---
 
@@ -384,7 +390,7 @@ drift to resolve in a future migration.
 | Reservation queue | FIFO by `reservation_date`; returns hold copies `RESERVED` for queue head; issues honor queue unless `bypass_reservation` | — |
 | Session revocation | Password reset/change bumps `users.token_version`; old JWTs rejected immediately | Token refresh endpoint (planned) |
 | Copy QR | `qr_code_value` stored; no QR API yet | Sprint 5+ QR endpoints |
-| Book renewal | Not implemented | Future sprint |
+| Book renewal | Students can renew eligible active loans up to the admin-configured limit (default 1); the due date extends by the policy loan period | — |
 
 ---
 
@@ -416,7 +422,14 @@ Holiday and closure dates for working-day fine calculation.
 
 # Search and Recommendation Notes
 
-Semantic search is implemented: FastEmbed `BAAI/bge-small-en-v1.5` embeddings (384-dim) are stored in `book_embeddings` and queried by cosine similarity over an HNSW index. Reindexing is an offline command; catalog writes mark embeddings pending. Search analytics (`search_query_logs`) and recommendations remain planned.
+Semantic search is implemented: FastEmbed `BAAI/bge-small-en-v1.5` embeddings
+(384-dim) are stored in `book_embeddings` and queried by cosine similarity over
+an HNSW index. Catalog changes mark affected embeddings pending and schedule
+targeted background indexing. Admins can inspect indexing status, retry pending
+or failed records, and start a confirmed full rebuild from `/admin/search-index`;
+the offline command `uv run python -m app.scripts.reindex_embeddings` is also
+available. Search analytics (`search_query_logs`) and recommendations remain
+planned.
 
 ---
 

@@ -225,6 +225,12 @@ implemented in the current README and architecture document. Current backend
 tests are broader than the historical 67-test count above; the suite was not
 run during this documentation update.
 
+### Current implementation update (2026-11-09)
+
+Student loan renewals are now implemented with an admin-configurable limit,
+defaulting to one renewal per loan. See the current README, architecture,
+database, and API documents for the implemented rules.
+
 ---
 
 ## Related Documents

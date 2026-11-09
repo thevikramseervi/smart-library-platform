@@ -27,6 +27,7 @@ def test_get_circulation_policy(
         assert "max_fine_amount" in data
         assert "loan_period_days" in data
         assert "max_active_loans" in data
+        assert data["max_renewals"] == 1
         assert "reservation_expiry_days" in data
 
 
@@ -94,6 +95,17 @@ def test_update_circulation_policy_validation(
         },
     )
     assert res.status_code == 422
+
+    # Renewal limits are configurable from zero (disabled) through five.
+    policy = client.get("/api/v1/circulation-policies", headers=headers).json()
+    policy["max_renewals"] = 0
+    disabled = client.put("/api/v1/circulation-policies", headers=headers, json=policy)
+    assert disabled.status_code == 200
+    assert disabled.json()["max_renewals"] == 0
+
+    policy["max_renewals"] = 6
+    invalid_limit = client.put("/api/v1/circulation-policies", headers=headers, json=policy)
+    assert invalid_limit.status_code == 422
 
     # Cap lower than daily rate
     res = client.put(

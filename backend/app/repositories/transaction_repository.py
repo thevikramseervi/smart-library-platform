@@ -34,6 +34,19 @@ class TransactionRepository(BaseRepository[Transaction]):
         statement = self._with_relations().where(Transaction.id == transaction_id)
         return self.db.execute(statement).unique().scalar_one_or_none()
 
+    def get_for_student_for_update(
+        self,
+        transaction_id: UUID,
+        student_id: UUID,
+    ) -> Transaction | None:
+        """Fetch a student's loan with a row lock, hiding loans owned by others."""
+        statement = (
+            self._with_relations()
+            .where(Transaction.id == transaction_id, Transaction.student_id == student_id)
+            .with_for_update(of=Transaction)
+        )
+        return self.db.execute(statement).unique().scalar_one_or_none()
+
     def get_open_for_copy(self, book_copy_id: UUID) -> Transaction | None:
         """Return the open loan for a copy, if any."""
         statement = select(Transaction).where(

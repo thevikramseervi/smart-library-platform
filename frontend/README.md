@@ -11,8 +11,8 @@ server-side only when a password changes or resets.
 - `/login` — sign-in
 - `/dashboard` — role-specific dashboard
 - `/catalog/*` — books, authors, categories, publishers, and languages
-- `/circulation/*` — student loans/reservations/fines and staff circulation
-- `/admin/*` — admin user, department, and circulation-policy management
+- `/circulation/*` — student loans, renewals, reservations/fines, and staff circulation
+- `/admin/*` — admin user, department, circulation-policy, and semantic-search index management
 
 Route guards control navigation for user experience; backend role checks are
 authoritative. The books catalog includes optional semantic search. Staff return

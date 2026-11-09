@@ -1,14 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MyLoansPage } from "@/pages/circulation/MyLoansPage";
-import { listMyActiveTransactions, listMyTransactions } from "@/services/circulation";
+import { listMyActiveTransactions, listMyTransactions, renewLoan } from "@/services/circulation";
 
 vi.mock("@/services/circulation", () => ({
   listMyActiveTransactions: vi.fn(),
   listMyTransactions: vi.fn(),
+  renewLoan: vi.fn(),
 }));
 
 const activeLoan = {
@@ -21,6 +23,8 @@ const activeLoan = {
   is_overdue: true,
   fine_amount: "20.00",
   fine_is_capped: false,
+  renewal_count: 0,
+  max_renewals: 1,
 };
 
 describe("MyLoansPage", () => {
@@ -33,6 +37,7 @@ describe("MyLoansPage", () => {
       page_size: 20,
       total_pages: 0,
     } as never);
+    vi.mocked(renewLoan).mockResolvedValue({ ...activeLoan, due_at: "2026-11-29" } as never);
   });
 
   it("shows accrued overdue balances and requests returned loans for history", async () => {
@@ -49,7 +54,7 @@ describe("MyLoansPage", () => {
     );
 
     const mobileCard = await screen.findByRole("article");
-    const desktopTable = within(screen.getByRole("region", { name: "Circulation table" }));
+    const desktopTable = within(screen.getByRole("region", { name: "Active loans" }));
     expect(within(mobileCard).getByRole("link", { name: /20\.00/ })).toHaveAttribute(
       "href",
       "/circulation/my-fines",
@@ -89,10 +94,41 @@ describe("MyLoansPage", () => {
     );
 
     const mobileCard = await screen.findByRole("article");
-    const desktopTable = within(screen.getByRole("region", { name: "Circulation table" }));
+    const desktopTable = within(screen.getByRole("region", { name: "Active loans" }));
     expect(within(mobileCard).getByText("Maximum reached")).toBeInTheDocument();
     expect(desktopTable.getByText("Maximum reached")).toBeInTheDocument();
     expect(screen.queryByText("Accruing until returned")).not.toBeInTheDocument();
+    queryClient.clear();
+  });
+
+  it("lets a student confirm an eligible loan renewal", async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+    vi.mocked(listMyActiveTransactions).mockResolvedValue([
+      { ...activeLoan, is_overdue: false, due_at: "2026-11-20", fine_amount: null },
+    ] as never);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <MyLoansPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const card = await screen.findByRole("article");
+    await user.click(within(card).getByRole("button", { name: "Renew book" }));
+    await user.click(screen.getByRole("button", { name: "Confirm renewal" }));
+
+    await waitFor(() => expect(renewLoan).toHaveBeenCalledWith("active-1"));
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ["transactions", "me", "active"],
+      }),
+    );
     queryClient.clear();
   });
 });

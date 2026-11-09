@@ -1,10 +1,10 @@
-"""Add missing foreign-key lookup indexes and fines uniqueness.
+"""Add lookup indexes and a redundant fines unique index.
 
 book_copies.book_id (issue/return and catalog copy listings),
 reservations.student_id (student reservation history across all statuses),
-and a UNIQUE index on fines.transaction_id were previously absent. The Fine
-model declares transaction_id as unique, but no migration ever enforced it,
-so the database drifted from the models.
+and a UNIQUE index on fines.transaction_id were added. Migration 003 already
+created a UNIQUE constraint on fines.transaction_id, so the index added here is
+redundant and is removed by migration 014.
 """
 
 from typing import Sequence, Union

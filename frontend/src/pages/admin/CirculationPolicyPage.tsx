@@ -37,6 +37,7 @@ function CirculationPolicyForm({
   );
   const [loanPeriodDays, setLoanPeriodDays] = useState<number>(policy.loan_period_days);
   const [maxActiveLoans, setMaxActiveLoans] = useState<number>(policy.max_active_loans);
+  const [maxRenewals, setMaxRenewals] = useState<number>(policy.max_renewals);
   const [reservationExpiryDays, setReservationExpiryDays] = useState<number>(
     policy.reservation_expiry_days
   );
@@ -73,12 +74,17 @@ function CirculationPolicyForm({
       setClientError("Reservation expiry must be between 1 and 90 days.");
       return;
     }
+    if (!Number.isInteger(maxRenewals) || maxRenewals < 0 || maxRenewals > 5) {
+      setClientError("Maximum renewals must be between 0 and 5.");
+      return;
+    }
 
     onSubmit({
       daily_overdue_fine_rate: rateNum,
       max_fine_amount: capNum,
       loan_period_days: loanPeriodDays,
       max_active_loans: maxActiveLoans,
+      max_renewals: maxRenewals,
       reservation_expiry_days: reservationExpiryDays,
     });
   };
@@ -121,7 +127,7 @@ function CirculationPolicyForm({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2">
           <Label htmlFor="loan-period">Loan Duration (Days)</Label>
           <Input
@@ -169,6 +175,22 @@ function CirculationPolicyForm({
             Window before hold expires.
           </p>
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="max-renewals">Maximum Renewals per Loan</Label>
+          <Input
+            id="max-renewals"
+            type="number"
+            min="0"
+            max="5"
+            value={maxRenewals}
+            onChange={(e) => setMaxRenewals(Number(e.target.value))}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Set to 0 to turn off renewals. Default: 1.
+          </p>
+        </div>
       </div>
 
       {errorMessage ? (
@@ -190,6 +212,7 @@ function CirculationPolicyForm({
             setMaxFineAmount(String(policy.max_fine_amount));
             setLoanPeriodDays(policy.loan_period_days);
             setMaxActiveLoans(policy.max_active_loans);
+            setMaxRenewals(policy.max_renewals);
             setReservationExpiryDays(policy.reservation_expiry_days);
             setClientError(null);
           }}
@@ -357,6 +380,12 @@ export function CirculationPolicyPage() {
                 <p className="font-semibold text-foreground">Reservation Holds</p>
                 <p>
                   When a reserved book is returned, it is set to <code>RESERVED</code> and held for the first queued student for {policy?.reservation_expiry_days ?? 7} days.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">Loan Renewals</p>
+                <p>
+                  Students may renew an active, non-overdue loan up to {policy?.max_renewals ?? 1} time{(policy?.max_renewals ?? 1) === 1 ? "" : "s"} if nobody is waiting for the book and they have no unpaid fines. Each renewal extends the current due date by the standard loan period.
                 </p>
               </div>
             </CardContent>

@@ -1,12 +1,15 @@
 # Smart Library Platform - API Specification
 
-**Implementation snapshot:** 2026-11-08 (API prefix `/api/v1`)
+**Implementation snapshot:** 2026-11-09 (API prefix `/api/v1`)
 
 ## Overview
 
 The backend exposes REST APIs using FastAPI.
 
-Authentication is JWT-based. Only `POST /auth/login` and `GET /auth/me` are implemented today. Login is rate limited (429 after repeated failures) and tokens are revoked server-side when a user's password changes.
+Authentication is JWT-based. The implemented authentication endpoints are
+`POST /auth/login` and `GET /auth/me`; the rest of the implemented API is
+documented in the sections below. Login is rate limited (429 after repeated
+failures), and tokens are revoked server-side when a user's password changes.
 
 Authorization uses Role-Based Access Control (RBAC).
 
@@ -863,12 +866,37 @@ Business rules:
   entry cannot hold a copy or block a walk-up issue.
 * Student must not have any unpaid fines (409).
 * Student cannot already hold an open loan for the same book, even on a different copy (409).
-* Student cannot exceed `MAX_ACTIVE_LOANS` concurrent loans (default 5).
-* Sets `due_at` to issue date + `LOAN_PERIOD_DAYS` (default 14).
+* Student cannot exceed the active policy's `max_active_loans` concurrent-loan limit (default 5).
+* Sets `due_at` to the issue date plus the active policy's `loan_period_days` (default 14). Runtime settings provide fallback values only when no active policy exists.
 * Overdue is derived at read time (`status=ISSUED` and `due_at < today`
   on the UTC calendar); there is no persisted `OVERDUE` status.
 * When the borrower has an active reservation for the book, it is marked
   `FULFILLED` and its id is recorded as `reservation_id` on the transaction.
+
+---
+
+## Renew Loan
+
+```http
+POST /api/v1/transactions/{transaction_id}/renew
+```
+
+Access: **Student**. A student can renew only their own loan; another student's
+loan is reported as not found.
+
+No request body is required. Response: `200` with the updated transaction,
+including its new `due_at`, `renewal_count`, and current policy `max_renewals`.
+
+Rules:
+
+* The loan must still be active and not overdue.
+* The student's account must have no unpaid fines.
+* No active reservation queue may exist for the book.
+* The loan must be below the active policy's `max_renewals` (default `1`; `0`
+  disables renewals; admins can configure `0` through `5`).
+* Each renewal adds the active policy's `loan_period_days` to the existing due
+  date, so renewing early does not remove the remaining time.
+* Ineligible renewals return `409 Conflict` with a reason.
 
 ---
 
@@ -905,8 +933,10 @@ Business rules:
     held for the first queued student, who fulfills it on their next issue.
   * `AVAILABLE` otherwise.
 * If returned after `due_at` (UTC calendar), creates an unpaid fine linked
-  to the transaction: `days_late × DAILY_OVERDUE_FINE_RATE`, clamped to a
-  maximum of `MAX_FINE_AMOUNT`.
+  to the transaction: `days_late × daily_overdue_fine_rate` from the active
+  policy, clamped to that policy's `max_fine_amount` (default ₹10/day and ₹500
+  cap). Runtime settings provide fallback values only when no active policy
+  exists.
 * Optional `pay_fine: true` records payment of that finalized fine in the same
   return transaction. Omit or set false to return the book and leave the fine unpaid.
 * Transaction responses include `fine_amount` when a fine exists. Open overdue
@@ -966,6 +996,8 @@ active policy's maximum fine amount (`null` when no fine exists).
 
 The active-loan response omits `book_copy.inventory_code`. Inventory codes
 remain in staff transaction and circulation responses.
+It also includes `renewal_count` and the active policy's `max_renewals` so the
+student can see how many renewals have been used.
 
 ---
 
@@ -1232,6 +1264,7 @@ Response: `200`
   "max_fine_amount": "500.00",
   "loan_period_days": 14,
   "max_active_loans": 5,
+  "max_renewals": 1,
   "reservation_expiry_days": 7,
   "is_active": true,
   "updated_by": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -1268,6 +1301,7 @@ Request body:
   "max_fine_amount": 600.00,
   "loan_period_days": 21,
   "max_active_loans": 5,
+  "max_renewals": 1,
   "reservation_expiry_days": 7
 }
 ```
@@ -1278,6 +1312,7 @@ Validation:
 * `max_fine_amount >= daily_overdue_fine_rate` (cap must be >= daily rate when positive)
 * `1 <= loan_period_days <= 365`
 * `1 <= max_active_loans <= 50`
+* `0 <= max_renewals <= 5` (`0` disables renewal)
 * `1 <= reservation_expiry_days <= 90`
 
 Response: `200` (updated policy object including the latest editor attribution; prior values are not recorded).
@@ -1338,7 +1373,9 @@ Business rules:
 * Semantic candidates are over-fetched and diversified so the first results favor distinct titles. Additional editions remain in the response after the first occurrence of each title when they fit within `limit`.
 * With `BAAI/bge-small-en-v1.5`, search queries receive the model's retrieval instruction prefix. Indexed book documents are embedded without that prefix; a query-instruction change does not require reindexing.
 * If there are no usable current-model vectors or semantic inference fails, the endpoint returns keyword matches (`used_semantic: false`, `score: null` for every result). Inference failures are logged.
-* Soft-deleted books never appear; indexing runs offline via `uv run python -m app.scripts.reindex_embeddings`.
+* Soft-deleted books never appear. The CLI command
+  `uv run python -m app.scripts.reindex_embeddings` is available for offline
+  indexing and recovery.
 * Catalog writes mark their embedding row `PENDING`; this no longer disables vector ranking for the rest of the catalog. Reindexing adds the updated book back to semantic ranking.
 * Book create and update schedule a targeted background embedding job after saving the catalog record. Search can use text matching while that job runs; a failure is recorded and can be retried from the admin UI or with the offline reindex command.
 

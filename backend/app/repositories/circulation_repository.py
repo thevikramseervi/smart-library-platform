@@ -171,6 +171,15 @@ class CirculationRepository:
         statement = select(Book).where(Book.id == book_id, Book.deleted_at.is_(None))
         return self.db.execute(statement).scalar_one_or_none()
 
+    def get_active_book_for_update(self, book_id: UUID) -> Book | None:
+        """Lock a non-deleted book while changing reservation-sensitive state."""
+        statement = (
+            select(Book)
+            .where(Book.id == book_id, Book.deleted_at.is_(None))
+            .with_for_update()
+        )
+        return self.db.execute(statement).scalar_one_or_none()
+
     def count_available_copies(self, book_id: UUID) -> int:
         """Return count of available copies for a book."""
         from sqlalchemy import func

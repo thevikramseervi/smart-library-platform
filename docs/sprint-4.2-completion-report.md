@@ -139,9 +139,12 @@ items that changed afterward.
 ### Current status update (2026-11-08)
 
 The Return Book limit has since been addressed with backend search and
-pagination. INR formatting remains implemented. Frontend automated tests are
-still not configured. The historical verification results above do not verify
-the current repository revision.
+pagination. INR formatting remains implemented. As of this 2026-11-08 status
+update, frontend automated tests were not yet configured; a Vitest/React Testing
+Library component-test suite has since been added. See
+[`frontend/README.md`](../frontend/README.md) for its current scope. The
+historical verification results above do not verify the current repository
+revision.
 
 ---
 

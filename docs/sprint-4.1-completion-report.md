@@ -106,8 +106,11 @@ The return-page 100-loan cap was fixed after this update by adding API-backed
 search and pagination. Staff reservation responses include student summaries.
 The student active-loan API still includes nested inventory codes even though
 the student UI hides them.
-Frontend automated tests remain absent. The current backend regression suite was
-not executed as part of the 2026-11-08 documentation/code review.
+As of this 2026-11-08 status update, frontend automated tests were not yet
+configured. A Vitest/React Testing Library component-test suite has since been
+added; see [`frontend/README.md`](../frontend/README.md) for its current scope.
+The backend regression suite was not executed as part of the 2026-11-08
+documentation/code review.
 
 ---
 

@@ -1,8 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
@@ -13,13 +15,18 @@ import {
   LoanStatusBadge,
   PaginationControls,
 } from "@/pages/circulation/components/CirculationShared";
+import { appToast } from "@/lib/toast";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { differenceInCalendarDays, formatDate, getDueDateLabel } from "@/lib/format";
 import { formatInr } from "@/lib/formatCurrency";
-import { listMyActiveTransactions, listMyTransactions } from "@/services/circulation";
+import { listMyActiveTransactions, listMyTransactions, renewLoan } from "@/services/circulation";
+import type { StudentActiveTransaction } from "@/types/circulation";
 
 export function MyLoansPage() {
+  const queryClient = useQueryClient();
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(20);
+  const [renewTarget, setRenewTarget] = useState<StudentActiveTransaction | null>(null);
   const todayUtc = new Date().toISOString().slice(0, 10);
   const activeQuery = useQuery({
     queryKey: ["transactions", "me", "active"],
@@ -34,6 +41,18 @@ export function MyLoansPage() {
         page_size: historyPageSize,
         status: "RETURNED",
       }),
+  });
+
+  const renewalMutation = useMutation({
+    mutationFn: (transactionId: string) => renewLoan(transactionId),
+    onSuccess: (transaction) => {
+      appToast.success(`Book renewed. New due date: ${formatDate(transaction.due_at)}.`);
+      setRenewTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ["transactions", "me", "active"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions", "me"] });
+      void queryClient.invalidateQueries({ queryKey: ["fines", "me"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "student"] });
+    },
   });
 
   return (
@@ -54,6 +73,7 @@ export function MyLoansPage() {
           />
         ) : activeQuery.data?.length ? (
           <CirculationTable
+            ariaLabel="Active loans"
             mobileContent={activeQuery.data.map((transaction) => (
               <CirculationRecordCard
                 key={transaction.id}
@@ -65,13 +85,36 @@ export function MyLoansPage() {
                 fields={[
                   { label: "Issued", value: formatDate(transaction.issued_at) },
                   { label: "Due", value: <>{formatDate(transaction.due_at)}<span className="mt-1 block text-xs text-muted-foreground">{getDueDateLabel(transaction.due_at, todayUtc)}</span></> },
+                  { label: "Renewals", value: `${transaction.renewal_count} of ${transaction.max_renewals} used` },
                   { label: "Status", value: <LoanStatusBadge status={transaction.status} isOverdue={transaction.is_overdue} /> },
                   { label: "Fine balance", value: transaction.fine_amount && Number(transaction.fine_amount) > 0 ? <><Link to="/circulation/my-fines" className="font-medium text-destructive hover:underline">{formatInr(transaction.fine_amount)}</Link><span className="mt-1 block text-xs text-muted-foreground">{transaction.fine_is_capped ? "Maximum reached" : "Accruing until returned"}</span></> : "—", wide: true },
                 ]}
+                action={(
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      transaction.is_overdue ||
+                      transaction.renewal_count >= transaction.max_renewals ||
+                      renewalMutation.isPending
+                    }
+                    onClick={() => {
+                      renewalMutation.reset();
+                      setRenewTarget(transaction);
+                    }}
+                  >
+                    {transaction.renewal_count >= transaction.max_renewals
+                      ? "Renewal limit reached"
+                      : transaction.is_overdue
+                        ? "Overdue loan"
+                        : "Renew book"}
+                  </Button>
+                )}
               />
             ))}
           >
-            <CirculationTableHead columns={["Book", "Issued", "Due", "Fine balance"]} />
+            <CirculationTableHead columns={["Book", "Issued", "Due", "Fine balance", "Renewals", "Action"]} />
             <tbody>
               {activeQuery.data.map((transaction) => (
                 <tr key={transaction.id} className="border-b last:border-b-0">
@@ -117,6 +160,31 @@ export function MyLoansPage() {
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {transaction.renewal_count} of {transaction.max_renewals} used
+                  </td>
+                  <td className="px-4 py-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={
+                        transaction.is_overdue ||
+                        transaction.renewal_count >= transaction.max_renewals ||
+                        renewalMutation.isPending
+                      }
+                      onClick={() => {
+                        renewalMutation.reset();
+                        setRenewTarget(transaction);
+                      }}
+                    >
+                      {transaction.renewal_count >= transaction.max_renewals
+                        ? "Limit reached"
+                        : transaction.is_overdue
+                          ? "Overdue"
+                          : "Renew"}
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -209,6 +277,32 @@ export function MyLoansPage() {
           />
         )}
       </div>
+
+      <ConfirmDialog
+        open={renewTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !renewalMutation.isPending) {
+            setRenewTarget(null);
+            renewalMutation.reset();
+          }
+        }}
+        title="Renew this book?"
+        description={
+          renewTarget
+            ? `This will extend “${renewTarget.book_copy.book.title}” from its current due date by one standard loan period. Renewals are unavailable when the loan is overdue, someone is waiting for the book, or you have an unpaid fine.`
+            : "Confirm the loan renewal."
+        }
+        confirmLabel="Confirm renewal"
+        pending={renewalMutation.isPending}
+        errorMessage={
+          renewalMutation.isError
+            ? getApiErrorMessage(renewalMutation.error, "Could not renew this book.")
+            : null
+        }
+        onConfirm={() => {
+          if (renewTarget) renewalMutation.mutate(renewTarget.id);
+        }}
+      />
     </section>
   );
 }

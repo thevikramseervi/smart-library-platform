@@ -4,7 +4,7 @@ An AI-powered, cloud-based Library Management System built as a final-year engin
 
 This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, and semantic book search are implemented. Digital resources, QR scanning, recommendations, notifications, and analytics remain future work.
 
-**Documentation snapshot:** 2026-11-08. See the sprint reports for dated
+**Documentation snapshot:** 2026-11-09. See the sprint reports for dated
 delivery history; their old test counts and limitations are not current status.
 
 ---
@@ -30,10 +30,10 @@ Smart Library Platform is a web application for managing a physical library cata
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
 | **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
-| **Circulation** | Issue, return, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination |
+| **Circulation** | Issue, return, student self-service renewals, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination |
 | **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions |
 | **Fines** | Overdue balances accrue on open loans (calendar days, capped), finalize on return, block new borrowing while unpaid, and can be marked paid exactly once after return |
-| **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, hold expiry), latest editor attribution, and Admin UI |
+| **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, renewal limit, hold expiry), latest editor attribution, and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
 | **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
 | **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits and searchable author/category/publisher renames queue affected books for background reindexing, with admin status/retry/full rebuild and an offline reindex command |
@@ -56,7 +56,6 @@ The following remain **design targets not implemented** in the current codebase:
 | Audit Logs | Future |
 | Reviews | Future (ratings are live) |
 | Library calendar / working-day fines | Future |
-| Book renewal | Future |
 | Token refresh / server-side logout | Server-side revocation on password reset/change is live (`users.token_version`); refresh endpoint is Future |
 
 ---

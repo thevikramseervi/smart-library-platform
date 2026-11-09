@@ -1,6 +1,6 @@
 # Smart Library Platform - Architecture Document
 
-**Implementation snapshot:** 2026-11-08 (Alembic head `014_model_index_alignment`)
+**Implementation snapshot:** 2026-11-09 (Alembic head `015_book_renewals`)
 
 ## 1. Project Overview
 
@@ -213,6 +213,7 @@ Books, authors, categories, publishers, languages, physical copies with lifecycl
 ### Circulation Module (Sprint 4, 4.9)
 
 * Issue and return transactions with row-level locking (`SELECT ... FOR UPDATE` on student and copy rows)
+* Student self-service loan renewal, with an admin-configured per-loan limit (default one; zero disables), overdue/fine/queue checks, and due-date extension from the existing due date
 * Active/overdue loan tracking on the UTC calendar
 * Fine creation on late return, calculated using active `CirculationPolicy` (or fallback to `Settings`), capped at `max_fine_amount`
 * Unpaid fine borrowing block and per-student concurrent loan limit (`max_active_loans`)
@@ -255,6 +256,7 @@ Provides database-backed circulation configuration for loan duration, reservatio
   * `TransactionService.issue_copy`: uses `policy.loan_period_days` and `policy.max_active_loans`.
   * `ReservationService.create_reservation`: uses `policy.reservation_expiry_days`.
 * Fine rate and cap are read when a late book is returned. A policy edit during an open loan therefore applies to that loan's fine; the policy is not snapshotted at issue time.
+* The policy also controls the maximum number of renewals per loan (0–5); a zero limit disables renewals.
 * **Zero-downtime fallback:** If no active policy record exists in the database, the repository seamlessly falls back to static runtime `Settings`.
 * **Admin UI:** Dedicated interface at `/admin/circulation-policy` with form validations, reset controls, error retry boundary, and contextual policy guidelines.
 

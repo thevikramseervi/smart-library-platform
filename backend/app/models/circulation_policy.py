@@ -6,7 +6,7 @@ import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, Numeric, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,12 @@ class CirculationPolicy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Dynamic circulation policy configuration."""
 
     __tablename__ = "circulation_policies"
+    __table_args__ = (
+        CheckConstraint(
+            "max_renewals BETWEEN 0 AND 5",
+            name="ck_circulation_policies_max_renewals_range",
+        ),
+    )
 
     name: Mapped[str] = mapped_column(String(100), nullable=False, default="Default Policy")
     daily_overdue_fine_rate: Mapped[Decimal] = mapped_column(
@@ -31,6 +37,12 @@ class CirculationPolicy(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     loan_period_days: Mapped[int] = mapped_column(Integer, nullable=False, default=14)
     max_active_loans: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    max_renewals: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default=text("1"),
+    )
     reservation_expiry_days: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 

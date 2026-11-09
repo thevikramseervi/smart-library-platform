@@ -12,6 +12,7 @@ export interface CirculationPolicyResponse {
   max_fine_amount: string | number;
   loan_period_days: number;
   max_active_loans: number;
+  max_renewals: number;
   reservation_expiry_days: number;
   is_active: boolean;
   updated_by?: string | null;
@@ -25,5 +26,6 @@ export interface CirculationPolicyUpdate {
   max_fine_amount: number | string;
   loan_period_days: number;
   max_active_loans: number;
+  max_renewals: number;
   reservation_expiry_days: number;
 }

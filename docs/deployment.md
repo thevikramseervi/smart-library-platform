@@ -151,11 +151,11 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 | `JWT_ALGORITHM` | `HS256` | JWT algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Token lifetime |
 | `ALLOW_INSECURE_SECRETS` | `false` | Escape hatch permitting weak JWT secrets (local dev/testing only) |
-| `LOAN_PERIOD_DAYS` | `14` | Loan duration |
-| `RESERVATION_EXPIRY_DAYS` | `7` | Reservation expiry |
-| `DAILY_OVERDUE_FINE_RATE` | `10.00` | INR per calendar day overdue |
-| `MAX_FINE_AMOUNT` | `500.00` | Upper clamp on a single overdue fine |
-| `MAX_ACTIVE_LOANS` | `5` | Concurrent loans allowed per student |
+| `LOAN_PERIOD_DAYS` | `14` | Loan duration fallback when no active database circulation policy exists |
+| `RESERVATION_EXPIRY_DAYS` | `7` | Reservation expiry fallback when no active database circulation policy exists |
+| `DAILY_OVERDUE_FINE_RATE` | `10.00` | Fine rate fallback in INR per calendar day when no active database circulation policy exists |
+| `MAX_FINE_AMOUNT` | `500.00` | Per-fine cap fallback when no active database circulation policy exists |
+| `MAX_ACTIVE_LOANS` | `5` | Concurrent loan limit fallback when no active database circulation policy exists |
 | `LOGIN_RATE_LIMIT_ATTEMPTS` | `5` | Failed logins before lockout |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Lockout window |
 | `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | FastEmbed model for semantic search |
@@ -175,7 +175,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 ## Post-Deploy Checklist
 
 - [ ] `DATABASE_URL` set with `sslmode=require` (Neon)
-- [ ] `uv run alembic upgrade head` succeeded (through revision `014_model_index_alignment`)
+- [ ] `uv run alembic upgrade head` succeeded (through revision `015_book_renewals`)
 - [ ] `JWT_SECRET_KEY` is a strong unique value — the server **refuses to start** on known defaults or secrets under 32 characters
 - [ ] `CORS_ORIGINS` includes the exact Vercel frontend URL (scheme + host, no trailing slash)
 - [ ] `VITE_API_BASE_URL` points to the deployed backend `/api/v1`

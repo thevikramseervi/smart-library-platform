@@ -40,6 +40,7 @@ class CirculationPolicyRepository(BaseRepository[CirculationPolicy]):
             max_fine_amount=settings.MAX_FINE_AMOUNT,
             loan_period_days=settings.LOAN_PERIOD_DAYS,
             max_active_loans=settings.MAX_ACTIVE_LOANS,
+            max_renewals=1,
             reservation_expiry_days=settings.RESERVATION_EXPIRY_DAYS,
             is_active=True,
             updated_by=None,
@@ -70,6 +71,7 @@ class CirculationPolicyRepository(BaseRepository[CirculationPolicy]):
                 max_fine_amount=payload.max_fine_amount,
                 loan_period_days=payload.loan_period_days,
                 max_active_loans=payload.max_active_loans,
+                max_renewals=payload.max_renewals,
                 reservation_expiry_days=payload.reservation_expiry_days,
                 is_active=True,
                 updated_by=updated_by_id,
@@ -80,6 +82,7 @@ class CirculationPolicyRepository(BaseRepository[CirculationPolicy]):
             policy.max_fine_amount = payload.max_fine_amount
             policy.loan_period_days = payload.loan_period_days
             policy.max_active_loans = payload.max_active_loans
+            policy.max_renewals = payload.max_renewals
             policy.reservation_expiry_days = payload.reservation_expiry_days
             policy.updated_by = updated_by_id
             policy.updated_at = now

@@ -39,6 +39,7 @@ class TransactionService:
         self.fine_service = FineService(db)
         self.policy_repository = CirculationPolicyRepository(db)
         self._max_fine_amount: Decimal | None = None
+        self._max_renewals: int | None = None
         self.db = db
 
     @staticmethod
@@ -54,6 +55,8 @@ class TransactionService:
             if self._max_fine_amount is None:
                 self._max_fine_amount = self.policy_repository.get_active().max_fine_amount
             fine_is_capped = fine_amount >= self._max_fine_amount
+        if self._max_renewals is None:
+            self._max_renewals = self.policy_repository.get_active().max_renewals
         return TransactionResponse(
             id=transaction.id,
             book_copy_id=transaction.book_copy_id,
@@ -61,6 +64,8 @@ class TransactionService:
             issued_by=transaction.issued_by,
             issued_at=transaction.issued_at,
             due_at=transaction.due_at,
+            renewal_count=transaction.renewal_count,
+            max_renewals=self._max_renewals,
             returned_at=transaction.returned_at,
             status=transaction.status.value,
             is_overdue=self._is_overdue(transaction),
@@ -207,6 +212,53 @@ class TransactionService:
             detail="Book copy already has an open loan",
         )
         refreshed = self.repository.get_by_id_with_relations(transaction.id)
+        assert refreshed is not None
+        return self._to_response(refreshed)
+
+    def renew_loan(self, transaction_id: UUID, student: User) -> TransactionResponse:
+        """Extend an eligible loan by the active policy's loan period."""
+        self._expire_stale_reservations()
+        self.fine_service.sync_open_overdue_fines(student.id)
+        transaction = self.repository.get_for_student_for_update(transaction_id, student.id)
+        if transaction is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+        if transaction.status != TransactionStatus.ISSUED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Only active loans can be renewed",
+            )
+        if transaction.due_at < utc_today():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Overdue loans cannot be renewed",
+            )
+
+        policy = self.policy_repository.get_active()
+        if transaction.renewal_count >= policy.max_renewals:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This loan has reached its renewal limit",
+            )
+        if (
+            self.circulation_repository.get_active_book_for_update(transaction.book_copy.book_id)
+            is None
+        ):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+        if self.reservation_repository.list_queue_for_book(transaction.book_copy.book_id):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This book has an active reservation queue and cannot be renewed",
+            )
+        if self.fine_repository.has_unpaid_for_student(student.id):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Unpaid fines must be cleared before renewing a book",
+            )
+
+        transaction.due_at += timedelta(days=policy.loan_period_days)
+        transaction.renewal_count += 1
+        commit_or_raise_conflict(self.db, detail="Failed to renew loan")
+        refreshed = self.repository.get_by_id_with_relations(transaction_id)
         assert refreshed is not None
         return self._to_response(refreshed)
 

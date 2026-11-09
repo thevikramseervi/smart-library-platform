@@ -7,7 +7,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, text
+from sqlalchemy import CheckConstraint, Date, DateTime, Enum, ForeignKey, Index, Integer, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,6 +32,7 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     __tablename__ = "transactions"
     __table_args__ = (
+        CheckConstraint("renewal_count >= 0", name="ck_transactions_renewal_count_nonnegative"),
         Index("ix_transactions_student_id_status", "student_id", "status"),
         Index("ix_transactions_status", "status"),
         Index("ix_transactions_due_at", "due_at"),
@@ -60,6 +61,12 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     due_at: Mapped[date] = mapped_column(Date, nullable=False)
+    renewal_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=text("0"),
+    )
     returned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[TransactionStatus] = mapped_column(
         Enum(TransactionStatus, name="transactionstatus", create_type=False),
