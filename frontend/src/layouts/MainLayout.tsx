@@ -2,8 +2,8 @@ import {
   ArrowLeftRight,
   Bell,
   BookOpen,
+  BookOpenCheck,
   LayoutDashboard,
-  LibraryBig,
   LogOut,
   Shield,
 } from "lucide-react";
@@ -50,7 +50,7 @@ export function MainLayout() {
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-7 lg:px-10">
           <Link to="/dashboard" className="group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/15 transition-transform group-hover:-rotate-3">
-              <LibraryBig className="size-5" aria-hidden="true" />
+              <BookOpenCheck className="size-6" aria-hidden="true" />
             </span>
             <span className="min-w-0">
               <span className="block truncate text-[15px] font-bold tracking-tight text-foreground sm:text-base">
