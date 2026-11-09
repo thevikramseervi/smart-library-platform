@@ -7,6 +7,7 @@ const scanner = vi.hoisted(() => ({
     error: unknown,
     controls: { stop: () => void },
   ) => void) | undefined,
+  preview: undefined as HTMLVideoElement | undefined,
   controls: { stop: vi.fn() },
 }));
 
@@ -14,9 +15,10 @@ vi.mock("@zxing/browser", () => ({
   BrowserQRCodeReader: class {
     decodeFromVideoDevice(
       _deviceId: string | undefined,
-      _video: HTMLVideoElement | undefined,
+      video: HTMLVideoElement | undefined,
       callback: typeof scanner.callback,
     ) {
+      scanner.preview = video;
       scanner.callback = callback;
       return Promise.resolve(scanner.controls);
     }
@@ -33,6 +35,7 @@ describe("QrCodeScanner", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scan copy QR code" }));
     await screen.findByRole("dialog", { name: "Scan a copy QR code" });
     await waitFor(() => expect(scanner.callback).toBeDefined());
+    expect(scanner.preview).toBeInstanceOf(HTMLVideoElement);
 
     act(() => {
       scanner.callback?.({ getText: () => " INV-123 " }, undefined, scanner.controls);

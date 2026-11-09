@@ -27,34 +27,53 @@ export function QrCodeScanner({
     if (!open) return;
     let active = true;
     let controls: { stop: () => void } | undefined;
+    let animationFrame = 0;
+    let mountWaitFrames = 0;
     const reader = new BrowserQRCodeReader();
-    void reader
-      .decodeFromVideoDevice(undefined, videoRef.current ?? undefined, (result, _error, scannerControls) => {
-        controls = scannerControls;
-        if (result && active) {
-          active = false;
-          scannerControls.stop();
-          onScan(result.getText().trim());
-          setOpen(false);
+    const startScanner = () => {
+      if (!active) return;
+      const video = videoRef.current;
+      if (!video) {
+        mountWaitFrames += 1;
+        if (mountWaitFrames > 60) {
+          setStarting(false);
+          setError("The camera preview could not be initialized. Close this window and try again.");
+          return;
         }
-      })
-      .then((scannerControls) => {
-        controls = scannerControls;
-        if (active) setStarting(false);
-        else scannerControls.stop();
-      })
-      .catch((cause: unknown) => {
-        if (!active) return;
-        setStarting(false);
-        setError(
-          cause instanceof Error && cause.name === "NotAllowedError"
-            ? "Camera access was blocked. Allow camera access in your browser, or enter the inventory code manually."
-            : "Could not start the camera. Use a secure connection (HTTPS or localhost), or enter the inventory code manually.",
-        );
-      });
+        animationFrame = window.requestAnimationFrame(startScanner);
+        return;
+      }
+
+      void reader
+        .decodeFromVideoDevice(undefined, video, (result, _error, scannerControls) => {
+          controls = scannerControls;
+          if (result && active) {
+            active = false;
+            scannerControls.stop();
+            onScan(result.getText().trim());
+            setOpen(false);
+          }
+        })
+        .then((scannerControls) => {
+          controls = scannerControls;
+          if (active) setStarting(false);
+          else scannerControls.stop();
+        })
+        .catch((cause: unknown) => {
+          if (!active) return;
+          setStarting(false);
+          setError(
+            cause instanceof Error && cause.name === "NotAllowedError"
+              ? "Camera access was blocked. Allow camera access in your browser, or enter the inventory code manually."
+              : "Could not start the camera. Use a secure connection (HTTPS or localhost), or enter the inventory code manually.",
+          );
+        });
+    };
+    animationFrame = window.requestAnimationFrame(startScanner);
 
     return () => {
       active = false;
+      window.cancelAnimationFrame(animationFrame);
       controls?.stop();
     };
   }, [open, onScan]);
