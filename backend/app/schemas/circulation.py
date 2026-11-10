@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.models.book_copy import BookCopyStatus
+
 
 class StudentSearchResult(BaseModel):
     """Student summary for circulation issue UI."""
@@ -27,3 +29,9 @@ class AvailableCopyResult(BaseModel):
     book_id: UUID
     book_title: str
     location: str | None
+
+
+class CopyLookupResult(AvailableCopyResult):
+    """Copy details and circulation status for staff QR lookup."""
+
+    status: BookCopyStatus

@@ -116,11 +116,11 @@ class BookCopyService:
             else None,
         }
 
-        if payload.location is not None:
+        if "location" in payload.model_fields_set:
             book_copy.location = payload.location
         if payload.status is not None:
             self._apply_status_update(book_copy, payload.status)
-        if payload.acquired_date is not None:
+        if "acquired_date" in payload.model_fields_set:
             book_copy.acquired_date = payload.acquired_date
 
         after = {

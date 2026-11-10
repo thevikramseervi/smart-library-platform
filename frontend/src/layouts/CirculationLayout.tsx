@@ -1,11 +1,9 @@
 import {
-  AlertCircle,
   ArrowLeftRight,
   Bookmark,
   IndianRupee,
   ClipboardList,
   LogIn,
-  LogOut,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -15,9 +13,7 @@ import { cn } from "@/lib/utils";
 
 const staffLinks: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/circulation/issue", label: "Issue Book", icon: LogIn },
-  { to: "/circulation/return", label: "Return Book", icon: LogOut },
-  { to: "/circulation/loans", label: "Active Loans", icon: ClipboardList },
-  { to: "/circulation/overdue", label: "Overdue Loans", icon: AlertCircle },
+  { to: "/circulation/loans", label: "Loans", icon: ClipboardList },
   { to: "/circulation/reservations", label: "Reservations", icon: Bookmark },
   { to: "/circulation/fines", label: "Fines", icon: IndianRupee },
 ];

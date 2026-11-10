@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_roles
 from app.models.user import User
-from app.schemas.circulation import AvailableCopyResult, StudentSearchResult
+from app.schemas.circulation import AvailableCopyResult, CopyLookupResult, StudentSearchResult
 from app.services.circulation_query_service import CirculationQueryService
 
 router = APIRouter()
@@ -37,3 +37,13 @@ def list_available_copies(
 ) -> list[AvailableCopyResult]:
     """List available book copies for issue workflows."""
     return service.list_available_copies(book_id=book_id, query=q)
+
+
+@router.get("/copies/lookup", response_model=CopyLookupResult)
+def lookup_copy(
+    inventory_code: str = Query(min_length=1, max_length=100),
+    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    service: CirculationQueryService = Depends(get_circulation_query_service),
+) -> CopyLookupResult:
+    """Look up a scanned copy's current status for staff circulation workflows."""
+    return service.lookup_copy_by_inventory_code(inventory_code)

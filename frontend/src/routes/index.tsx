@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
 
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
@@ -79,9 +79,6 @@ const ProfilePage = lazy(() =>
 const MyReservationsPage = lazy(() =>
   import("@/pages/circulation/MyReservationsPage").then((m) => ({ default: m.MyReservationsPage })));
 
-const OverdueLoansPage = lazy(() =>
-  import("@/pages/circulation/OverdueLoansPage").then((m) => ({ default: m.OverdueLoansPage })));
-
 const PublisherFormPage = lazy(() =>
   import("@/pages/catalog/PublisherFormPage").then((m) => ({ default: m.PublisherFormPage })));
 
@@ -91,9 +88,6 @@ const PublishersListPage = lazy(() =>
 const ReservationsQueuePage = lazy(() =>
   import("@/pages/circulation/ReservationsQueuePage").then((m) => ({ default: m.ReservationsQueuePage })));
 
-const ReturnBookPage = lazy(() =>
-  import("@/pages/circulation/ReturnBookPage").then((m) => ({ default: m.ReturnBookPage })));
-
 const StaffFinesPage = lazy(() =>
   import("@/pages/circulation/StaffFinesPage").then((m) => ({ default: m.StaffFinesPage })));
 
@@ -102,6 +96,21 @@ const UserFormPage = lazy(() =>
 
 const UsersListPage = lazy(() =>
   import("@/pages/admin/UsersListPage").then((m) => ({ default: m.UsersListPage })));
+
+function LegacyLoansRedirect({ filter }: { filter: "all" | "overdue" }) {
+  const location = useLocation();
+  const state = location.state as { search?: string; inventoryCode?: string } | null;
+  return (
+    <Navigate
+      to={{
+        pathname: "/circulation/loans",
+        search: filter === "overdue" ? "?filter=overdue" : "",
+      }}
+      replace
+      state={{ search: state?.search ?? state?.inventoryCode ?? "" }}
+    />
+  );
+}
 
 export const router = createBrowserRouter([
   {
@@ -315,11 +324,7 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: "return",
-                    element: (
-              <Suspense fallback={<TableListSkeleton columns={5} />}>
-                <ReturnBookPage />
-              </Suspense>
-            ),
+                    element: <LegacyLoansRedirect filter="all" />,
                   },
                   {
                     path: "loans",
@@ -331,11 +336,7 @@ export const router = createBrowserRouter([
                   },
                   {
                     path: "overdue",
-                    element: (
-              <Suspense fallback={<TableListSkeleton columns={5} />}>
-                <OverdueLoansPage />
-              </Suspense>
-            ),
+                    element: <LegacyLoansRedirect filter="overdue" />,
                   },
                   {
                     path: "reservations",

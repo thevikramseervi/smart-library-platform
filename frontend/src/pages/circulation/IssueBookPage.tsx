@@ -31,6 +31,7 @@ import {
   issueBook,
   listAvailableCopies,
   listTransactions,
+  lookupCopyByInventoryCode,
   searchStudents,
 } from "@/services/circulation";
 import type { AvailableCopyResult, StudentSearchResult } from "@/types/circulation";
@@ -104,6 +105,12 @@ export function IssueBookPage() {
         ...(debouncedCopySearch ? { q: debouncedCopySearch } : {}),
       }),
   });
+  const scannedCopyLookupQuery = useQuery({
+    queryKey: ["circulation", "copy-lookup", scannedCopyCode],
+    queryFn: () => lookupCopyByInventoryCode(scannedCopyCode!),
+    enabled: Boolean(scannedCopyCode),
+    retry: false,
+  });
   const locationStudentId = locationState?.student?.id ?? locationState?.studentId;
   const reservedCopyQuery = useQuery({
     queryKey: ["circulation", "copies", "reserved", locationState?.copyId, locationStudentId],
@@ -112,12 +119,14 @@ export function IssueBookPage() {
   });
   const copySearchSettled = copySearch.trim() === debouncedCopySearch;
   const scannedCopy = scannedCopyCode &&
-      copySearchSettled &&
-      !copiesQuery.isLoading &&
-      !copiesQuery.isError
-    ? (copiesQuery.data ?? []).find(
-        (copy) => copy.inventory_code.toLocaleLowerCase() === scannedCopyCode.toLocaleLowerCase(),
-      ) ?? null
+      scannedCopyLookupQuery.isSuccess &&
+      scannedCopyLookupQuery.data.inventory_code.toLocaleLowerCase() === scannedCopyCode.toLocaleLowerCase() &&
+      (scannedCopyLookupQuery.data.status === "AVAILABLE" ||
+        scannedCopyLookupQuery.data.status === "RESERVED")
+    ? {
+        ...scannedCopyLookupQuery.data,
+        isReservedForQueue: scannedCopyLookupQuery.data.status === "RESERVED",
+      }
     : null;
   const selectedCopy: SelectableCopy | null = scannedCopy ?? manualSelectedCopy;
 
@@ -246,8 +255,7 @@ export function IssueBookPage() {
   );
   const reservedCopyBlocked = Boolean(
     selectedCopy?.isReservedForQueue &&
-      activeQueue.length > 0 &&
-      !selectedStudentIsQueueHead,
+      (!nextReservation || !selectedStudentIsQueueHead),
   );
   const readyToReview = Boolean(selectedStudent && selectedCopy);
 
@@ -500,12 +508,18 @@ export function IssueBookPage() {
               </div>
               {!copiesQuery.isError ? (
                 <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted-foreground">
-                  {copiesQuery.isLoading || !copySearchSettled
-                    ? ""
-                    : scannedCopyCode
-                      ? scannedCopy
-                        ? `Copy ${scannedCopyCode} selected from its QR code.`
-                        : `No available copy matches QR code ${scannedCopyCode}.`
+                  {scannedCopyCode
+                    ? scannedCopyLookupQuery.isLoading
+                      ? "Checking the scanned copy…"
+                      : scannedCopyLookupQuery.isError
+                        ? getApiErrorMessage(scannedCopyLookupQuery.error, "Unable to check this copy’s status.")
+                        : scannedCopy
+                          ? scannedCopy.status === "RESERVED"
+                            ? `Copy ${scannedCopyCode} is reserved for the next student in the queue.`
+                            : `Copy ${scannedCopyCode} selected from its QR code.`
+                          : `This copy is ${scannedCopyLookupQuery.data?.status.toLocaleLowerCase() ?? "unavailable"} and cannot be issued.`
+                    : copiesQuery.isLoading || !copySearchSettled
+                      ? ""
                       : debouncedCopySearch
                         ? copiesQuery.data?.length
                           ? `Showing ${copiesQuery.data.length} matching ${copiesQuery.data.length === 1 ? "copy" : "copies"}.`
@@ -639,6 +653,14 @@ export function IssueBookPage() {
       {reservedCopyBlocked && nextReservation ? (
         <p role="alert" className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           This copy is reserved for {formatReservationStudentLabel(nextReservation)}. Select that student to issue it.
+        </p>
+      ) : null}
+      {selectedCopy?.isReservedForQueue &&
+      !queueQuery.isLoading &&
+      !queueQuery.isError &&
+      !nextReservation ? (
+        <p role="alert" className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          This copy is marked reserved, but there is no active reservation queue. It cannot be issued until the copy status is corrected.
         </p>
       ) : null}
 

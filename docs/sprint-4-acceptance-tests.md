@@ -75,7 +75,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | ----- | ------ |
 | **Objective** | Verify a librarian can return an issued copy. |
 | **Preconditions** | Active loan exists (`status = ISSUED`). |
-| **Steps** | 1. Log in as librarian.<br>2. Navigate to **Circulation → Return Book**.<br>3. Select loan from active list and click **Return**.<br><br>*API alternative:* `POST /transactions/return` with `book_copy_id`. |
+| **Steps** | 1. Log in as librarian.<br>2. Navigate to **Circulation → Loans**.<br>3. Find the active loan, or scan its copy QR code.<br>4. Click **Return** and confirm.<br><br>*API alternative:* `POST /transactions/return` with `book_copy_id`. |
 | **Expected result** | HTTP 200; transaction `status = RETURNED`; `returned_at` set; copy status is `RESERVED` if an unexpired reservation queue remains, otherwise `AVAILABLE`. |
 | **Automated coverage** | `test_issue_and_return_flow` |
 
@@ -111,8 +111,8 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | ----- | ------ |
 | **Objective** | Verify overdue is computed dynamically, not stored as a status. |
 | **Preconditions** | Open loan with `due_at` in the past (adjust via DB in test env if needed). |
-| **Steps** | 1. Create or identify an `ISSUED` loan past due date.<br>2. Call `GET /transactions/me/active` or staff **Overdue Loans** page.<br>3. Inspect `is_overdue` flag. |
-| **Expected result** | `status` remains `ISSUED`; `is_overdue = true`; loan appears in overdue filter/list. |
+| **Steps** | 1. Create or identify an `ISSUED` loan past due date.<br>2. Call `GET /transactions/me/active` or open staff **Circulation → Loans → Overdue**.<br>3. Inspect `is_overdue` flag. |
+| **Expected result** | `status` remains `ISSUED`; `is_overdue = true`; loan appears when the unified Loans view's **Overdue** filter is selected. |
 | **Automated coverage** | Indirectly via fine and block tests; manual DB date adjustment recommended for UI verification |
 
 ---
@@ -266,7 +266,7 @@ It is intended for QA sign-off, sprint review, and project documentation.
 | List / pay fines | `GET /fines`, `POST /fines/{id}/pay` | HTTP 200 |
 | View reservation queues | `GET /reservations`, `GET /reservations/queue/{book_id}` | HTTP 200 |
 | Search students / copies | `GET /circulation/students/search`, `GET /circulation/copies/available` | HTTP 200 |
-| Staff circulation UI | Issue, Return, Active Loans, Overdue, Reservations, Fines | Accessible |
+| Staff circulation UI | Issue Book, Loans (All / Overdue filters, QR scan, and return action), Reservations, Fines | Accessible |
 
 **Automated coverage:** `test_librarian_can_issue`
 

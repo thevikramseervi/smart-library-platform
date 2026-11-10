@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ReturnBookPage } from "@/pages/circulation/ReturnBookPage";
+import { ActiveLoansPage } from "@/pages/circulation/ActiveLoansPage";
 import { getReservationQueue, listTransactions, returnBook } from "@/services/circulation";
 
 vi.mock("@/services/circulation", () => ({
@@ -19,7 +19,9 @@ vi.mock("@/lib/toast", () => ({
 const loan = {
   id: "loan-1",
   book_copy_id: "copy-1",
+  issued_at: "2026-10-27T00:00:00Z",
   due_at: "2026-11-10T00:00:00Z",
+  status: "ISSUED",
   is_overdue: false,
   fine_amount: null,
   book_copy: {
@@ -31,7 +33,7 @@ const loan = {
   student: { first_name: "Sam", last_name: "Reader", student_code: "S-001" },
 };
 
-describe("ReturnBookPage", () => {
+describe("ActiveLoansPage return workflow", () => {
   beforeEach(() => {
     vi.mocked(listTransactions).mockResolvedValue({
       items: [loan],
@@ -52,7 +54,7 @@ describe("ReturnBookPage", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <ReturnBookPage />
+          <ActiveLoansPage />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -75,7 +77,7 @@ describe("ReturnBookPage", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <ReturnBookPage />
+          <ActiveLoansPage />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -93,7 +95,7 @@ describe("ReturnBookPage", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <ReturnBookPage />
+          <ActiveLoansPage />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -136,7 +138,7 @@ describe("ReturnBookPage", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <ReturnBookPage />
+          <ActiveLoansPage />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -170,7 +172,7 @@ describe("ReturnBookPage", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <ReturnBookPage />
+          <ActiveLoansPage />
         </MemoryRouter>
       </QueryClientProvider>,
     );

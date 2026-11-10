@@ -1,6 +1,7 @@
 import { api } from "@/services/api";
 import type {
   AvailableCopyResult,
+  CopyLookupResult,
   Fine,
   FineListParams,
   PaginatedResponse,
@@ -62,6 +63,13 @@ export async function listAvailableCopies(params?: {
 }): Promise<AvailableCopyResult[]> {
   const response = await api.get<AvailableCopyResult[]>("/circulation/copies/available", {
     params,
+  });
+  return response.data;
+}
+
+export async function lookupCopyByInventoryCode(inventoryCode: string): Promise<CopyLookupResult> {
+  const response = await api.get<CopyLookupResult>("/circulation/copies/lookup", {
+    params: { inventory_code: inventoryCode },
   });
   return response.data;
 }

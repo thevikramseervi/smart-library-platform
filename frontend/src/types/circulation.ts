@@ -1,3 +1,5 @@
+import type { BookCopyStatus } from "@/types/catalog";
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -129,6 +131,10 @@ export interface AvailableCopyResult {
   book_id: string;
   book_title: string;
   location: string | null;
+}
+
+export interface CopyLookupResult extends AvailableCopyResult {
+  status: BookCopyStatus;
 }
 
 export interface TransactionListParams {

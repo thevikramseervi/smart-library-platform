@@ -10,6 +10,7 @@ import {
   issueBook,
   listAvailableCopies,
   listTransactions,
+  lookupCopyByInventoryCode,
   searchStudents,
 } from "@/services/circulation";
 
@@ -40,6 +41,7 @@ vi.mock("@/services/circulation", () => ({
   issueBook: vi.fn(),
   listAvailableCopies: vi.fn(),
   listTransactions: vi.fn(),
+  lookupCopyByInventoryCode: vi.fn(),
   searchStudents: vi.fn(),
 }));
 
@@ -62,6 +64,10 @@ describe("IssueBookPage", () => {
       q?.toLowerCase().includes("jane") ? [students[1]] : [students[0]],
     );
     vi.mocked(listAvailableCopies).mockResolvedValue([copy] as never);
+    vi.mocked(lookupCopyByInventoryCode).mockResolvedValue({
+      ...copy,
+      status: "AVAILABLE",
+    } as never);
     vi.mocked(listTransactions).mockResolvedValue({ items: [], total: 0 } as never);
     vi.mocked(getReservationQueue).mockResolvedValue([]);
     vi.mocked(issueBook).mockResolvedValue({
@@ -149,7 +155,80 @@ describe("IssueBookPage", () => {
 
     expect(await screen.findByText("Copy selected")).toBeInTheDocument();
     expect(screen.getByText("INV-001 · Shelf A")).toBeInTheDocument();
-    await waitFor(() => expect(listAvailableCopies).toHaveBeenCalledWith({ q: "INV-001" }));
+    await waitFor(() => expect(lookupCopyByInventoryCode).toHaveBeenCalledWith("INV-001"));
+
+    queryClient.clear();
+  });
+
+  it("reports the real status and blocks issuing when a scanned copy is borrowed", async () => {
+    vi.mocked(listAvailableCopies).mockResolvedValue([]);
+    vi.mocked(lookupCopyByInventoryCode).mockResolvedValue({
+      ...copy,
+      status: "BORROWED",
+    } as never);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <IssueBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Scan copy QR code" }));
+
+    expect(await screen.findByText("This copy is borrowed and cannot be issued.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Issue book" })).toBeDisabled();
+    expect(screen.queryByText("Copy selected")).not.toBeInTheDocument();
+
+    queryClient.clear();
+  });
+
+  it("lets the queue-head student receive a reserved copy scanned by QR", async () => {
+    vi.mocked(listAvailableCopies).mockResolvedValue([]);
+    vi.mocked(lookupCopyByInventoryCode).mockResolvedValue({
+      ...copy,
+      status: "RESERVED",
+    } as never);
+    vi.mocked(getReservationQueue).mockResolvedValue([
+      {
+        id: "reservation-1",
+        book_id: copy.book_id,
+        student_id: students[0].id,
+        queue_position: 1,
+        reservation_date: "2026-11-01T00:00:00Z",
+        expiry_date: "2026-11-15T00:00:00Z",
+        status: "ACTIVE",
+        student: students[0],
+      },
+    ] as never);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <IssueBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Scan copy QR code" }));
+    expect(await screen.findByText(/reserved for the next student in the queue/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Student"), { target: { value: "Sam" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Sam Reader/ }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Issue book" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Issue book" }));
+    await waitFor(() => expect(issueBook).toHaveBeenCalledWith({
+      student_id: students[0].id,
+      book_copy_id: copy.id,
+      bypass_reservation: undefined,
+    }));
 
     queryClient.clear();
   });

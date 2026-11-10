@@ -68,6 +68,89 @@ def test_create_book_copy_sets_qr_code(
     assert data["status"] == "AVAILABLE"
 
 
+def test_staff_can_lookup_scanned_copy_status(
+    client: TestClient,
+    admin_token: str,
+    book_id: str,
+) -> None:
+    """QR lookup returns current status for an unavailable copy."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    inventory_code = f"INV-{uuid.uuid4().hex[:8]}"
+    created = client.post(
+        "/api/v1/book-copies",
+        headers=headers,
+        json={
+            "book_id": book_id,
+            "inventory_code": inventory_code,
+            "location": "Shelf A1",
+        },
+    )
+    assert created.status_code == 201
+    copy_id = created.json()["id"]
+
+    updated = client.put(
+        f"/api/v1/book-copies/{copy_id}",
+        headers=headers,
+        json={"status": "LOST"},
+    )
+    assert updated.status_code == 200
+
+    lookup = client.get(
+        "/api/v1/circulation/copies/lookup",
+        headers=headers,
+        params={"inventory_code": inventory_code},
+    )
+    assert lookup.status_code == 200
+    assert lookup.json() == {
+        "id": copy_id,
+        "inventory_code": inventory_code,
+        "book_id": book_id,
+        "book_title": "Copy Test Book",
+        "location": "Shelf A1",
+        "status": "LOST",
+    }
+
+
+def test_update_book_copy_can_clear_optional_fields(
+    client: TestClient,
+    admin_token: str,
+    book_id: str,
+) -> None:
+    """Explicit null clears optional copy fields; omitted fields are preserved."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    inventory_code = f"INV-{uuid.uuid4().hex[:8]}"
+    created = client.post(
+        "/api/v1/book-copies",
+        headers=headers,
+        json={
+            "book_id": book_id,
+            "inventory_code": inventory_code,
+            "location": "Shelf A1",
+            "acquired_date": "2026-01-15",
+        },
+    )
+    assert created.status_code == 201
+    copy_id = created.json()["id"]
+
+    clear_location = client.put(
+        f"/api/v1/book-copies/{copy_id}",
+        headers=headers,
+        json={"location": None},
+    )
+    assert clear_location.status_code == 200
+    assert clear_location.json()["location"] is None
+    assert clear_location.json()["acquired_date"] == "2026-01-15"
+
+    clear_acquired_date = client.put(
+        f"/api/v1/book-copies/{copy_id}",
+        headers=headers,
+        json={"acquired_date": None},
+    )
+    assert clear_acquired_date.status_code == 200
+    assert clear_acquired_date.json()["location"] is None
+    assert clear_acquired_date.json()["acquired_date"] is None
+
+
 def test_duplicate_inventory_code_rejected(
     client: TestClient,
     admin_token: str,

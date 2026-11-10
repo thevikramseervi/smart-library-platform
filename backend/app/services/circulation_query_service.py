@@ -2,10 +2,11 @@
 
 from uuid import UUID
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.repositories.circulation_repository import CirculationRepository
-from app.schemas.circulation import AvailableCopyResult, StudentSearchResult
+from app.schemas.circulation import AvailableCopyResult, CopyLookupResult, StudentSearchResult
 
 
 class CirculationQueryService:
@@ -40,3 +41,17 @@ class CirculationQueryService:
             )
             for copy in copies
         ]
+
+    def lookup_copy_by_inventory_code(self, inventory_code: str) -> CopyLookupResult:
+        """Find a non-deleted copy by QR/inventory code, regardless of circulation status."""
+        copy = self.repository.get_copy_by_inventory_code(inventory_code.strip())
+        if copy is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book copy not found")
+        return CopyLookupResult(
+            id=copy.id,
+            inventory_code=copy.inventory_code,
+            book_id=copy.book_id,
+            book_title=copy.book.title,
+            location=copy.location,
+            status=copy.status,
+        )

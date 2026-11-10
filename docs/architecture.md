@@ -243,7 +243,7 @@ Books, authors, categories, publishers, languages, physical copies with lifecycl
 Staff issue/return workflows surface active reservation queues:
 
 * Issue page warns when queue exists for selected copy's book
-* Return page shows queue dialog for fulfillment awareness
+* Loans page shows a queue dialog after return for fulfillment awareness
 * Reservation responses include nested `student` summary
 
 Server-side enforcement:
@@ -251,7 +251,7 @@ Server-side enforcement:
 * Returns hold the copy as `RESERVED` while a queue is waiting; the first queued student fulfills it on issue
 * Issues to a queued book require the borrower to be first in the queue or an explicit `bypass_reservation=true`
 * Expired reservations are processed before issue/return queue decisions; cancelling/expiring the last reservation releases held copies back to `AVAILABLE`
-* Return Book supports backend search across book title, inventory code, and student identity, plus pagination
+* Staff loans are managed in one Loans view with All and Overdue filters, backend search, QR scanning, pagination, and return confirmation. Returning an overdue copy can record fine payment and surfaces the next reservation in the queue.
 
 ### Fine Workflow (Sprint 4)
 

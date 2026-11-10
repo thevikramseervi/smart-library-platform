@@ -22,6 +22,7 @@ import type { Book } from "@/types/catalog";
 import type { Reservation } from "@/types/circulation";
 import { BookRatingCard } from "@/pages/catalog/components/BookRatingCard";
 import { BookCoverImage } from "@/pages/catalog/components/BookCoverImage";
+import { BookCopyQrCodeAction } from "@/pages/catalog/components/BookCopyQrCodeAction";
 import { DigitalResourcePanel } from "@/pages/catalog/components/DigitalResourcePanel";
 import {
   CatalogRecordCard,
@@ -110,6 +111,18 @@ function CopyStatusCell({
   });
 
   if (copy.status === "BORROWED" || copy.status === "RESERVED") {
+    if (copy.status === "BORROWED") {
+      return (
+        <Link
+          to="/circulation/loans"
+          state={{ search: copy.inventory_code }}
+          aria-label={`View active loan for copy ${copy.inventory_code}`}
+          className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <BookCopyStatusBadge status={copy.status} />
+        </Link>
+      );
+    }
     return <BookCopyStatusBadge status={copy.status} />;
   }
 
@@ -493,9 +506,7 @@ export function BookDetailPage() {
                     ]}
                     actions={(
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" onClick={() => void printQrLabels([copy])}>
-                          <Printer aria-hidden="true" className="mr-1.5 size-3.5" /> QR label
-                        </Button>
+                        <BookCopyQrCodeAction copy={copy} bookTitle={book.title} />
                         <Button variant="outline" size="sm" onClick={() => {
                           setCopyError(null);
                           setEditingCopy(copy);
@@ -524,9 +535,7 @@ export function BookDetailPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" size="sm" onClick={() => void printQrLabels([copy])}>
-                            <Printer aria-hidden="true" className="mr-1.5 size-3.5" /> QR label
-                          </Button>
+                          <BookCopyQrCodeAction copy={copy} bookTitle={book.title} />
                           <Button variant="outline" size="sm" onClick={() => {
                             setCopyError(null);
                             setEditingCopy(copy);
