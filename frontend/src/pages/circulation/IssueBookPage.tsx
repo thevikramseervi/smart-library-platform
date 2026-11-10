@@ -58,23 +58,26 @@ export function IssueBookPage() {
 
   const [studentSearch, setStudentSearch] = useState("");
   const [copySearch, setCopySearch] = useState("");
+  const [scannedCopyCode, setScannedCopyCode] = useState<string | null>(null);
   const [manualSelectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
   const [scannedStudentCode, setScannedStudentCode] = useState<string | null>(null);
-  const [selectedCopy, setSelectedCopy] = useState<SelectableCopy | null>(null);
+  const [manualSelectedCopy, setManualSelectedCopy] = useState<SelectableCopy | null>(null);
   const [showIssueConfirm, setShowIssueConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const handleStudentQrScan = useCallback((code: string) => {
     setSelectedStudent(null);
     setScannedStudentCode(code);
     setStudentSearch(code);
-    if (selectedCopy?.isReservedForQueue) {
-      setSelectedCopy(null);
+    if (manualSelectedCopy?.isReservedForQueue) {
+      setManualSelectedCopy(null);
       setCopySearch("");
     }
-  }, [selectedCopy]);
+  }, [manualSelectedCopy]);
   const handleQrScan = useCallback((code: string) => {
-    setSelectedCopy(null);
-    setCopySearch(code);
+    const inventoryCode = code.trim();
+    setManualSelectedCopy(null);
+    setScannedCopyCode(inventoryCode);
+    setCopySearch(inventoryCode);
   }, []);
   const debouncedStudentSearch = useDebouncedValue(studentSearch.trim(), 300);
   const debouncedCopySearch = useDebouncedValue(copySearch.trim(), 300);
@@ -108,6 +111,15 @@ export function IssueBookPage() {
     enabled: Boolean(locationState?.copyId && locationStudentId),
   });
   const copySearchSettled = copySearch.trim() === debouncedCopySearch;
+  const scannedCopy = scannedCopyCode &&
+      copySearchSettled &&
+      !copiesQuery.isLoading &&
+      !copiesQuery.isError
+    ? (copiesQuery.data ?? []).find(
+        (copy) => copy.inventory_code.toLocaleLowerCase() === scannedCopyCode.toLocaleLowerCase(),
+      ) ?? null
+    : null;
+  const selectedCopy: SelectableCopy | null = scannedCopy ?? manualSelectedCopy;
 
   const studentLoansQuery = useQuery({
     queryKey: ["transactions", "student-active", selectedStudent?.id],
@@ -138,7 +150,7 @@ export function IssueBookPage() {
     if (locationState.copyId) {
       const copy = copiesQuery.data.find((item) => item.id === locationState.copyId);
       if (copy) {
-        setSelectedCopy(copy);
+        setManualSelectedCopy(copy);
         setCopySearch(copy.book_title);
       } else if (
         locationState.student &&
@@ -155,7 +167,7 @@ export function IssueBookPage() {
           location: reservedCopyQuery.data.location,
           isReservedForQueue: true,
         };
-        setSelectedCopy(reservedCopy);
+        setManualSelectedCopy(reservedCopy);
         setCopySearch(reservedCopy.book_title);
       }
     }
@@ -213,9 +225,10 @@ export function IssueBookPage() {
       setErrorMessage(null);
       setShowIssueConfirm(false);
       setSelectedStudent(null);
-      setSelectedCopy(null);
+      setManualSelectedCopy(null);
       setStudentSearch("");
       setCopySearch("");
+      setScannedCopyCode(null);
       queryClient.invalidateQueries({ queryKey: ["circulation", "copies"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
@@ -341,7 +354,7 @@ export function IssueBookPage() {
                     setStudentSearch(event.target.value);
                     setSelectedStudent(null);
                     if (selectedCopy?.isReservedForQueue) {
-                      setSelectedCopy(null);
+                      setManualSelectedCopy(null);
                       setCopySearch("");
                     }
                   }}
@@ -394,7 +407,7 @@ export function IssueBookPage() {
                     setSelectedStudent(null);
                     setStudentSearch("");
                     if (selectedCopy?.isReservedForQueue) {
-                      setSelectedCopy(null);
+                      setManualSelectedCopy(null);
                       setCopySearch("");
                     }
                   }}
@@ -476,8 +489,9 @@ export function IssueBookPage() {
                     className="h-11 rounded-xl bg-background pl-10 shadow-sm"
                     value={copySearch}
                     onChange={(event) => {
+                      setScannedCopyCode(null);
                       setCopySearch(event.target.value);
-                      setSelectedCopy(null);
+                      setManualSelectedCopy(null);
                     }}
                     placeholder="Type a title or inventory code"
                   />
@@ -488,11 +502,15 @@ export function IssueBookPage() {
                 <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted-foreground">
                   {copiesQuery.isLoading || !copySearchSettled
                     ? ""
-                    : debouncedCopySearch
-                      ? copiesQuery.data?.length
-                        ? `Showing ${copiesQuery.data.length} matching ${copiesQuery.data.length === 1 ? "copy" : "copies"}.`
-                        : ""
-                      : "Showing up to 50 available copies. Search to narrow the list."}
+                    : scannedCopyCode
+                      ? scannedCopy
+                        ? `Copy ${scannedCopyCode} selected from its QR code.`
+                        : `No available copy matches QR code ${scannedCopyCode}.`
+                      : debouncedCopySearch
+                        ? copiesQuery.data?.length
+                          ? `Showing ${copiesQuery.data.length} matching ${copiesQuery.data.length === 1 ? "copy" : "copies"}.`
+                          : ""
+                        : "Showing up to 50 available copies. Search to narrow the list."}
                 </p>
               ) : null}
             </div>
@@ -523,7 +541,8 @@ export function IssueBookPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setSelectedCopy(null);
+                      setManualSelectedCopy(null);
+                      setScannedCopyCode(null);
                       setCopySearch("");
                     }}
                   >
@@ -569,7 +588,10 @@ export function IssueBookPage() {
                           type="button"
                           className="group flex min-h-14 w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-primary/[0.045] focus-visible:bg-primary/[0.06] focus-visible:outline-none"
                           aria-pressed={false}
-                          onClick={() => setSelectedCopy(copy)}
+                          onClick={() => {
+                            setScannedCopyCode(null);
+                            setManualSelectedCopy(copy);
+                          }}
                         >
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">

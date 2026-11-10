@@ -17,6 +17,24 @@ vi.mock("@/services/catalog/book-copies", () => ({
   getBookCopy: vi.fn(),
 }));
 
+vi.mock("@/components/circulation/QrCodeScanner", async () => {
+  const React = await import("react");
+  return {
+    QrCodeScanner: ({
+      onScan,
+      label = "Scan copy QR code",
+    }: {
+      onScan: (value: string) => void;
+      label?: string;
+    }) =>
+      React.createElement(
+        "button",
+        { type: "button", onClick: () => onScan("INV-001") },
+        label,
+      ),
+  };
+});
+
 vi.mock("@/services/circulation", () => ({
   getReservationQueue: vi.fn(),
   issueBook: vi.fn(),
@@ -110,6 +128,28 @@ describe("IssueBookPage", () => {
         bypass_reservation: undefined,
       });
     });
+
+    queryClient.clear();
+  });
+
+  it("automatically selects the exact available copy scanned from its QR code", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <IssueBookPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Scan copy QR code" }));
+
+    expect(await screen.findByText("Copy selected")).toBeInTheDocument();
+    expect(screen.getByText("INV-001 · Shelf A")).toBeInTheDocument();
+    await waitFor(() => expect(listAvailableCopies).toHaveBeenCalledWith({ q: "INV-001" }));
 
     queryClient.clear();
   });
