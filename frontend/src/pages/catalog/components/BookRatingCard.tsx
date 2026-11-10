@@ -95,6 +95,7 @@ export function BookRatingCard({ bookId, allowRating = true }: BookRatingCardPro
     void queryClient.invalidateQueries({ queryKey: ["ratings", "summary", bookId] });
     void queryClient.invalidateQueries({ queryKey: ["ratings", "me", bookId] });
     void queryClient.invalidateQueries({ queryKey: ["reviews", bookId] });
+    void queryClient.invalidateQueries({ queryKey: ["recommendations", "me"] });
   };
 
   const upsertMutation = useMutation({

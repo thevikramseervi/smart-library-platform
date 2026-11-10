@@ -1,7 +1,6 @@
 """Circulation transaction business logic."""
 
 from datetime import timedelta
-from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -42,8 +41,6 @@ class TransactionService:
         self.notification_service = NotificationService(db)
         self.audit_log_service = AuditLogService(db)
         self.policy_repository = CirculationPolicyRepository(db)
-        self._max_fine_amount: Decimal | None = None
-        self._max_renewals: int | None = None
         self.db = db
 
     @staticmethod
@@ -54,13 +51,8 @@ class TransactionService:
     def _to_response(self, transaction: Transaction) -> TransactionResponse:
         """Build a transaction API response."""
         fine_amount = transaction.fine.amount if transaction.fine is not None else None
-        fine_is_capped = None
-        if fine_amount is not None:
-            if self._max_fine_amount is None:
-                self._max_fine_amount = self.policy_repository.get_active().max_fine_amount
-            fine_is_capped = fine_amount >= self._max_fine_amount
-        if self._max_renewals is None:
-            self._max_renewals = self.policy_repository.get_active().max_renewals
+        policy = self.fine_service.get_active_policy()
+        fine_is_capped = fine_amount >= policy.max_fine_amount if fine_amount is not None else None
         return TransactionResponse(
             id=transaction.id,
             book_copy_id=transaction.book_copy_id,
@@ -69,7 +61,7 @@ class TransactionService:
             issued_at=transaction.issued_at,
             due_at=transaction.due_at,
             renewal_count=transaction.renewal_count,
-            max_renewals=self._max_renewals,
+            max_renewals=policy.max_renewals,
             returned_at=transaction.returned_at,
             status=transaction.status.value,
             is_overdue=self._is_overdue(transaction),

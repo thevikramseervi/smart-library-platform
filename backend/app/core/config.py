@@ -58,6 +58,7 @@ class Settings(BaseSettings):
 
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     SEMANTIC_SEARCH_ENABLED: bool = True
+    SEMANTIC_SEARCH_PREWARM_ENABLED: bool = True
 
     @model_validator(mode="after")
     def _reject_insecure_jwt_secret(self) -> "Settings":

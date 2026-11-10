@@ -4,7 +4,7 @@ from datetime import date
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.clock import utc_today
 from app.core.sql import contains_pattern
@@ -24,10 +24,10 @@ class TransactionRepository(BaseRepository[Transaction]):
     def _with_relations(self):
         """Base select with eager-loaded relations."""
         return select(Transaction).options(
-            selectinload(Transaction.book_copy).selectinload(BookCopy.book),
-            selectinload(Transaction.student).selectinload(User.role),
-            selectinload(Transaction.issuer).selectinload(User.role),
-            selectinload(Transaction.fine),
+            joinedload(Transaction.book_copy).joinedload(BookCopy.book),
+            joinedload(Transaction.student),
+            joinedload(Transaction.issuer),
+            joinedload(Transaction.fine),
         )
 
     def get_by_id_with_relations(self, transaction_id: UUID) -> Transaction | None:

@@ -75,6 +75,18 @@ class NoRecentLoanBook(BaseModel):
     available_copies: int
 
 
+class CirculationOverviewResponse(BaseModel):
+    """Dashboard metrics for the most recent 30 UTC calendar days."""
+
+    loans_issued: int
+    returns_processed: int
+    overdue_at_period_end: int
+    fines_collected: Decimal
+    reservation_pressure_title_count: int
+    current_unpaid_fine_balance: Decimal
+    current_unpaid_fine_count: int
+
+
 class CirculationReportResponse(BaseModel):
     """Summary metrics for a selected circulation period."""
 

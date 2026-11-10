@@ -5,7 +5,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.clock import utc_today
 from app.core.config import settings
@@ -28,54 +28,42 @@ class DashboardRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def count_active_loans_for_student(self, student_id: UUID) -> int:
-        """Count open loans for a student."""
-        statement = (
-            select(func.count())
-            .select_from(Transaction)
-            .where(
-                Transaction.student_id == student_id,
-                Transaction.status == TransactionStatus.ISSUED,
-            )
-        )
-        return int(self.db.execute(statement).scalar_one())
-
-    def count_active_reservations_for_student(self, student_id: UUID) -> int:
-        """Count active reservations for a student."""
-        statement = (
+    def student_stats(self, student_id: UUID) -> tuple[int, int, Decimal, int]:
+        """Fetch dashboard counts and unpaid balance in a single round trip."""
+        reservations = (
             select(func.count())
             .select_from(Reservation)
             .where(
                 Reservation.student_id == student_id,
                 Reservation.status == ReservationStatus.ACTIVE,
             )
+            .scalar_subquery()
         )
-        return int(self.db.execute(statement).scalar_one())
-
-    def sum_unpaid_fines_for_student(self, student_id: UUID) -> Decimal:
-        """Sum unpaid fine amounts for a student."""
-        statement = (
+        fines = (
             select(func.coalesce(func.sum(Fine.amount), 0))
             .select_from(Fine)
             .join(Transaction, Fine.transaction_id == Transaction.id)
             .where(Transaction.student_id == student_id, Fine.paid.is_(False))
+            .scalar_subquery()
         )
-        return Decimal(self.db.execute(statement).scalar_one())
-
-    def count_total_borrowed_for_student(self, student_id: UUID) -> int:
-        """Count all loans ever issued to a student."""
         statement = (
-            select(func.count())
+            select(
+                func.count(Transaction.id).filter(Transaction.status == TransactionStatus.ISSUED),
+                reservations,
+                fines,
+                func.count(Transaction.id),
+            )
             .select_from(Transaction)
             .where(Transaction.student_id == student_id)
         )
-        return int(self.db.execute(statement).scalar_one())
+        active, reserved, unpaid, total = self.db.execute(statement).one()
+        return int(active), int(reserved), Decimal(unpaid), int(total)
 
     def list_recent_loans_for_student(self, student_id: UUID) -> list[Transaction]:
         """Return recent loans for a student."""
         statement = (
             select(Transaction)
-            .options(selectinload(Transaction.book_copy).selectinload(BookCopy.book))
+            .options(joinedload(Transaction.book_copy).joinedload(BookCopy.book))
             .where(Transaction.student_id == student_id)
             .order_by(Transaction.issued_at.desc())
             .limit(self.RECENT_LIMIT)
@@ -86,7 +74,7 @@ class DashboardRepository:
         """Return recent active reservations for a student."""
         statement = (
             select(Reservation)
-            .options(selectinload(Reservation.book))
+            .options(joinedload(Reservation.book))
             .where(
                 Reservation.student_id == student_id,
                 Reservation.status == ReservationStatus.ACTIVE,
@@ -176,8 +164,8 @@ class DashboardRepository:
         statement = (
             select(Transaction)
             .options(
-                selectinload(Transaction.book_copy).selectinload(BookCopy.book),
-                selectinload(Transaction.student),
+                joinedload(Transaction.book_copy).joinedload(BookCopy.book),
+                joinedload(Transaction.student),
             )
             .order_by(Transaction.issued_at.desc())
             .limit(self.RECENT_LIMIT)
@@ -208,7 +196,7 @@ class DashboardRepository:
         """Return recently created non-deleted users."""
         statement = (
             select(User)
-            .options(selectinload(User.role))
+            .options(joinedload(User.role))
             .where(User.deleted_at.is_(None))
             .order_by(User.created_at.desc())
             .limit(self.RECENT_LIMIT)
@@ -219,7 +207,7 @@ class DashboardRepository:
         """Return recently soft-deleted users."""
         statement = (
             select(User)
-            .options(selectinload(User.role))
+            .options(joinedload(User.role))
             .where(User.deleted_at.is_not(None))
             .order_by(User.deleted_at.desc())
             .limit(self.RECENT_LIMIT)

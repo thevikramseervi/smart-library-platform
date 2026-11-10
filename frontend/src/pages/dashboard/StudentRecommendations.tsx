@@ -8,10 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/apiError";
-import { DASHBOARD_STALE_TIME } from "@/lib/queryClient";
 import { BookCoverImage } from "@/pages/catalog/components/BookCoverImage";
+import { recommendationQueryOptions } from "@/pages/dashboard/recommendationQuery";
 import {
-  getMyRecommendations,
   saveRecommendationFeedback,
   type BookRecommendation,
   type RecommendationFeedbackSignal,
@@ -21,11 +20,7 @@ export function StudentRecommendations() {
   const queryClient = useQueryClient();
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [startIndex, setStartIndex] = useState(0);
-  const query = useQuery({
-    queryKey: ["recommendations", "me"],
-    queryFn: () => getMyRecommendations(20),
-    staleTime: DASHBOARD_STALE_TIME,
-  });
+  const query = useQuery(recommendationQueryOptions);
   const feedbackMutation = useMutation({
     mutationFn: ({ bookId, signal }: { bookId: string; signal: RecommendationFeedbackSignal }) =>
       saveRecommendationFeedback(bookId, signal),

@@ -1633,6 +1633,16 @@ returns `204 No Content`.
 
 ## Circulation Reports (Implemented)
 
+### Dashboard overview
+
+`GET /api/v1/reports/circulation/overview` is admin-only and returns the dashboard's
+most recent 30 UTC calendar days: `loans_issued`, `returns_processed`,
+`overdue_at_period_end`, `fines_collected`, `reservation_pressure_title_count`,
+`current_unpaid_fine_balance`, and `current_unpaid_fine_count`. The unpaid fine
+fields and reservation pressure describe current conditions.
+
+### Full report
+
 Admin-only circulation summary for a UTC calendar date range. Dates are
 optional; the default range is the most recent 30 days ending today. The end
 date cannot be in the future and the start date must not be after the end date.

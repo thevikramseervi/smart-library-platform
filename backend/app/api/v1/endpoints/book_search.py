@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
@@ -89,6 +89,7 @@ def _diversify_semantic_results(
 
 @router.get("/search", response_model=SemanticSearchResponse)
 def semantic_search(
+    response: Response,
     q: str = Query(min_length=1, max_length=512),
     limit: int = Query(default=10, ge=1, le=50),
     _current_user: User = Depends(get_current_user),
@@ -124,6 +125,12 @@ def semantic_search(
             logger.exception("Semantic search failed; falling back to keyword search")
             db.rollback()
         else:
+            timings = embedding_service.last_search_timings
+            if timings:
+                response.headers["Server-Timing"] = (
+                    f"embedding;dur={timings['embedding_ms']:.2f}, "
+                    f"vector-query;dur={timings['vector_query_ms']:.2f}"
+                )
             service = BookService(db)
             keyword_books, _total = service.repository.list_books(
                 page=1,

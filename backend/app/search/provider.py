@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from threading import Lock
+from time import perf_counter
 from typing import Protocol
 
 from app.core.config import settings
@@ -10,6 +12,8 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 _model_singleton: object | None = None
+_model_lock = Lock()
+_provider_lock = Lock()
 
 
 class EmbeddingProvider(Protocol):
@@ -38,12 +42,18 @@ class FastEmbedProvider:
     def _ensure_model(self):
         global _model_singleton
         if self._model is None:
-            from fastembed import TextEmbedding
+            with _model_lock:
+                if self._model is None:
+                    if _model_singleton is None:
+                        from fastembed import TextEmbedding
 
-            if _model_singleton is None:
-                logger.info("Loading embedding model %s", self._model_name)
-                _model_singleton = TextEmbedding(model_name=self._model_name)
-            self._model = _model_singleton
+                        logger.info("Loading embedding model %s", self._model_name)
+                        started = perf_counter()
+                        _model_singleton = TextEmbedding(model_name=self._model_name)
+                        logger.info(
+                            "Embedding model loaded in %.2f ms", (perf_counter() - started) * 1000
+                        )
+                    self._model = _model_singleton
         return self._model
 
     @property
@@ -69,11 +79,14 @@ def get_embedding_provider() -> EmbeddingProvider:
     """Return the configured provider instance (cached)."""
     global _provider
     if _provider is None:
-        _provider = FastEmbedProvider(settings.EMBEDDING_MODEL)
+        with _provider_lock:
+            if _provider is None:
+                _provider = FastEmbedProvider(settings.EMBEDDING_MODEL)
     return _provider
 
 
 def set_embedding_provider(provider: EmbeddingProvider | None) -> None:
     """Override the cached provider. Intended for tests."""
     global _provider
-    _provider = provider
+    with _provider_lock:
+        _provider = provider

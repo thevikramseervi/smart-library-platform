@@ -3,7 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.user import User
 
@@ -18,7 +18,7 @@ class AuthRepository:
         """Fetch a non-deleted user by email with role and department."""
         statement = (
             select(User)
-            .options(selectinload(User.role), selectinload(User.department))
+            .options(joinedload(User.role), joinedload(User.department))
             .where(User.email == email, User.deleted_at.is_(None))
         )
         return self.db.execute(statement).scalar_one_or_none()
@@ -27,7 +27,7 @@ class AuthRepository:
         """Fetch a non-deleted user by id with role and department."""
         statement = (
             select(User)
-            .options(selectinload(User.role), selectinload(User.department))
+            .options(joinedload(User.role), joinedload(User.department))
             .where(User.id == user_id, User.deleted_at.is_(None))
         )
         return self.db.execute(statement).scalar_one_or_none()

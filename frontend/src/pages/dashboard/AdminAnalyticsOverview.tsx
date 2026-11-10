@@ -17,19 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatInr } from "@/lib/formatCurrency";
-import { getCirculationReport } from "@/services/dashboard";
-
-function utcDateOffset(days: number): string {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+import { getCirculationOverview } from "@/services/dashboard";
 
 export function AdminAnalyticsOverview() {
   const panelRef = useRef<HTMLDivElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
-  const startDate = utcDateOffset(-29);
-  const endDate = utcDateOffset(0);
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -53,8 +45,8 @@ export function AdminAnalyticsOverview() {
   }, []);
 
   const reportQuery = useQuery({
-    queryKey: ["reports", "circulation", startDate, endDate],
-    queryFn: () => getCirculationReport(startDate, endDate),
+    queryKey: ["reports", "circulation", "overview"],
+    queryFn: getCirculationOverview,
     staleTime: 5 * 60 * 1000,
     enabled: isNearViewport,
   });

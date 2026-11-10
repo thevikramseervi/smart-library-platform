@@ -6,7 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.sql import contains_pattern
 from app.models.book import Book
@@ -27,10 +27,10 @@ class FineRepository(BaseRepository[Fine]):
     def _with_relations():
         """Load the borrower and physical book copy for fine display."""
         return select(Fine).options(
-            selectinload(Fine.transaction).selectinload(Transaction.student),
-            selectinload(Fine.transaction)
-            .selectinload(Transaction.book_copy)
-            .selectinload(BookCopy.book),
+            joinedload(Fine.transaction).joinedload(Transaction.student),
+            joinedload(Fine.transaction)
+            .joinedload(Transaction.book_copy)
+            .joinedload(BookCopy.book),
         )
 
     def get_by_transaction_id(self, transaction_id: UUID) -> Fine | None:

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.rate_limit import login_rate_limiter
 from app.db.seed import (
@@ -23,6 +24,12 @@ from app.services.embedding_service import get_embedding_reindexer
 from tests.db import TestingSessionLocal, test_engine
 
 pytest_plugins = ["tests.conftest_circulation"]
+
+
+@pytest.fixture(autouse=True)
+def _disable_background_model_prewarm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests explicitly opt in to model startup when needed."""
+    monkeypatch.setattr(settings, "SEMANTIC_SEARCH_PREWARM_ENABLED", False)
 
 
 @pytest.fixture

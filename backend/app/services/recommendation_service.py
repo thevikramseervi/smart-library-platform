@@ -1,6 +1,10 @@
 """Explainable hybrid book recommendations from existing library data."""
 
+import logging
+from collections.abc import Callable
+from functools import lru_cache
 from math import log1p, sqrt
+from time import perf_counter
 from typing import Literal, cast
 from uuid import UUID
 
@@ -16,6 +20,8 @@ from app.schemas.recommendation import (
     RecommendationFeedbackResponse,
 )
 from app.services.book_service import BookService
+
+logger = logging.getLogger(__name__)
 
 
 class RecommendationService:
@@ -45,6 +51,27 @@ class RecommendationService:
         return max(0.0, dot / (left_norm * right_norm))
 
     @staticmethod
+    def _cached_similarity(vectors: dict[UUID, list[float]]) -> Callable[[UUID, UUID], float]:
+        """Reuse vector norms and pair scores during one recommendation request."""
+        norms = {
+            book_id: sqrt(sum(value * value for value in vector))
+            for book_id, vector in vectors.items()
+        }
+
+        @lru_cache(maxsize=None)
+        def similarity(book_id: UUID, other_id: UUID) -> float:
+            left, right = vectors.get(book_id), vectors.get(other_id)
+            if left is None or right is None or len(left) != len(right):
+                return 0.0
+            left_norm, right_norm = norms[book_id], norms[other_id]
+            if not left_norm or not right_norm:
+                return 0.0
+            dot = sum(a * b for a, b in zip(left, right, strict=True))
+            return max(0.0, dot / (left_norm * right_norm))
+
+        return similarity
+
+    @staticmethod
     def _category_interest(
         book: Book,
         rating_preferences: dict[UUID, tuple[str, int]],
@@ -67,6 +94,8 @@ class RecommendationService:
         book_id: UUID,
         seed_weights: dict[UUID, float],
         vectors: dict[UUID, list[float]],
+        *,
+        similarity_lookup: Callable[[UUID, UUID], float] | None = None,
     ) -> tuple[float, UUID | None]:
         candidate = vectors.get(book_id)
         if candidate is None:
@@ -79,7 +108,11 @@ class RecommendationService:
             seed = vectors.get(seed_id)
             if seed is None:
                 continue
-            similarity = RecommendationService._cosine(candidate, seed)
+            similarity = (
+                similarity_lookup(book_id, seed_id)
+                if similarity_lookup is not None
+                else RecommendationService._cosine(candidate, seed)
+            )
             # Use the strongest positive preference, while keeping the score bounded.
             score = similarity * min(weight / 1.5, 1.0)
             if score > best_score:
@@ -148,30 +181,58 @@ class RecommendationService:
             "borrowing": "Related to your borrowing history",
         }.get(signal, "Recommended for you")
 
-    def get_for_student(self, student: User, *, limit: int = 9) -> list[BookRecommendationResponse]:
+    def get_for_student(
+        self, student: User, *, limit: int = 9, timings: dict[str, float] | None = None
+    ) -> list[BookRecommendationResponse]:
         """Return eligible titles in a rotating mix of personalized and library signals."""
-        rating_preferences, like_preferences, borrow_preferences = (
-            self.repository.get_category_preferences(student.id)
+        started = perf_counter()
+        stage_timings: dict[str, float] = {}
+
+        def measure(name, operation):
+            stage_started = perf_counter()
+            result = operation()
+            stage_timings[name] = (perf_counter() - stage_started) * 1000
+            return result
+
+        rating_preferences, like_preferences, borrow_preferences = measure(
+            "preferences", lambda: self.repository.get_category_preferences(student.id)
         )
-        seed_weights_by_signal = self.repository.get_positive_seed_weights_by_signal(student.id)
+        seed_weights_by_signal = measure(
+            "seeds", lambda: self.repository.get_positive_seed_weights_by_signal(student.id)
+        )
         seed_weights: dict[UUID, float] = {}
         for weights in seed_weights_by_signal.values():
             for book_id, weight in weights.items():
                 seed_weights[book_id] = max(seed_weights.get(book_id, 0.0), weight)
-        interacted_ids = self.repository.list_interacted_book_ids(student.id)
-        feedback_signals = self.repository.feedback_signals(student.id)
-        all_books = self.repository.list_candidate_books()
+        interacted_ids = measure(
+            "interactions", lambda: self.repository.list_interacted_book_ids(student.id)
+        )
+        feedback_signals = measure("feedback", lambda: self.repository.feedback_signals(student.id))
+        all_books, vectors = measure(
+            "books-vectors",
+            lambda: self.repository.list_books_and_vectors(settings.EMBEDDING_MODEL),
+        )
         books_by_id = {book.id: book for book in all_books}
         candidates = [book for book in all_books if book.id not in interacted_ids]
-        popularity = self.repository.popularity_counts()
-        rating_averages, rating_counts = self.repository.rating_summaries()
-        available_copies = self.repository.available_copy_counts([book.id for book in candidates])
-        candidates = [book for book in candidates if available_copies.get(book.id, 0) > 0]
+        popularity = measure("popularity", self.repository.popularity_counts)
+        rating_averages, rating_counts = measure("ratings", self.repository.rating_summaries)
+        copy_counts = measure(
+            "copies",
+            lambda: self.book_service.repository.get_copy_counts_by_book_ids(
+                [book.id for book in candidates]
+            ),
+        )
+        candidates = [book for book in candidates if copy_counts[book.id][1] > 0]
 
-        vectors = self.repository.indexed_vectors(settings.EMBEDDING_MODEL)
+        loaded_at = perf_counter()
+        candidate_similarity = self._cached_similarity(vectors)
+
         semantic_by_signal = {
             signal: {
-                book.id: self._semantic_matches(book.id, weights, vectors) for book in candidates
+                book.id: self._semantic_matches(
+                    book.id, weights, vectors, similarity_lookup=candidate_similarity
+                )
+                for book in candidates
             }
             for signal, weights in seed_weights_by_signal.items()
         }
@@ -277,12 +338,10 @@ class RecommendationService:
                     continue
                 scored: list[tuple[float, float, str, Book]] = []
                 for book in available:
-                    vector = vectors.get(book.id)
                     redundancy = max(
                         (
-                            self._cosine(vector, vectors[selected_book.id])
+                            candidate_similarity(book.id, selected_book.id)
                             for selected_book in selected
-                            if vector is not None and selected_book.id in vectors
                         ),
                         default=0.0,
                     )
@@ -311,12 +370,10 @@ class RecommendationService:
                 break
             scored = []
             for book in remaining:
-                vector = vectors.get(book.id)
                 redundancy = max(
                     (
-                        self._cosine(vector, vectors[selected_book.id])
+                        candidate_similarity(book.id, selected_book.id)
                         for selected_book in selected
-                        if vector is not None and selected_book.id in vectors
                     ),
                     default=0.0,
                 )
@@ -331,6 +388,7 @@ class RecommendationService:
             selected.append(chosen)
             selected_signals[chosen.id] = "fallback"
 
+        book_titles = {book_id: item.title for book_id, item in books_by_id.items()}
         recommendations: list[BookRecommendationResponse] = []
         for book in selected:
             signal = selected_signals[book.id]
@@ -347,7 +405,7 @@ class RecommendationService:
                     signal=signal,
                     semantic_seed=semantic_seed,
                     semantic_score=semantic_score,
-                    book_titles={book_id: item.title for book_id, item in books_by_id.items()},
+                    book_titles=book_titles,
                     rating_preferences=rating_preferences,
                     like_preferences=like_preferences,
                     borrow_preferences=borrow_preferences,
@@ -355,7 +413,10 @@ class RecommendationService:
                 )
             recommendations.append(
                 BookRecommendationResponse(
-                    book=self.book_service._to_response(book),
+                    book=self.book_service._to_response(
+                        book,
+                        copy_counts=copy_counts[book.id],
+                    ),
                     average_rating=rating_averages.get(book.id),
                     rating_count=rating_counts.get(book.id, 0),
                     feedback_signal=cast(
@@ -365,6 +426,18 @@ class RecommendationService:
                     reason=reason,
                 )
             )
+        data_ms = (loaded_at - started) * 1000
+        ranking_ms = (perf_counter() - loaded_at) * 1000
+        if timings is not None:
+            timings.update(data_ms=data_ms, ranking_ms=ranking_ms)
+            timings.update(stage_timings)
+        logger.info(
+            "recommendation timing data_ms=%.2f ranking_ms=%.2f candidates=%d results=%d",
+            data_ms,
+            ranking_ms,
+            len(candidates),
+            len(recommendations),
+        )
         return recommendations
 
     def save_feedback(

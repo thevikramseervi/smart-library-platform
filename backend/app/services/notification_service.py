@@ -5,9 +5,10 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.core.clock import utc_today
+from app.models.book import Book
 from app.models.book_copy import BookCopy
 from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
@@ -53,41 +54,43 @@ class NotificationService:
         today = utc_today()
         last_reminder_day = today + timedelta(days=3)
         statement = (
-            select(Transaction)
-            .options(selectinload(Transaction.book_copy).selectinload(BookCopy.book))
+            select(Transaction.id, Transaction.due_at, Book.title)
+            .join(BookCopy, Transaction.book_copy_id == BookCopy.id)
+            .join(Book, BookCopy.book_id == Book.id)
             .where(
                 Transaction.student_id == user.id,
                 Transaction.status == TransactionStatus.ISSUED,
                 Transaction.due_at <= last_reminder_day,
             )
         )
-        for transaction in self.db.execute(statement).scalars().all():
-            book_title = transaction.book_copy.book.title
-            if transaction.due_at < today:
-                self.create_once(
-                    user_id=user.id,
-                    event_key=f"loan-overdue:{transaction.id}:{transaction.due_at.isoformat()}",
-                    notification_type="LOAN_OVERDUE",
-                    title="Book overdue",
-                    message=(
+        reminders = []
+        for transaction_id, due_at, book_title in self.db.execute(statement).all():
+            if due_at < today:
+                reminders.append({
+                    "user_id": user.id,
+                    "event_key": f"loan-overdue:{transaction_id}:{due_at.isoformat()}",
+                    "notification_type": "LOAN_OVERDUE",
+                    "title": "Book overdue",
+                    "message": (
                         f"{book_title} is past its due date. Return it soon; "
                         "check My Loans for the current overdue days and fine balance."
                     ),
-                    link="/circulation/my-loans",
-                )
+                    "link": "/circulation/my-loans",
+                })
                 continue
 
-            self.create_once(
-                user_id=user.id,
-                event_key=f"loan-due:{transaction.id}:{transaction.due_at.isoformat()}",
-                notification_type="DUE_SOON",
-                title="Book due soon",
-                message=(
+            reminders.append({
+                "user_id": user.id,
+                "event_key": f"loan-due:{transaction_id}:{due_at.isoformat()}",
+                "notification_type": "DUE_SOON",
+                "title": "Book due soon",
+                "message": (
                     f"{book_title} is due on "
-                    f"{transaction.due_at.strftime('%d %b %Y')}."
+                    f"{due_at.strftime('%d %b %Y')}."
                 ),
-                link="/circulation/my-loans",
-            )
+                "link": "/circulation/my-loans",
+            })
+        self.repository.create_many_once(reminders)
 
     def list_for_user(self, user: User) -> NotificationCenterResponse:
         """Generate due and overdue loan reminders and return recent notifications."""

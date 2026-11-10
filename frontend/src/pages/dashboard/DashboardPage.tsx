@@ -6,6 +6,7 @@ import { AdminDashboardView } from "@/pages/dashboard/AdminDashboardView";
 import { AdminAnalyticsOverview } from "@/pages/dashboard/AdminAnalyticsOverview";
 import { LibrarianDashboardView } from "@/pages/dashboard/LibrarianDashboardView";
 import { StudentDashboardView } from "@/pages/dashboard/StudentDashboardView";
+import { recommendationQueryOptions } from "@/pages/dashboard/recommendationQuery";
 import { DashboardLoadingSkeleton } from "@/pages/dashboard/components/DashboardShared";
 import {
   getAdminDashboard,
@@ -24,6 +25,11 @@ export function DashboardPage() {
     queryFn: getStudentDashboard,
     enabled: roleName === "STUDENT",
     staleTime: DASHBOARD_STALE_TIME,
+  });
+
+  useQuery({
+    ...recommendationQueryOptions,
+    enabled: roleName === "STUDENT",
   });
 
   const librarianQuery = useQuery({

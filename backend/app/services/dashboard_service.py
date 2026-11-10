@@ -50,11 +50,14 @@ class DashboardService:
             for reservation in reservations
         ]
 
+        active_loans, active_reservations, unpaid_fines, total_borrowed = (
+            self.repository.student_stats(student.id)
+        )
         return StudentDashboardResponse(
-            active_loans=self.repository.count_active_loans_for_student(student.id),
-            active_reservations=self.repository.count_active_reservations_for_student(student.id),
-            unpaid_fines=self.repository.sum_unpaid_fines_for_student(student.id),
-            total_books_borrowed=self.repository.count_total_borrowed_for_student(student.id),
+            active_loans=active_loans,
+            active_reservations=active_reservations,
+            unpaid_fines=unpaid_fines,
+            total_books_borrowed=total_borrowed,
             recent_loans=recent_loans,
             recent_reservations=recent_reservations,
         )

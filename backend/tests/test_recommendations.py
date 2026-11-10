@@ -1,11 +1,13 @@
 """Student book recommendation tests."""
 
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.models.book_embedding import BookEmbedding, EmbeddingStatus
 from app.repositories.recommendation_repository import RecommendationRepository
 from app.services.recommendation_service import RecommendationService
 from tests.conftest_circulation import (  # noqa: F401
@@ -28,6 +30,18 @@ def test_cosine_similarity_handles_matching_and_invalid_vectors() -> None:
     assert RecommendationService._cosine([1.0], [1.0, 0.0]) == 0.0
 
 
+def test_cached_similarity_matches_cosine_for_valid_and_invalid_vectors() -> None:
+    ids = [uuid4() for _ in range(5)]
+    vectors = dict(zip(ids, [[1.0, 0.0], [0.8, 0.6], [-1.0, 0.0], [0.0, 0.0], [1.0]], strict=True))
+    similarity = RecommendationService._cached_similarity(vectors)
+    for left in ids:
+        for right in ids:
+            assert similarity(left, right) == RecommendationService._cosine(
+                vectors[left], vectors[right]
+            )
+    assert similarity(ids[0], uuid4()) == 0.0
+
+
 def test_semantic_match_uses_the_most_relevant_positive_seed() -> None:
     candidate_id, seed_id, other_seed_id = uuid4(), uuid4(), uuid4()
     score, matched_seed = RecommendationService._semantic_matches(
@@ -41,6 +55,43 @@ def test_semantic_match_uses_the_most_relevant_positive_seed() -> None:
     )
     assert score == 0.8
     assert matched_seed == seed_id
+
+
+def test_catalog_vectors_include_only_indexed_current_model(
+    db_session: Session, catalog_book_with_copy: dict,  # noqa: F811
+) -> None:
+    book_id = UUID(catalog_book_with_copy["book_id"])
+    embedding = db_session.get(BookEmbedding, book_id)
+    assert embedding is not None
+    embedding.embedding = [1.0] + [0.0] * 383
+    embedding.embedding_status = EmbeddingStatus.INDEXED
+    embedding.model_name = "test-model"
+    db_session.flush()
+
+    repository = RecommendationRepository(db_session)
+    books, vectors = repository.list_books_and_vectors("test-model")
+    assert any(book.id == book_id for book in books)
+    assert len(vectors[book_id]) == 384
+    assert vectors[book_id][0] == 1.0
+
+    # A new indexed vector must replace a cached vector, even for the same model.
+    embedding.embedding = [0.0, 1.0] + [0.0] * 382
+    embedding.indexed_at = datetime.now(UTC) + timedelta(seconds=1)
+    db_session.flush()
+    _, vectors = repository.list_books_and_vectors("test-model")
+    assert vectors[book_id][:2] == [0.0, 1.0]
+
+    embedding.embedding_status = EmbeddingStatus.PENDING
+    db_session.flush()
+    books, vectors = repository.list_books_and_vectors("test-model")
+    assert any(book.id == book_id for book in books)
+    assert book_id not in vectors
+
+    embedding.embedding_status = EmbeddingStatus.INDEXED
+    embedding.model_name = "another-model"
+    db_session.flush()
+    _, vectors = repository.list_books_and_vectors("test-model")
+    assert book_id not in vectors
 
 
 def test_recommendation_reason_does_not_compare_a_book_to_itself() -> None:

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import utc_today
 from app.repositories.circulation_reports_repository import CirculationReportsRepository
 from app.schemas.reports import (
+    CirculationOverviewResponse,
     CirculationReportResponse,
     CirculationTrendPoint,
     DepartmentParticipationReport,
@@ -55,6 +56,23 @@ class CirculationReportsService:
 
     def __init__(self, db: Session) -> None:
         self.repository = CirculationReportsRepository(db)
+
+    def get_overview(self) -> CirculationOverviewResponse:
+        """Return only the metrics used by the admin dashboard."""
+        end = utc_today()
+        start = end - timedelta(days=29)
+        FineService(self.repository.db).sync_open_overdue_fines()
+        unpaid_balance, unpaid_count = self.repository.get_current_unpaid_fines()
+        inventory = self.repository.get_inventory_insights(start, end)
+        return CirculationOverviewResponse(
+            loans_issued=self.repository.count_issues(start, end),
+            returns_processed=self.repository.count_returns(start, end),
+            overdue_at_period_end=self.repository.count_overdue_at_period_end(end),
+            fines_collected=_money(self.repository.sum_fines_collected(start, end)),
+            reservation_pressure_title_count=inventory.reservation_pressure_title_count,
+            current_unpaid_fine_balance=_money(unpaid_balance),
+            current_unpaid_fine_count=unpaid_count,
+        )
 
     def get_report(
         self, *, start_date: date | None, end_date: date | None

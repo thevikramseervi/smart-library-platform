@@ -41,6 +41,17 @@ class NotificationRepository:
         )
         self.db.execute(statement)
 
+    def create_many_once(self, notifications: list[dict]) -> None:
+        """Create multiple events in one statement, ignoring existing events."""
+        if not notifications:
+            return
+        statement = (
+            insert(Notification)
+            .values(notifications)
+            .on_conflict_do_nothing(constraint="uq_notifications_user_event_key")
+        )
+        self.db.execute(statement)
+
     def list_for_user(self, user_id: UUID, *, limit: int = 50) -> list[Notification]:
         statement = (
             select(Notification)

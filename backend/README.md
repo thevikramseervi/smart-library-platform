@@ -150,6 +150,26 @@ uv run uvicorn app.main:app --reload --port 8000
 
 Ensure `CORS_ORIGINS` in `.env` includes your frontend origin (default `http://localhost:5173`).
 
+Each HTTP response includes a `Server-Timing: app;dur=...` header in milliseconds.
+This measures backend processing until response headers are ready; it does not include
+browser network time or downloading the full response body. Backend logs also show the
+HTTP method, route template, status, and duration without query strings or request bodies.
+Use the browser Network panel to compare individual API requests and the server timing
+header with their total request times. Restart the backend after changing middleware.
+Notification reminder checks fetch due loans together and insert missing reminders in
+one batch. Recommendations retrieve total and available copy counts in one grouped query.
+Recommendation vectors use a process-local cache for at most 30 seconds. A database
+fingerprint is checked on each request so normal indexing, status, and deletion changes
+invalidate cached vectors; book metadata and copy availability are read fresh. Each
+backend worker maintains its own cache.
+Recommendation responses include `rec-data`, `rec-ranking`, and individual data-stage
+server timings such as `rec-books-vectors`. Semantic
+search responses include `embedding` and `vector-query` timings when vector search runs;
+model-load duration is also logged when the embedding model first loads in a worker.
+When semantic search is enabled, the backend starts warming its embedding model in a
+background thread after startup. Set `SEMANTIC_SEARCH_PREWARM_ENABLED=false` to keep
+model loading on demand. If prewarming fails, search can retry and use keyword fallback.
+
 ---
 
 ## Run Tests

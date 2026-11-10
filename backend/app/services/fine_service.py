@@ -33,7 +33,7 @@ class FineService:
         self.db = db
         self._active_policy: CirculationPolicy | None = None
 
-    def _get_active_policy(self) -> CirculationPolicy:
+    def get_active_policy(self) -> CirculationPolicy:
         if self._active_policy is None:
             self._active_policy = self.policy_repository.get_active()
         return self._active_policy
@@ -43,7 +43,7 @@ class FineService:
         transactions = self.transaction_repository.list_open_overdue(student_id)
         if not transactions:
             return
-        policy = self._get_active_policy()
+        policy = self.get_active_policy()
         today = utc_today()
         accrued: list[tuple[UUID, Decimal, int]] = []
         for transaction_id, due_at in transactions:
@@ -66,7 +66,7 @@ class FineService:
         if days_late <= 0:
             return None
 
-        policy = self._get_active_policy()
+        policy = self.get_active_policy()
         amount = min(
             Decimal(days_late) * policy.daily_overdue_fine_rate,
             policy.max_fine_amount,
@@ -90,7 +90,7 @@ class FineService:
         return existing
 
     def _response(self, fine: Fine) -> FineResponse:
-        policy = self._get_active_policy()
+        policy = self.get_active_policy()
         return FineResponse(
             id=fine.id,
             transaction_id=fine.transaction_id,

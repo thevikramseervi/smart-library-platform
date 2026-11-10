@@ -30,3 +30,13 @@ export async function getCirculationReport(
   });
   return response.data;
 }
+
+export type CirculationOverview = Pick<CirculationReportResponse,
+  "loans_issued" | "returns_processed" | "overdue_at_period_end" | "fines_collected" |
+  "reservation_pressure_title_count" | "current_unpaid_fine_balance" | "current_unpaid_fine_count"
+>;
+
+export async function getCirculationOverview(): Promise<CirculationOverview> {
+  const response = await api.get<CirculationOverview>("/reports/circulation/overview");
+  return response.data;
+}

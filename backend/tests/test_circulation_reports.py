@@ -5,6 +5,25 @@ from fastapi.testclient import TestClient
 from app.core.clock import utc_today
 
 
+def test_dashboard_overview_matches_report_and_is_admin_only(
+    client: TestClient,
+    admin_token: str,
+    librarian_token: str,
+    student_token: str,
+) -> None:
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+    overview = client.get("/api/v1/reports/circulation/overview", headers=admin_headers)
+    report = client.get("/api/v1/reports/circulation", headers=admin_headers)
+    assert overview.status_code == report.status_code == 200
+    assert all(value == report.json()[key] for key, value in overview.json().items())
+    for token in (librarian_token, student_token):
+        response = client.get(
+            "/api/v1/reports/circulation/overview",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
+
+
 def test_admin_circulation_report_counts_issues_and_returns(
     client: TestClient,
     admin_token: str,

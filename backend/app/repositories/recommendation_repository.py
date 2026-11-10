@@ -1,20 +1,21 @@
 """Database queries for personalized book recommendations."""
 
-from collections import defaultdict
 from uuid import UUID
 
-from sqlalchemy import case, delete, func, literal, select, union
+from sqlalchemy import String, case, cast, delete, func, literal, select, union
+from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.book import Book
 from app.models.book_category import BookCategory
-from app.models.book_copy import BookCopy, BookCopyStatus
+from app.models.book_copy import BookCopy
 from app.models.book_embedding import BookEmbedding, EmbeddingStatus
 from app.models.category import Category
 from app.models.rating import Rating
 from app.models.recommendation_feedback import RecommendationFeedback
 from app.models.transaction import Transaction
+from app.repositories.recommendation_vector_cache import vector_cache
 
 
 class RecommendationRepository:
@@ -188,26 +189,8 @@ class RecommendationRepository:
         )
         return self.db.execute(statement).rowcount
 
-    def indexed_vectors(self, model_name: str) -> dict[UUID, list[float]]:
-        """Load current-model vectors for active books without invoking inference."""
-        statement = (
-            select(BookEmbedding.book_id, BookEmbedding.embedding)
-            .join(Book, Book.id == BookEmbedding.book_id)
-            .where(
-                Book.deleted_at.is_(None),
-                BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
-                BookEmbedding.embedding.is_not(None),
-                BookEmbedding.model_name == model_name,
-            )
-        )
-        return {
-            book_id: list(vector)
-            for book_id, vector in self.db.execute(statement)
-            if vector is not None
-        }
-
-    def list_candidate_books(self) -> list[Book]:
-        """Return active catalog books with the relations needed for ranking."""
+    def list_books_and_vectors(self, model_name: str) -> tuple[list[Book], dict[UUID, list[float]]]:
+        """Fetch live catalog metadata and revision-checked indexed vectors."""
         statement = (
             select(Book)
             .options(
@@ -218,7 +201,57 @@ class RecommendationRepository:
             )
             .where(Book.deleted_at.is_(None))
         )
-        return list(self.db.execute(statement).unique().scalars().all())
+        books = list(self.db.execute(statement).unique().scalars().all())
+        revision = self._vector_revision(model_name)
+        bind = self.db.get_bind()
+        cache_key = (getattr(bind, "engine", bind), model_name)
+        vectors = vector_cache.get(cache_key, revision)
+        if vectors is not None:
+            return books, vectors
+
+        vector_query = (
+            select(BookEmbedding.book_id, BookEmbedding.embedding)
+            .join(Book, Book.id == BookEmbedding.book_id)
+            .where(
+                Book.deleted_at.is_(None),
+                BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
+                BookEmbedding.embedding.is_not(None),
+                BookEmbedding.model_name == model_name,
+            )
+        )
+        vectors = {
+            book_id: vector.tolist() if hasattr(vector, "tolist") else list(vector)
+            for book_id, vector in self.db.execute(vector_query)
+            if vector is not None
+        }
+        # Do not cache a mixed snapshot if a reindex or deletion raced the read.
+        if self._vector_revision(model_name) == revision:
+            vector_cache.put(cache_key, revision, vectors)
+        return books, vectors
+
+    def _vector_revision(self, model_name: str) -> str:
+        """Fingerprint active indexed vector metadata without transferring vectors."""
+        part = func.concat_ws(
+            ":",
+            cast(BookEmbedding.book_id, String),
+            cast(BookEmbedding.updated_at, String),
+            cast(BookEmbedding.indexed_at, String),
+            BookEmbedding.content_hash,
+        )
+        statement = (
+            select(func.md5(func.coalesce(func.string_agg(
+                part, aggregate_order_by(literal("|"), BookEmbedding.book_id)
+            ), "")))
+            .select_from(BookEmbedding)
+            .join(Book, Book.id == BookEmbedding.book_id)
+            .where(
+                Book.deleted_at.is_(None),
+                BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
+                BookEmbedding.embedding.is_not(None),
+                BookEmbedding.model_name == model_name,
+            )
+        )
+        return self.db.execute(statement).scalar_one()
 
     def popularity_counts(self) -> dict[UUID, int]:
         """Count historical issues per title."""
@@ -242,19 +275,3 @@ class RecommendationRepository:
             averages[book_id] = float(average)
             counts[book_id] = int(count)
         return averages, counts
-
-    def available_copy_counts(self, book_ids: list[UUID]) -> dict[UUID, int]:
-        """Count available copies for a candidate batch."""
-        if not book_ids:
-            return defaultdict(int)
-        statement = (
-            select(BookCopy.book_id, func.count(BookCopy.id))
-            .where(
-                BookCopy.book_id.in_(book_ids),
-                BookCopy.status == BookCopyStatus.AVAILABLE,
-            )
-            .group_by(BookCopy.book_id)
-        )
-        counts: defaultdict[UUID, int] = defaultdict(int)
-        counts.update({book_id: int(count) for book_id, count in self.db.execute(statement)})
-        return counts

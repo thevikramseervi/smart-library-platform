@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from time import perf_counter
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -33,6 +34,7 @@ class EmbeddingService:
         self.repository = EmbeddingRepository(db)
         self.db = db
         self.provider = provider or get_embedding_provider()
+        self.last_search_timings: dict[str, float] = {}
 
     @staticmethod
     def hash_for_book(book: Book) -> str:
@@ -213,11 +215,23 @@ class EmbeddingService:
         if not settings.SEMANTIC_SEARCH_ENABLED:
             return []
         search_text = _search_query_text(query, self.provider.model_name)
+        started = perf_counter()
         vector = self.provider.embed_texts([search_text])[0]
+        embedded_at = perf_counter()
         results = self.repository.search_similar(
             query_vector=vector,
             limit=limit,
             model_name=self.provider.model_name,
+        )
+        self.last_search_timings = {
+            "embedding_ms": (embedded_at - started) * 1000,
+            "vector_query_ms": (perf_counter() - embedded_at) * 1000,
+        }
+        logger.info(
+            "semantic search timing embedding_ms=%.2f vector_query_ms=%.2f results=%d",
+            self.last_search_timings["embedding_ms"],
+            self.last_search_timings["vector_query_ms"],
+            len(results),
         )
         # Similarity values are model- and corpus-dependent. Preserve the
         # nearest ranked hits instead of applying an uncalibrated zero cutoff.

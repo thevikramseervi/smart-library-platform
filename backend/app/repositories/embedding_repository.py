@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.book import Book
 from app.models.book_embedding import BookEmbedding, EmbeddingStatus
@@ -179,10 +179,17 @@ class EmbeddingRepository:
         """Return nearest active books indexed with the current model."""
         distance = BookEmbedding.embedding.cosine_distance(query_vector).label("distance")
         statement = (
-            self._book_with_relations()
+            select(Book)
+            .options(
+                joinedload(Book.publisher),
+                joinedload(Book.language),
+                selectinload(Book.authors),
+                selectinload(Book.categories),
+            )
             .join(BookEmbedding, BookEmbedding.book_id == Book.id)
             .add_columns(distance)
             .where(
+                Book.deleted_at.is_(None),
                 BookEmbedding.embedding_status == EmbeddingStatus.INDEXED,
                 BookEmbedding.embedding.is_not(None),
                 BookEmbedding.model_name == model_name,
