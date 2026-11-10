@@ -3,6 +3,10 @@
 **Date:** 2026-06-07  
 **Scope:** Production-readiness fixes from Sprint 4 audit (no Sprint 5 features)
 
+This is a historical report. Its verification results and scope describe the
+2026-06-07 work only; later changes are summarized in
+[`sprint-4-summary.md`](sprint-4-summary.md) and the current project docs.
+
 ---
 
 ## Verification

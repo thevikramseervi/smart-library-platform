@@ -4,12 +4,16 @@
 **Module:** Circulation & Reservations  
 **Sprint:** 4  
 **Document version:** 1.1
-**Last updated:** 2026-11-09
+**Last updated:** 2026-11-10
 
-The acceptance criteria remain useful for the current circulation workflow.
-The execution results below are historical Sprint 4 records and do not certify
-the current code revision. Current backend tests were not run during this
-documentation update.
+The cases below document the original Sprint 4 circulation and reservation
+deliverables. They remain a subset of current circulation behavior, not a full
+acceptance plan for later features such as renewals, QR workflows, notifications,
+and audit logging. The execution results are historical Sprint 4 records and do
+not certify the current code revision. Current automated tests live under
+`backend/tests/` and the frontend component tests are documented in
+[`../frontend/README.md`](../frontend/README.md); neither suite was run while
+updating this document.
 
 ---
 

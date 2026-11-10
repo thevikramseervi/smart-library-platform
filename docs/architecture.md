@@ -1,6 +1,6 @@
 # Smart Library Platform - Architecture Document
 
-**Implementation snapshot:** 2026-11-10 (Alembic head `022_digital_resources`)
+**Implementation snapshot:** 2026-11-10 (Alembic head `024_recommendation_feedback`)
 
 ## 1. Project Overview
 
@@ -8,7 +8,7 @@ Smart Library Platform is a cloud-based Library Management System developed as a
 
 The current implementation manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
 
-Staff QR label printing and issue/return scanning are implemented. Staff can attach one private PDF to a catalog title in Cloudflare R2; authenticated users can open or download it from book details when storage is configured. Admin circulation reports and audit history for catalog and digital resources, copies, reference data, departments, user administration, circulation, reservation lifecycle, fines, and circulation policy changes are implemented; broader analytics remain future work. Semantic book search, ratings and reviews, student recommendations, and in-app circulation notifications are implemented.
+Staff QR label printing and issue/return scanning are implemented. Students have library-card QR codes generated from their student codes; staff can scan these on the Issue Book page to find/select the student, with normal review and issue confirmation still required. Staff can attach one private PDF to a catalog title during book creation or from book details; authenticated users can open or download it when Cloudflare R2 is configured. Admin circulation reports and audit history for catalog and digital resources, copies, reference data, departments, user administration, circulation, reservation lifecycle, fines, and circulation policy changes are implemented; broader analytics remain future work. Semantic book search, ratings and reviews, student recommendations with saved feedback, and in-app circulation notifications are implemented.
 
 ---
 
@@ -59,7 +59,7 @@ Staff QR label printing and issue/return scanning are implemented. Staff can att
 ### Future Student/Staff Capabilities
 
 * A custom in-app PDF reader (PDFs currently open in the browser's built-in viewer or download)
-* Student self-service QR circulation; QR label printing and staff scanning are implemented
+* Student self-service issue/return (student QR cards and staff scanning are implemented; a staff member still completes circulation)
 
 ---
 
@@ -83,7 +83,7 @@ Responsible for:
 * Catalog, circulation, and admin modules
 * TanStack Query data fetching
 
-The catalog opens digital PDFs in the browser's built-in PDF viewer and supports downloading; a custom embedded PDF reader is not implemented. Broader analytics charts are future work. Admin circulation reports and an audit log page are implemented. Staff QR label printing and copy scanning are implemented in the frontend.
+The catalog opens digital PDFs in the browser's built-in PDF viewer and supports downloading; a custom embedded PDF reader is not implemented. Broader analytics charts are future work. Admin circulation reports and an audit log page are implemented. The frontend generates copy and student QR images locally; staff can scan copy codes on issue/return pages and student codes on the issue page.
 
 ### Backend Layer
 
@@ -315,7 +315,7 @@ QR circulation and digital library workflows below are implemented. The recommen
 
 ### QR-Based Circulation
 
-Staff can print a label for one or all physical copies from the book detail page. The frontend generates a QR image locally from the copy's existing `qr_code_value` (currently the inventory code); it is not stored as an image and requires no database migration. Issue and return pages can scan the label using the camera, then use the scanned inventory code to filter the existing copy or active-loan list. The existing student selection, reservation, fine, and confirmation checks still apply. Manual search remains available.
+Staff can print a label for one or all physical copies from the book detail page. The frontend generates a QR image locally from the copy's existing `qr_code_value` (currently the inventory code); it is not stored as an image and requires no database migration. On the issue page, scanning an eligible copy selects it; on the return page, scanning filters the active-loan list. Students can view/download their library-card QR from their profile, and administrators can view/print it from user management. The code contains only the `student_code`; scanning it on the issue page finds and selects the student. It does not issue a loan automatically. Reservation, fine, eligibility, and confirmation checks still apply. Manual search remains available.
 
 ### Digital Library
 
@@ -324,7 +324,8 @@ Authenticated API → private Cloudflare R2 object
                     ↘ PostgreSQL metadata and opaque key
 ```
 
-Staff can upload, replace, or remove one PDF (up to 25 MB) for a catalog title.
+Staff can upload a PDF (up to 25 MB) while creating a catalog title, or upload,
+replace, or remove it later from the book detail page.
 Authenticated users can open or download it from the book detail page. File
 bytes remain in R2; PostgreSQL stores only metadata and the private object key.
 
@@ -377,7 +378,7 @@ See [`deployment.md`](deployment.md) for environment variables and checklist.
 
 Digital PDF storage uses a private Cloudflare R2 bucket. The Render backend
 must have the `CLOUD_STORAGE_*` settings configured, and the target database
-must be migrated through `022_digital_resources`.
+must be migrated through the current repository head, `024_recommendation_feedback`.
 
 ---
 
@@ -406,7 +407,7 @@ Physical library catalog and inventory, digital PDF files, circulation, reservat
 
 ### Excluded / Future
 
-Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, and analytics beyond circulation reports.
+Student self-service issue/return, payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, and analytics beyond circulation reports.
 
 ---
 

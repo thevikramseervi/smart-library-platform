@@ -239,6 +239,17 @@ never included. Department and standalone author, category, publisher, and
 language creation/change actions are covered where the corresponding API
 operation exists.
 
+### Current implementation update (2026-11-10)
+
+The later implementation now includes in-app circulation notifications, private
+digital PDFs, student and copy QR workflows, ratings with written reviews,
+semantic search and admin reindex controls, diversified student recommendations
+with saved feedback, admin circulation reports, and policy-change audit events.
+The current migration head is `024_recommendation_feedback`. This remains a
+historical sprint document; consult the root README, architecture, API, and
+database references for current behavior. Historical test totals above are not
+verification of the current revision.
+
 ---
 
 ## Related Documents

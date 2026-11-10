@@ -104,6 +104,8 @@ Migration files live in `alembic/versions/`:
 | `020_audit_logs` | Adds admin-visible audit records for catalog and digital-resource, reference data, department, user, circulation, reservation, fine, and policy changes |
 | `021_rating_reviews` | Adds optional student-written review text to book ratings |
 | `022_digital_resources` | Adds metadata for one private Cloudflare R2 PDF per catalog book |
+| `023_student_admission_year` | Replaces the users' `semester` column with optional `admission_year`; existing semester values are not converted |
+| `024_recommendation_feedback` | Adds per-student, per-book `LIKE` and `DISMISS` feedback for recommendations |
 
 ---
 

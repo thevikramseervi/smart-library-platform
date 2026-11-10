@@ -178,7 +178,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 ## Post-Deploy Checklist
 
 - [ ] `DATABASE_URL` set with `sslmode=require` (Neon)
-- [ ] `uv run alembic upgrade head` succeeded (through revision `022_digital_resources`)
+- [ ] `uv run alembic upgrade head` succeeded (current repository head: `024_recommendation_feedback`; use `alembic heads` to verify the checked-out revision)
 - [ ] `JWT_SECRET_KEY` is a strong unique value — the server **refuses to start** on known defaults or secrets under 32 characters
 - [ ] `CORS_ORIGINS` includes the exact Vercel frontend URL (scheme + host, no trailing slash)
 - [ ] `VITE_API_BASE_URL` points to the deployed backend `/api/v1`

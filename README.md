@@ -2,7 +2,7 @@
 
 An AI-powered, cloud-based Library Management System built as a final-year engineering project.
 
-This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings and written reviews, student book recommendations, semantic book search, in-app notifications, QR-based copy labels/scanning, private digital PDFs, admin circulation reports, and audit history for catalog, inventory, reference data, departments, users, circulation, reservations, fines, and policy actions are implemented. Broader analytics remain future work.
+This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings and written reviews, student book recommendations, semantic book search, in-app notifications, QR-based copy labels and student library cards, private digital PDFs, admin circulation reports, and audit history for catalog, inventory, reference data, departments, users, circulation, reservations, fines, and policy actions are implemented. Staff can scan copy QR codes on issue/return pages and scan a student's library-card QR while issuing a book. Broader analytics remain future work.
 
 **Documentation snapshot:** 2026-11-10. See the sprint reports for dated
 delivery history; their old test counts and limitations are not current status.
@@ -26,13 +26,13 @@ Smart Library Platform is a web application for managing a library catalog, phys
 | Module | Capabilities |
 |--------|--------------|
 | **Authentication & RBAC** | JWT login with in-process failed-login lockout, self-service password change with session rotation, role-based route and API protection (Admin, Librarian, Student) |
-| **User Management** | Admin CRUD for users, admin password reset, soft delete, role/department assignment |
+| **User Management** | Admin CRUD for users, admin password reset, soft delete, role/department assignment, and optional student admission year |
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
-| **Digital Books** | With Cloudflare R2 configured and migration `022_digital_resources` applied, staff can upload, replace, or remove one private PDF per title; authenticated users can open or download it from book details |
+| **Digital Books** | With Cloudflare R2 configured and migrations applied, staff can attach one private PDF while creating a title or upload, replace, or remove it later; authenticated users can open or download it from book details |
 | **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
-| **Circulation** | Issue, return, student self-service renewals, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination; staff can scan a copy QR code to filter/select it |
-| **QR Copy Labels** | Staff can print a QR label per copy or print all labels for a book; the QR encodes the existing inventory code |
+| **Circulation** | Issue, return, student self-service renewals, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination; staff can scan copy QR codes and student library-card QR codes while issuing |
+| **QR Codes** | Students can view/download a library-card QR from their profile; staff can view/print student QR codes from user management and print QR labels for one copy or all copies of a book. Student QR encodes `student_code`; copy QR encodes `inventory_code` |
 | **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions; creation, cancellation, expiry, and fulfillment are included in the admin audit log |
 | **Fines** | Overdue balances accrue on open loans (calendar days, capped), finalize on return, block new borrowing while unpaid, and can be marked paid exactly once after return |
 | **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, renewal limit, hold expiry), latest editor attribution, and Admin UI |
@@ -41,7 +41,7 @@ Smart Library Platform is a web application for managing a library catalog, phys
 | **Audit Log** | Admin-only, read-only history for catalog, digital PDF, inventory, reference-data, department, and user changes; book issue/return/renewal; reservation creation/cancellation/expiry/fulfillment; fine recording/payment; and circulation policy changes |
 | **In-app Notifications** | User-scoped confirmations for book issues/returns and fine payments, plus alerts for reservation-ready copies, due-soon or overdue loans, and recorded fines |
 | **Ratings & Reviews** | Students rate each book once (1–5) and can add, edit, or remove an optional written review; authenticated users can see the average and recent reviews on book detail pages |
-| **Recommendations** | Student dashboard ranks available, unseen titles using existing semantic embeddings, positive ratings, borrowing history, category interests, and library popularity, with diversity and non-semantic fallbacks |
+| **Recommendations** | Student dashboard shows a diverse set of available, unseen titles based on positive ratings, saved likes, borrowing history, library popularity, and community ratings; it displays six at a time with in-place browsing, using indexed semantic similarity and non-semantic fallbacks when available |
 | **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits and searchable author/category/publisher renames or soft deletions queue affected books for background reindexing, with admin status/retry/full rebuild and an offline reindex command |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
@@ -245,11 +245,11 @@ Issue/return workflows with reservation queue awareness.
 ## Development Commands
 
 ```bash
-# Backend tests
-cd backend && uv run pytest
+# Backend lint and tests
+cd backend && uv run ruff check app tests && uv run pytest
 
-# Frontend production build
-cd frontend && pnpm build
+# Frontend lint, component tests, and production build
+cd frontend && pnpm lint && pnpm test && pnpm build
 ```
 
 ---

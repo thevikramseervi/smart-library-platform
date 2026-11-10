@@ -842,7 +842,7 @@ PUT /api/v1/book-copies/{id}
 
 Staff may update copy `status`, `location`, and `acquired_date`. Status changes validate open loans and circulation-managed statuses (`BORROWED`, `RESERVED`).
 
-The frontend generates printable QR labels locally from `qr_code_value` (currently equal to `inventory_code`). No QR image API endpoint is used; camera scans pass the decoded inventory code into the existing issue/return search flows.
+The frontend generates printable copy QR labels locally from `qr_code_value` (currently equal to `inventory_code`). Student library-card QR images are also generated locally from `student_code`; neither has a QR image API endpoint. Staff can scan copy labels on issue/return pages and scan a student card on the issue page. Copy and student scans feed the existing selection flows and do not bypass circulation checks or confirmation.
 
 ---
 

@@ -497,8 +497,10 @@ Similarity Metric:
 
 The current reindex command is `uv run python -m app.scripts.reindex_embeddings`.
 The implemented `/recommendations/me` endpoint reuses indexed embeddings to
-compare available unseen titles with positively rated or borrowed books, blended
-with category interest, popularity, and average ratings. Missing vectors fall
+compare available unseen titles with positively rated, borrowed, or liked books,
+blended with category interest, popularity, and average ratings. Candidate pools
+rotate across ratings, likes, borrowing, popularity, and highly rated titles.
+Missing vectors fall
 back to the existing catalog signals; requests must not perform model inference.
 Keep results explainable and add diversity to avoid repetitive suggestions. Do
 not add an external model, LangChain, LlamaIndex, or autonomous agents for this
@@ -518,13 +520,13 @@ for version 1.
 
 ---
 
-# QR Rules (Implemented Staff Workflow)
+# QR Rules (Implemented Workflows)
 
 Each copy stores `qr_code_value`, currently equal to its inventory code. The
-frontend creates printable labels locally and staff can scan them on the issue
-and return pages. The scan only filters the existing copy/loan search; it does
-not bypass student selection, circulation rules, or confirmation. There is no
-QR image API endpoint and no student QR workflow.
+frontend generates printable copy labels locally; staff can scan them on the
+issue and return pages. On issue, an eligible scanned copy is selected; on
+return, the code filters the active-loan search. These scans do not bypass
+circulation eligibility or confirmation.
 
 Each Book Copy must have:
 
@@ -536,7 +538,13 @@ QR code generated from inventory_code.
 
 ---
 
-Each Student must have:
+Students with an assigned `student_code` have a library-card QR generated
+locally in the profile. Staff can also view/print it from user management and
+scan it on the issue page to find and select the student. The scan still
+requires staff review and normal issue confirmation. It does not issue a book
+without staff action, and there is no QR image API endpoint.
+
+For a student QR, the encoded value is:
 
 ```text
 student_code

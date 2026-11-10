@@ -1,6 +1,6 @@
 # Smart Library Platform - Database Design
 
-**Implementation snapshot:** 2026-11-10 (Alembic head `022_digital_resources`)
+**Implementation snapshot:** 2026-11-10 (Alembic head `024_recommendation_feedback`)
 
 ## Overview
 
@@ -45,7 +45,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables and changes created by Alembic migrations `001` through `022`.
+Tables and changes created by Alembic migrations `001` through `024`.
 
 ## Migration History
 
@@ -73,6 +73,8 @@ Tables and changes created by Alembic migrations `001` through `022`.
 | `020_audit_logs` | Adds append-only `audit_logs` for catalog, reference-data, department, user, circulation, and policy actions |
 | `021_rating_reviews` | Adds optional written review text to each student's existing rating |
 | `022_digital_resources` | Adds metadata for one private R2 PDF per catalog book |
+| `023_student_admission_year` | Replaces `users.semester` with optional `users.admission_year`; existing semester values are not reinterpreted |
+| `024_recommendation_feedback` | Adds persistent per-student, per-book recommendation feedback (`LIKE` or `DISMISS`) |
 
 Migration `014` aligns the copy and rating indexes with SQLAlchemy metadata.
 The `fines.transaction_id` uniqueness is represented once as a database
@@ -455,6 +457,24 @@ rating also removes its review because both are stored on the same row.
 Migration `014` also adds separate lookup indexes on `book_id` and `student_id`
 to match the SQLAlchemy model metadata.
 
+## recommendation_feedback
+
+Added in migration `024_recommendation_feedback`. Stores a student's explicit
+preference for a recommended book. A student can have one current signal per
+book; saving another signal replaces it. `LIKE` titles remain eligible and
+inform preference signals, while `DISMISS` titles are excluded from that
+student's recommendations.
+
+| Column | Type | Constraints / notes |
+| ------ | ---- | ------------------- |
+| id | UUID | Primary key |
+| student_id | UUID | FK to `users.id` ON DELETE CASCADE |
+| book_id | UUID | FK to `books.id` ON DELETE CASCADE |
+| signal | VARCHAR(10) | CHECK: `LIKE` or `DISMISS` |
+| created_at / updated_at | TIMESTAMPTZ | Standard timestamps |
+
+Unique constraint: `(student_id, book_id)`. Index: `book_id`.
+
 ---
 
 # Business Rules Summary
@@ -464,10 +484,10 @@ to match the SQLAlchemy model metadata.
 | Overdue detection | Derived (`ISSUED` + past `due_at`, UTC calendar) | — |
 | Fine calculation | Calendar days late × active policy daily rate, clamped to `max_fine_amount` | Working-day calculation via `library_calendar` (planned) |
 | Loan limit | Max `max_active_loans` (active policy, default 5) concurrent loans per student | — |
-| Circulation policy | Admin UI manages the active rules and records the latest editor; no policy-change history is stored | Multi-tier policies (by patron / material type) |
+| Circulation policy | Admin UI manages the active rules and records the latest editor; successful changes are captured in `audit_logs` with before/after values | Multi-tier policies (by patron / material type) |
 | Reservation queue | FIFO by `reservation_date`; returns hold copies `RESERVED` for queue head; issues honor queue unless `bypass_reservation` | — |
 | Session revocation | Password reset/change bumps `users.token_version`; old JWTs rejected immediately | Token refresh endpoint (planned) |
-| Copy QR | `qr_code_value` stores the inventory code; frontend generates printable labels and staff scanning locally | — |
+| QR codes | Copy labels encode `inventory_code`; student library-card QR encodes `student_code`. Frontend generates both locally. Staff scan copy codes on issue/return pages and scan student codes on the issue page; scanning does not bypass eligibility or confirmation | Student self-service issue/return is not implemented |
 | Book renewal | Students can renew eligible active loans up to the admin-configured limit (default 1); the due date extends by the policy loan period | — |
 
 ---
@@ -491,8 +511,10 @@ targeted background indexing. Admins can inspect indexing status, retry pending
 or failed records, and start a confirmed full rebuild from `/admin/search-index`;
 the offline command `uv run python -m app.scripts.reindex_embeddings` is also
 available. Search analytics (`search_query_logs`) remain planned.
-Recommendations use existing ratings, transactions, categories, and catalog
-records; they do not require a separate database table.
+Recommendations use existing ratings, transactions, categories, catalog
+records, and saved student feedback for ranking. Migration `024_recommendation_feedback` stores each
+student's current `LIKE` or `DISMISS` signal per title in the
+`recommendation_feedback` table documented above.
 
 ---
 

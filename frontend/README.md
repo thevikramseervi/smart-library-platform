@@ -10,19 +10,23 @@ server-side only when a password changes or resets.
 
 - `/login` — sign-in
 - `/dashboard` — role-specific dashboard
+- `/profile` — account details, password change, and student library-card QR (students)
 - `/notifications` — recent in-app circulation alerts and read controls
 - `/catalog/*` — books, authors, categories, publishers, and languages
 - `/circulation/*` — student loans, renewals, reservations/fines, and staff circulation
-- `/admin/*` — admin user, department, circulation-policy, and semantic-search index management
+- `/admin/*` — admin user, department, circulation-policy, semantic-search index, analytics/report, and audit-log management
 
 Route guards control navigation for user experience; backend role checks are
 authoritative. The books catalog includes optional semantic search. Staff return
 search is server-side and paginated.
-Staff can print a copy label or all labels for a book from its detail page. Issue
-and return forms can scan those QR labels; scanning filters the existing list and
-does not bypass the usual eligibility checks or confirmation. Labels encode the
-copy inventory code and are generated in the browser. Camera use needs permission
-and HTTPS (localhost is allowed); manual search remains available.
+Staff can print a copy label or all labels for a book from its detail page. Copy
+labels encode the inventory code; issue scans select an eligible copy, while
+return scans filter the active-loan list. Students can view/download their
+library-card QR on the profile page, and staff can view/print it from user
+management. Scanning that student QR on the issue page finds and selects the
+student but still requires staff review and normal issue confirmation. QR images
+are generated in the browser; camera use needs permission and HTTPS (localhost
+is allowed), and manual search remains available.
 
 ## Local development
 
