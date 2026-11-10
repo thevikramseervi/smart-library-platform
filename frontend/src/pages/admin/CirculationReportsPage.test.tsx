@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CirculationReportsPage } from "@/pages/admin/CirculationReportsPage";
@@ -25,6 +26,7 @@ describe("CirculationReportsPage", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("shows report totals and fetches the selected date range", async () => {
+    const user = userEvent.setup();
     vi.mocked(getCirculationReport).mockResolvedValue({
       start_date: "2026-11-01",
       end_date: "2026-11-09",
@@ -87,20 +89,27 @@ describe("CirculationReportsPage", () => {
     });
     const queryClient = renderPage();
 
-    expect(await screen.findByText("Example Book")).toBeInTheDocument();
+    expect(await screen.findByText("Overdue at period end")).toBeInTheDocument();
     expect(screen.getAllByText("Loans issued")).toHaveLength(2);
     expect(screen.getAllByText("Returns processed")).toHaveLength(2);
-    expect(screen.getByText("Overdue at period end")).toBeInTheDocument();
     expect(screen.getByText("Fines collected")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Loans issued and returns processed trend" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Fines collected trend" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Reservations placed and fulfilled trend" })).toBeInTheDocument();
-    expect(screen.getAllByText("Computer Science")).toHaveLength(2);
-    expect(screen.getByRole("progressbar", { name: "Computer Science borrowing participation" })).toHaveAttribute("aria-valuenow", "40");
-    expect(screen.getByText("Average wait to fulfillment")).toBeInTheDocument();
-    expect(screen.getByText("On-time return rate")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Circulation" }));
+    expect(screen.getByRole("tab", { name: "Circulation" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText("On-time return rate")).toBeInTheDocument();
     expect(screen.getByText("Current unpaid fines")).toBeInTheDocument();
     expect(screen.getByText("Overdue age at period end")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Reservations" }));
+    expect(await screen.findByRole("img", { name: "Reservations placed and fulfilled trend" })).toBeInTheDocument();
+    expect(await screen.findByText("Average wait to fulfillment")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Collection" }));
+    expect(await screen.findByText("Example Book")).toBeInTheDocument();
+    expect(screen.getAllByText("Computer Science")).toHaveLength(2);
+    expect(screen.getByRole("progressbar", { name: "Computer Science borrowing participation" })).toHaveAttribute("aria-valuenow", "40");
     expect(screen.getByText("Collection health")).toBeInTheDocument();
     expect(screen.getByText("Current copy status")).toBeInTheDocument();
     expect(screen.getByText("Reservation pressure")).toBeInTheDocument();
