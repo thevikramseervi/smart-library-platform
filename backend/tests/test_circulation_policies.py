@@ -31,6 +31,44 @@ def test_get_circulation_policy(
         assert "reservation_expiry_days" in data
 
 
+def test_policy_changes_are_recorded_in_audit_log(
+    client: TestClient,
+    admin_token: str,
+) -> None:
+    """A changed policy setting produces a before/after audit event."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    current = client.get("/api/v1/circulation-policies", headers=headers)
+    assert current.status_code == 200
+    policy = current.json()
+    previous_days = policy["loan_period_days"]
+    updated_days = previous_days + 1 if previous_days < 365 else previous_days - 1
+
+    payload = {
+        "daily_overdue_fine_rate": policy["daily_overdue_fine_rate"],
+        "max_fine_amount": policy["max_fine_amount"],
+        "loan_period_days": updated_days,
+        "max_active_loans": policy["max_active_loans"],
+        "max_renewals": policy["max_renewals"],
+        "reservation_expiry_days": policy["reservation_expiry_days"],
+    }
+    updated = client.put("/api/v1/circulation-policies", headers=headers, json=payload)
+    assert updated.status_code == 200
+    updated_policy = updated.json()
+
+    audit_response = client.get(
+        "/api/v1/audit-logs",
+        headers=headers,
+        params={"action": "CIRCULATION_POLICY_UPDATED", "page_size": 100},
+    )
+    assert audit_response.status_code == 200
+    events = audit_response.json()["items"]
+    event = next(item for item in events if item["entity_id"] == updated_policy["id"])
+    assert event["details"]["changes"]["loan_period_days"] == {
+        "before": previous_days,
+        "after": updated_days,
+    }
+
+
 def test_student_cannot_access_or_update_circulation_policy(
     client: TestClient,
     student_token: str,

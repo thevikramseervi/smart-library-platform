@@ -3,7 +3,8 @@
 from collections import defaultdict
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.book import Book
@@ -12,6 +13,7 @@ from app.models.book_copy import BookCopy, BookCopyStatus
 from app.models.book_embedding import BookEmbedding, EmbeddingStatus
 from app.models.category import Category
 from app.models.rating import Rating
+from app.models.recommendation_feedback import RecommendationFeedback
 from app.models.transaction import Transaction
 
 
@@ -47,6 +49,22 @@ class RecommendationRepository:
             for category_id, name, score in self.db.execute(ratings_statement)
         }
 
+        liked_category_statement = (
+            select(Category.id, Category.name)
+            .select_from(RecommendationFeedback)
+            .join(BookCategory, BookCategory.book_id == RecommendationFeedback.book_id)
+            .join(Category, Category.id == BookCategory.category_id)
+            .where(
+                RecommendationFeedback.student_id == student_id,
+                RecommendationFeedback.signal == "LIKE",
+                Category.deleted_at.is_(None),
+            )
+            .distinct()
+        )
+        for category_id, name in self.db.execute(liked_category_statement):
+            previous_name, previous_score = rating_preferences.get(category_id, (name, 0))
+            rating_preferences[category_id] = (previous_name, previous_score + 2)
+
         borrow_signal = func.count(func.distinct(Transaction.id))
         borrow_statement = (
             select(BookCategory.category_id, borrow_signal)
@@ -63,7 +81,7 @@ class RecommendationRepository:
         return rating_preferences, borrow_preferences
 
     def list_interacted_book_ids(self, student_id: UUID) -> set[UUID]:
-        """Return books the student has rated or borrowed, to avoid repeats."""
+        """Return rated, borrowed, or dismissed books to leave out of suggestions."""
         rated_ids = self.db.execute(
             select(Rating.book_id).where(Rating.student_id == student_id)
         ).scalars()
@@ -72,7 +90,20 @@ class RecommendationRepository:
             .join(Transaction, Transaction.book_copy_id == BookCopy.id)
             .where(Transaction.student_id == student_id)
         ).scalars()
-        return set(rated_ids).union(borrowed_ids)
+        feedback_ids = self.db.execute(
+            select(RecommendationFeedback.book_id).where(
+                RecommendationFeedback.student_id == student_id,
+                RecommendationFeedback.signal == "DISMISS",
+            )
+        ).scalars()
+        return set(rated_ids).union(borrowed_ids, feedback_ids)
+
+    def feedback_signals(self, student_id: UUID) -> dict[UUID, str]:
+        """Return explicit feedback so the UI can show saved likes on their cards."""
+        statement = select(RecommendationFeedback.book_id, RecommendationFeedback.signal).where(
+            RecommendationFeedback.student_id == student_id
+        )
+        return dict(self.db.execute(statement).all())
 
     def get_positive_seed_weights(self, student_id: UUID) -> dict[UUID, float]:
         """Return positive rating and borrowing signals for semantic seeds."""
@@ -94,10 +125,39 @@ class RecommendationRepository:
         )
         for book_id, count in borrowed:
             # A low rating is an explicit negative signal; do not use it as a seed.
-            if ratings.get(book_id, 0) <= 2:
+            # Unrated books are not negative: borrowing one is a useful positive signal.
+            if book_id in ratings and ratings[book_id] <= 2:
                 continue
             weights[book_id] = max(weights.get(book_id, 0.0), 0.5 + min(int(count), 3) * 0.1)
+        liked_ids = self.db.execute(
+            select(RecommendationFeedback.book_id).where(
+                RecommendationFeedback.student_id == student_id,
+                RecommendationFeedback.signal == "LIKE",
+            )
+        ).scalars()
+        for book_id in liked_ids:
+            weights[book_id] = max(weights.get(book_id, 0.0), 1.2)
         return weights
+
+    def upsert_feedback(self, *, student_id: UUID, book_id: UUID, signal: str) -> None:
+        """Create or replace one explicit preference for a student and title."""
+        statement = (
+            pg_insert(RecommendationFeedback)
+            .values(student_id=student_id, book_id=book_id, signal=signal)
+            .on_conflict_do_update(
+                constraint="uq_recommendation_feedback_student_book",
+                set_={"signal": signal, "updated_at": func.now()},
+            )
+        )
+        self.db.execute(statement)
+
+    def delete_feedback(self, *, student_id: UUID, book_id: UUID) -> int:
+        """Remove explicit feedback so the title can be considered again."""
+        statement = delete(RecommendationFeedback).where(
+            RecommendationFeedback.student_id == student_id,
+            RecommendationFeedback.book_id == book_id,
+        )
+        return self.db.execute(statement).rowcount
 
     def indexed_vectors(self, model_name: str) -> dict[UUID, list[float]]:
         """Load current-model vectors for active books without invoking inference."""
@@ -144,6 +204,11 @@ class RecommendationRepository:
         """Return average star scores for titles with ratings."""
         statement = select(Rating.book_id, func.avg(Rating.score)).group_by(Rating.book_id)
         return {book_id: float(average) for book_id, average in self.db.execute(statement)}
+
+    def rating_counts(self) -> dict[UUID, int]:
+        """Return rating counts for catalog titles."""
+        statement = select(Rating.book_id, func.count(Rating.id)).group_by(Rating.book_id)
+        return {book_id: int(count) for book_id, count in self.db.execute(statement)}
 
     def available_copy_counts(self, book_ids: list[UUID]) -> dict[UUID, int]:
         """Count available copies for a candidate batch."""

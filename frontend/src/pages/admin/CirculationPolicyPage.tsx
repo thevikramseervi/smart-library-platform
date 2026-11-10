@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Info, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { BookOpen, Bookmark, ChevronDown, Info, ShieldAlert, SlidersHorizontal, Wallet } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -90,107 +91,85 @@ function CirculationPolicyForm({
   };
 
   const errorMessage = clientError || apiError;
+  const hasChanges =
+    !dailyFineRate.trim() || Number(dailyFineRate) !== Number(policy.daily_overdue_fine_rate) ||
+    !maxFineAmount.trim() || Number(maxFineAmount) !== Number(policy.max_fine_amount) ||
+    loanPeriodDays !== policy.loan_period_days ||
+    maxActiveLoans !== policy.max_active_loans ||
+    maxRenewals !== policy.max_renewals ||
+    reservationExpiryDays !== policy.reservation_expiry_days;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="daily-fine-rate">Daily Overdue Fine Rate (₹)</Label>
-          <Input
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <PolicyFieldGroup icon={Wallet} title="Fines" description="Daily accrual and per-loan limit.">
+          <PolicyNumberField
             id="daily-fine-rate"
-            type="number"
-            step="0.50"
-            min="0"
+            label="Daily fine rate"
             value={dailyFineRate}
-            onChange={(e) => setDailyFineRate(e.target.value)}
-            required
+            onChange={setDailyFineRate}
+            min={0}
+            step="0.50"
+            suffix="₹ / day"
+            hint="Accrued for each overdue calendar day."
           />
-          <p className="text-xs text-muted-foreground">
-            Charged per calendar day a book is returned late.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="max-fine-amount">Maximum Fine Cap (₹)</Label>
-          <Input
+          <PolicyNumberField
             id="max-fine-amount"
-            type="number"
-            step="1.00"
-            min="0"
+            label="Maximum fine"
             value={maxFineAmount}
-            onChange={(e) => setMaxFineAmount(e.target.value)}
-            required
+            onChange={setMaxFineAmount}
+            min={0}
+            step="1.00"
+            suffix="₹"
+            hint="The fine for one loan cannot exceed this amount."
           />
-          <p className="text-xs text-muted-foreground">
-            Upper ceiling on overdue fine for a single loan.
-          </p>
-        </div>
-      </div>
+        </PolicyFieldGroup>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-2">
-          <Label htmlFor="loan-period">Loan Duration (Days)</Label>
-          <Input
+        <PolicyFieldGroup icon={BookOpen} title="Loans" description="Due dates and student borrowing limits.">
+          <PolicyNumberField
             id="loan-period"
-            type="number"
-            min="1"
-            max="365"
+            label="Loan period"
             value={loanPeriodDays}
-            onChange={(e) => setLoanPeriodDays(Number(e.target.value))}
-            required
+            onChange={(value) => setLoanPeriodDays(Number(value))}
+            min={1}
+            max={365}
+            suffix="days"
+            hint="Default time before a book is due."
           />
-          <p className="text-xs text-muted-foreground">
-            Default borrowing window.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="max-active-loans">Max Active Loans</Label>
-          <Input
+          <PolicyNumberField
             id="max-active-loans"
-            type="number"
-            min="1"
-            max="50"
+            label="Maximum active loans"
             value={maxActiveLoans}
-            onChange={(e) => setMaxActiveLoans(Number(e.target.value))}
-            required
+            onChange={(value) => setMaxActiveLoans(Number(value))}
+            min={1}
+            max={50}
+            suffix="books"
+            hint="Open loans allowed per student."
           />
-          <p className="text-xs text-muted-foreground">
-            Concurrent limit per student.
-          </p>
-        </div>
+        </PolicyFieldGroup>
 
-        <div className="space-y-2">
-          <Label htmlFor="reservation-expiry">Reservation Hold (Days)</Label>
-          <Input
+        <PolicyFieldGroup icon={Bookmark} title="Reservations & renewals" description="Queue holds and loan extensions.">
+          <PolicyNumberField
             id="reservation-expiry"
-            type="number"
-            min="1"
-            max="90"
+            label="Reservation hold"
             value={reservationExpiryDays}
-            onChange={(e) => setReservationExpiryDays(Number(e.target.value))}
-            required
+            onChange={(value) => setReservationExpiryDays(Number(value))}
+            min={1}
+            max={90}
+            suffix="days"
+            hint="Time for the next student to collect a held copy."
           />
-          <p className="text-xs text-muted-foreground">
-            Window before hold expires.
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="max-renewals">Maximum Renewals per Loan</Label>
-          <Input
+          <PolicyNumberField
             id="max-renewals"
-            type="number"
-            min="0"
-            max="5"
+            label="Renewals per loan"
             value={maxRenewals}
-            onChange={(e) => setMaxRenewals(Number(e.target.value))}
-            required
+            onChange={(value) => setMaxRenewals(Number(value))}
+            min={0}
+            max={5}
+            suffix="times"
+            hint="Set to 0 to turn renewals off."
           />
-          <p className="text-xs text-muted-foreground">
-            Set to 0 to turn off renewals. Default: 1.
-          </p>
-        </div>
+        </PolicyFieldGroup>
       </div>
 
       {errorMessage ? (
@@ -200,28 +179,120 @@ function CirculationPolicyForm({
         </div>
       ) : null}
 
-      <div className="flex gap-2 pt-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Save Policy Changes"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setDailyFineRate(String(policy.daily_overdue_fine_rate));
-            setMaxFineAmount(String(policy.max_fine_amount));
-            setLoanPeriodDays(policy.loan_period_days);
-            setMaxActiveLoans(policy.max_active_loans);
-            setMaxRenewals(policy.max_renewals);
-            setReservationExpiryDays(policy.reservation_expiry_days);
-            setClientError(null);
-          }}
-          disabled={isPending}
-        >
-          Reset
-        </Button>
+      <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/25 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <p role="status" className={`inline-flex items-center gap-2 text-sm ${hasChanges ? "font-medium text-amber-800" : "text-muted-foreground"}`}>
+          <span className={`size-2 rounded-full ${hasChanges ? "bg-amber-500" : "bg-emerald-600"}`} aria-hidden="true" />
+          {hasChanges ? "Unsaved changes" : "Policy is up to date"}
+        </p>
+        <div className="flex gap-2">
+          {hasChanges ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDailyFineRate(String(policy.daily_overdue_fine_rate));
+                setMaxFineAmount(String(policy.max_fine_amount));
+                setLoanPeriodDays(policy.loan_period_days);
+                setMaxActiveLoans(policy.max_active_loans);
+                setMaxRenewals(policy.max_renewals);
+                setReservationExpiryDays(policy.reservation_expiry_days);
+                setClientError(null);
+              }}
+              disabled={isPending}
+            >
+              Discard changes
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={isPending || !hasChanges}>
+            {isPending ? "Saving changes…" : "Save policy"}
+          </Button>
+        </div>
       </div>
     </form>
+  );
+}
+
+function PolicyFieldGroup({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="h-full gap-0 overflow-hidden border-border/70 bg-background/80 py-0 shadow-sm">
+      <CardHeader className="border-b border-border/60 bg-muted/20 px-4 py-4">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/10">
+            <Icon aria-hidden="true" className="size-4" />
+          </span>
+          <div className="min-w-0 space-y-1">
+            <CardTitle className="text-sm">{title}</CardTitle>
+            <CardDescription className="text-xs leading-5">{description}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 px-4 py-4">{children}</CardContent>
+    </Card>
+  );
+}
+
+function PolicyNumberField({
+  id,
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  suffix,
+  hint,
+}: {
+  id: string;
+  label: string;
+  value: string | number;
+  onChange: (value: string) => void;
+  min: number;
+  max?: number;
+  step?: string;
+  suffix: string;
+  hint: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs font-medium">{label}</Label>
+      <div className="flex h-11 w-full items-center overflow-hidden rounded-lg border border-input bg-background shadow-xs transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20">
+        <Input
+          id={id}
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          aria-describedby={`${id}-hint`}
+          className="h-full rounded-none border-0 bg-transparent text-base font-semibold tabular-nums shadow-none focus-visible:border-transparent focus-visible:ring-0"
+          required
+        />
+        <span aria-hidden="true" className="inline-flex h-full shrink-0 items-center border-l border-input bg-muted/35 px-3 text-xs font-medium text-muted-foreground">
+          {suffix}
+        </span>
+      </div>
+      <p id={`${id}-hint`} className="text-xs leading-5 text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
+function GuidelineCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-card/90 p-4">
+      <h3 className="text-xs font-semibold">{title}</h3>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">{children}</p>
+    </div>
   );
 }
 
@@ -274,7 +345,7 @@ export function CirculationPolicyPage() {
         <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
           <Info className="size-5 shrink-0 text-primary" aria-hidden="true" />
           <div>
-            <p className="font-medium">Audit History</p>
+            <p className="font-medium">Last policy update</p>
             <p className="text-muted-foreground text-xs">
               Last updated by{" "}
               <span className="font-medium text-foreground">
@@ -286,112 +357,69 @@ export function CirculationPolicyPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <SlidersHorizontal className="size-4 text-primary" aria-hidden="true" />
-                Operational Rules
-              </CardTitle>
-              <CardDescription>
-                Updates take effect immediately on subsequent book issues, returns, and reservations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {policyQuery.isLoading || !policy ? (
-                <div className="space-y-5" aria-busy="true" aria-label="Loading active policy">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-3 w-56" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-3 w-56" />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-3 w-40" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-3 w-40" />
-                    </div>
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-3 w-40" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Skeleton className="h-9 w-36" />
-                    <Skeleton className="h-9 w-20" />
-                  </div>
+      <Card className="border-primary/10 bg-card/90 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <SlidersHorizontal className="size-4 text-primary" aria-hidden="true" />
+            Operational rules
+          </CardTitle>
+          <CardDescription>
+            Updates apply to subsequent issues, returns, renewals, and reservations.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {policyQuery.isLoading || !policy ? (
+            <div className="grid gap-6 sm:grid-cols-2" aria-busy="true" aria-label="Loading active policy">
+              {Array.from({ length: 6 }, (_, index) => (
+                <div key={index} className="space-y-2">
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-11 w-full" />
+                  <Skeleton className="h-3 w-56" />
                 </div>
-              ) : (
-                <CirculationPolicyForm
-                  key={policy.updated_at}
-                  policy={policy}
-                  isPending={updateMutation.isPending}
-                  onSubmit={(payload) => updateMutation.mutate(payload)}
-                  apiError={apiError}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              ))}
+            </div>
+          ) : (
+            <CirculationPolicyForm
+              key={policy.updated_at}
+              policy={policy}
+              isPending={updateMutation.isPending}
+              onSubmit={(payload) => updateMutation.mutate(payload)}
+              apiError={apiError}
+            />
+          )}
+        </CardContent>
+      </Card>
 
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Policy Guidelines</CardTitle>
-              <CardDescription>
-                How circulation rules interact across library workflows.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xs text-muted-foreground leading-relaxed">
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">Late Returns & Fines</p>
-                <p>
-                  Fines are assessed when a book is returned past its UTC calendar due date.
-                  Calculation: <code className="text-foreground">days_late × rate</code> clamped to the Maximum Fine Cap ({formatInr(policy?.max_fine_amount ?? 500)}).
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">Borrowing Blocks</p>
-                <p>
-                  Students with any unpaid fine cannot issue new books. Once collected by staff, borrowing privileges are restored immediately.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">Loan Limits</p>
-                <p>
-                  Limits students to at most {policy?.max_active_loans ?? 5} concurrent open loans across all catalog copies.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">Reservation Holds</p>
-                <p>
-                  When a reserved book is returned, it is set to <code>RESERVED</code> and held for the first queued student for {policy?.reservation_expiry_days ?? 7} days.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">Loan Renewals</p>
-                <p>
-                  Students may renew an active, non-overdue loan up to {policy?.max_renewals ?? 1} time{(policy?.max_renewals ?? 1) === 1 ? "" : "s"} if nobody is waiting for the book and they have no unpaid fines. Each renewal extends the current due date by the standard loan period.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+      <details className="group overflow-hidden rounded-2xl border border-border/70 bg-card/75 shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden [&::-webkit-details-marker]:hidden sm:px-6">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Info aria-hidden="true" className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold">How these rules work</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                See how the settings affect loans, fines, reservations, and renewals.
+              </span>
+            </span>
+          </span>
+          <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="grid gap-3 border-t border-border/70 bg-muted/15 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
+          <GuidelineCard title="Fines">
+            Overdue charges accrue at {formatInr(policy?.daily_overdue_fine_rate ?? 10)} per day after the UTC due date, up to {formatInr(policy?.max_fine_amount ?? 500)} per loan. Accrual stops when the book is returned.
+          </GuidelineCard>
+          <GuidelineCard title="Borrowing limit">
+            A student may have up to {policy?.max_active_loans ?? 5} open loans at once. Unpaid fines block new issues until staff records payment.
+          </GuidelineCard>
+          <GuidelineCard title="Reservation holds">
+            A returned copy with a waiting queue is held for the first student in line for {policy?.reservation_expiry_days ?? 7} days.
+          </GuidelineCard>
+          <GuidelineCard title="Renewals">
+            Loans last {policy?.loan_period_days ?? 14} days. Each renewal adds another loan period and is allowed only when the loan is not overdue, no student is waiting, and no fine is unpaid; the limit is {policy?.max_renewals ?? 1} renewal{(policy?.max_renewals ?? 1) === 1 ? "" : "s"}.
+          </GuidelineCard>
         </div>
-      </div>
+      </details>
     </section>
   );
 }

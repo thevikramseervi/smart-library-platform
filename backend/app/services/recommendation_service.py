@@ -1,15 +1,21 @@
 """Explainable hybrid book recommendations from existing library data."""
 
+from collections import defaultdict
 from math import log1p, sqrt
+from typing import Literal, cast
 from uuid import UUID
 
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.book import Book
 from app.models.user import User
 from app.repositories.recommendation_repository import RecommendationRepository
-from app.schemas.recommendation import BookRecommendationResponse
+from app.schemas.recommendation import (
+    BookRecommendationResponse,
+    RecommendationFeedbackResponse,
+)
 from app.services.book_service import BookService
 
 
@@ -67,6 +73,8 @@ class RecommendationService:
         best_score = 0.0
         best_seed: UUID | None = None
         for seed_id, weight in seed_weights.items():
+            if seed_id == book_id:
+                continue
             seed = vectors.get(seed_id)
             if seed is None:
                 continue
@@ -88,9 +96,19 @@ class RecommendationService:
         borrow_preferences: dict[UUID, int],
         popularity: dict[UUID, int],
         rating_averages: dict[UUID, float],
+        reason_counts: dict[str, int],
     ) -> str:
-        if semantic_seed is not None and semantic_score >= 0.55:
-            return f'Similar to "{book_titles.get(semantic_seed, "a book you liked")}"'
+        reasons: list[str] = []
+        seed_title = book_titles.get(semantic_seed) if semantic_seed is not None else None
+        if (
+            seed_title is not None
+            and seed_title.casefold() != book.title.casefold()
+            and semantic_score >= 0.55
+        ):
+            reasons.append(f'Similar to "{seed_title}"')
+        average_rating = rating_averages.get(book.id, 0)
+        if average_rating > 0:
+            reasons.append(f"Rated {average_rating:.1f}/5 by readers")
         liked_categories = [
             (rating_preferences[category.id][1], rating_preferences[category.id][0])
             for category in book.categories
@@ -100,37 +118,37 @@ class RecommendationService:
         ]
         if liked_categories:
             _, name = max(liked_categories)
-            return f"Because you liked {name} books"
+            reasons.append(f"Because you liked {name} books")
         if any(
             category.deleted_at is None and borrow_preferences.get(category.id, 0)
             for category in book.categories
         ):
-            return "Related to your borrowing history"
+            reasons.append("Related to your borrowing history")
         if popularity.get(book.id, 0) > 0:
-            return "Popular with library readers"
-        if rating_averages.get(book.id, 0) > 0:
-            return "Rated by library readers"
-        return "Available to borrow"
+            reasons.append("Popular with library readers")
+        reasons.append("Available to borrow")
+        return next((reason for reason in reasons if reason_counts.get(reason, 0) < 2), reasons[0])
 
-    def get_for_student(self, student: User, *, limit: int = 6) -> list[BookRecommendationResponse]:
+    def get_for_student(self, student: User, *, limit: int = 9) -> list[BookRecommendationResponse]:
         """Return available unseen titles, diverse when semantic vectors are present."""
         rating_preferences, borrow_preferences = self.repository.get_category_preferences(
             student.id
         )
         seed_weights = self.repository.get_positive_seed_weights(student.id)
         interacted_ids = self.repository.list_interacted_book_ids(student.id)
+        feedback_signals = self.repository.feedback_signals(student.id)
         all_books = self.repository.list_candidate_books()
         books_by_id = {book.id: book for book in all_books}
         candidates = [book for book in all_books if book.id not in interacted_ids]
         popularity = self.repository.popularity_counts()
         rating_averages = self.repository.rating_averages()
+        rating_counts = self.repository.rating_counts()
         available_copies = self.repository.available_copy_counts([book.id for book in candidates])
         candidates = [book for book in candidates if available_copies.get(book.id, 0) > 0]
 
         vectors = self.repository.indexed_vectors(settings.EMBEDDING_MODEL)
         semantic = {
-            book.id: self._semantic_matches(book.id, seed_weights, vectors)
-            for book in candidates
+            book.id: self._semantic_matches(book.id, seed_weights, vectors) for book in candidates
         }
         category_scores = {
             book.id: self._category_interest(book, rating_preferences, borrow_preferences)
@@ -192,19 +210,52 @@ class RecommendationService:
             selected.append(chosen)
             remaining.remove(chosen)
 
-        return [
-            BookRecommendationResponse(
-                book=self.book_service._to_response(book),
-                reason=self._reason(
-                    book,
-                    semantic_seed=semantic[book.id][1],
-                    semantic_score=semantic[book.id][0],
-                    book_titles={book_id: item.title for book_id, item in books_by_id.items()},
-                    rating_preferences=rating_preferences,
-                    borrow_preferences=borrow_preferences,
-                    popularity=popularity,
-                    rating_averages=rating_averages,
-                ),
+        reason_counts: defaultdict[str, int] = defaultdict(int)
+        recommendations: list[BookRecommendationResponse] = []
+        for book in selected:
+            semantic_seed, semantic_score = semantic[book.id]
+            reason = self._reason(
+                book,
+                semantic_seed=semantic_seed,
+                semantic_score=semantic_score,
+                book_titles={book_id: item.title for book_id, item in books_by_id.items()},
+                rating_preferences=rating_preferences,
+                borrow_preferences=borrow_preferences,
+                popularity=popularity,
+                rating_averages=rating_averages,
+                reason_counts=reason_counts,
             )
-            for book in selected
-        ]
+            reason_counts[reason] += 1
+            recommendations.append(
+                BookRecommendationResponse(
+                    book=self.book_service._to_response(book),
+                    average_rating=rating_averages.get(book.id),
+                    rating_count=rating_counts.get(book.id, 0),
+                    feedback_signal=cast(
+                        Literal["LIKE", "DISMISS"] | None,
+                        feedback_signals.get(book.id),
+                    ),
+                    reason=reason,
+                )
+            )
+        return recommendations
+
+    def save_feedback(
+        self, *, student: User, book_id: UUID, signal: Literal["LIKE", "DISMISS"]
+    ) -> RecommendationFeedbackResponse:
+        """Persist explicit feedback after confirming the title is still active."""
+        if self.book_service.repository.get_active_by_id(book_id) is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+        self.repository.upsert_feedback(student_id=student.id, book_id=book_id, signal=signal)
+        self.repository.db.commit()
+        return RecommendationFeedbackResponse(book_id=book_id, signal=signal)
+
+    def clear_feedback(self, *, student: User, book_id: UUID) -> None:
+        """Remove the student's explicit preference for a title."""
+        deleted = self.repository.delete_feedback(student_id=student.id, book_id=book_id)
+        if deleted == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Recommendation feedback not found",
+            )
+        self.repository.db.commit()

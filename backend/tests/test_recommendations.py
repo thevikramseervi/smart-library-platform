@@ -1,9 +1,12 @@
 """Student book recommendation tests."""
 
-from uuid import uuid4
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
+from app.repositories.recommendation_repository import RecommendationRepository
 from app.services.recommendation_service import RecommendationService
 from tests.conftest_circulation import (  # noqa: F401
     admin_token,
@@ -38,6 +41,92 @@ def test_semantic_match_uses_the_most_relevant_positive_seed() -> None:
     )
     assert score == 0.8
     assert matched_seed == seed_id
+
+
+def test_recommendation_reason_does_not_compare_a_book_to_itself() -> None:
+    book_id = uuid4()
+    book = SimpleNamespace(title="Introduction to Algorithms", categories=[])
+
+    reason = RecommendationService._reason(
+        book,
+        semantic_seed=book_id,
+        semantic_score=0.9,
+        book_titles={book_id: book.title},
+        rating_preferences={},
+        borrow_preferences={},
+        popularity={},
+        rating_averages={},
+        reason_counts={},
+    )
+
+    assert reason == "Available to borrow"
+
+
+def test_unrated_borrowed_book_is_a_positive_semantic_seed(
+    client: TestClient,
+    db_session: Session,
+    admin_token: str,  # noqa: F811
+    catalog_book_with_copy: dict,  # noqa: F811
+) -> None:
+    """Borrowing an unrated title is positive preference evidence for semantic matching."""
+    issued = client.post(
+        "/api/v1/transactions/issue",
+        headers=_headers(admin_token),
+        json={
+            "book_copy_id": catalog_book_with_copy["copy_id"],
+            "student_id": catalog_book_with_copy["student_id"],
+        },
+    )
+    assert issued.status_code == 201
+
+    seeds = RecommendationRepository(db_session).get_positive_seed_weights(
+        UUID(catalog_book_with_copy["student_id"])
+    )
+    assert seeds[UUID(catalog_book_with_copy["book_id"])] == 0.6
+
+
+def test_explicit_recommendation_feedback_is_saved_and_can_be_cleared(
+    client: TestClient,
+    db_session: Session,
+    student_token: str,  # noqa: F811
+    catalog_book_with_copy: dict,  # noqa: F811
+) -> None:
+    """Likes become positive seeds, dismissals replace them, and clear removes the signal."""
+    headers = _headers(student_token)
+    book_id = UUID(catalog_book_with_copy["book_id"])
+
+    liked = client.put(
+        f"/api/v1/recommendations/{book_id}/feedback",
+        headers=headers,
+        json={"signal": "LIKE"},
+    )
+    assert liked.status_code == 200
+    assert liked.json() == {"book_id": str(book_id), "signal": "LIKE"}
+    assert (
+        RecommendationRepository(db_session).get_positive_seed_weights(
+            UUID(catalog_book_with_copy["student_id"])
+        )[book_id]
+        == 1.2
+    )
+    assert book_id not in RecommendationRepository(db_session).list_interacted_book_ids(
+        UUID(catalog_book_with_copy["student_id"])
+    )
+
+    dismissed = client.put(
+        f"/api/v1/recommendations/{book_id}/feedback",
+        headers=headers,
+        json={"signal": "DISMISS"},
+    )
+    assert dismissed.status_code == 200
+    assert book_id not in RecommendationRepository(db_session).get_positive_seed_weights(
+        UUID(catalog_book_with_copy["student_id"])
+    )
+
+    cleared = client.delete(f"/api/v1/recommendations/{book_id}/feedback", headers=headers)
+    assert cleared.status_code == 204
+    assert book_id not in RecommendationRepository(db_session).list_interacted_book_ids(
+        UUID(catalog_book_with_copy["student_id"])
+    )
 
 
 def test_recommendations_use_positive_category_ratings_and_exclude_seen_books(

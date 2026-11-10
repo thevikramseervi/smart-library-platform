@@ -1763,18 +1763,37 @@ copies combine `LOST`, `DAMAGED`, and `RETIRED` statuses.
 ### Get my recommendations
 
 ```http
-GET /api/v1/recommendations/me?limit=6
+GET /api/v1/recommendations/me?limit=9
 ```
 
-Access: student only. `limit` defaults to 6 and must be between 1 and 20.
-Returns active titles with an available copy that the student has not rated or borrowed. Ranking combines
-similarity to the student's positively rated or borrowed books using already
+Access: student only. `limit` defaults to 9 and must be between 1 and 20.
+Returns active titles with an available copy that the student has not rated,
+borrowed, or dismissed. Ranking combines
+similarity to the student's positively rated, borrowed, or explicitly liked books using already
 indexed embeddings, category interests, issue counts, and average ratings. A
 diversity step reduces near-duplicate suggestions. If embeddings or personal
 signals are unavailable, category and library-wide signals provide a fallback;
 the request does not generate embeddings. Each item contains a complete `book`
-response and a short `reason` tied to the strongest available signal. The response can be empty when the student
-has already rated or borrowed every active title.
+response, a short `reason`, and `average_rating` / `rating_count` fields (zero
+count and null average when unrated), plus `feedback_signal` (`LIKE` for a
+saved like, otherwise null; dismissed titles are not returned).
+
+Students can save recommendation feedback from the dashboard:
+
+```http
+PUT /api/v1/recommendations/{book_id}/feedback
+Content-Type: application/json
+
+{"signal":"LIKE"}
+```
+
+`signal` is `LIKE` (“More like this”) or `DISMISS` (“Not interested”). A new
+`PUT` replaces the student's previous signal for that book. `DELETE
+/api/v1/recommendations/{book_id}/feedback` clears the preference so the book
+can be considered again. These endpoints are student-only. Likes inform
+semantic and category preferences and remain eligible for recommendations,
+with `feedback_signal: "LIKE"` returned so the dashboard can show the saved
+choice. Dismissed books are omitted from that student's recommendations.
 
 Semantic book search is already implemented at `GET /api/v1/books/search` and
 is documented above. The previously proposed `/api/v1/search/semantic` path is

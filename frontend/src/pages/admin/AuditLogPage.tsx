@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { History, Search, X } from "lucide-react";
+import { Download, History, LoaderCircle, Search, X } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,13 @@ import { PaginationControls } from "@/components/ui/pagination-controls";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDashboardDateTime } from "@/lib/format";
 import { listAuditLogs } from "@/services/admin";
-import type { AuditAction } from "@/types/auditLog";
+import type { AuditAction, AuditLogEntry, AuditLogParams } from "@/types/auditLog";
 
 const PAGE_SIZE = 20;
+const EXPORT_PAGE_SIZE = 100;
 const actionLabels: Record<AuditAction, string> = {
   BOOK_CREATED: "Book added",
   BOOK_UPDATED: "Book updated",
@@ -56,12 +58,47 @@ const actionLabels: Record<AuditAction, string> = {
 
 const actions = Object.keys(actionLabels) as AuditAction[];
 
+function csvCell(value: string): string {
+  const safeValue = /^[\s]*[=+\-@]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replaceAll('"', '""')}"`;
+}
+
+function buildAuditLogCsv(
+  events: AuditLogEntry[],
+  filters: Omit<AuditLogParams, "page" | "page_size">,
+): string {
+  const filterDescription = [
+    filters.action ? `Action: ${actionLabels[filters.action]}` : "Action: All actions",
+    filters.q ? `Search: ${filters.q}` : "Search: All events",
+    filters.start_date ? `From: ${filters.start_date}` : "From: Any date",
+    filters.end_date ? `To: ${filters.end_date}` : "To: Any date",
+  ].join("; ");
+  const rows: string[][] = [
+    ["Export filters", filterDescription, "", "", "", "", ""],
+    ["Occurred at (UTC)", "Actor", "Actor email", "Action", "Record type", "Record ID", "Summary"],
+    ...events.map((event) => [
+      event.occurred_at,
+      event.actor_name,
+      event.actor_email,
+      actionLabels[event.action] ?? event.action,
+      event.entity_type,
+      event.entity_id,
+      event.summary,
+    ]),
+  ];
+
+  return `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
+}
+
 export function AuditLogPage() {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState<AuditAction | "">("");
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const invalidRange = Boolean(startDate && endDate && startDate > endDate);
   const auditQuery = useQuery({
     queryKey: ["admin", "audit-logs", page, action, search.trim(), startDate, endDate],
@@ -82,6 +119,46 @@ export function AuditLogPage() {
     setSearch("");
     setStartDate("");
     setEndDate("");
+    setExportMessage(null);
+    setExportError(null);
+  }
+
+  async function exportCsv() {
+    setIsExporting(true);
+    setExportMessage(null);
+    setExportError(null);
+
+    const filters: Omit<AuditLogParams, "page" | "page_size"> = {
+      action: action || undefined,
+      q: search.trim() || undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
+    };
+
+    try {
+      const firstPage = await listAuditLogs({ ...filters, page: 1, page_size: EXPORT_PAGE_SIZE });
+      const events = [...firstPage.items];
+      for (let pageNumber = 2; pageNumber <= firstPage.total_pages; pageNumber += 1) {
+        const page = await listAuditLogs({ ...filters, page: pageNumber, page_size: EXPORT_PAGE_SIZE });
+        events.push(...page.items);
+      }
+
+      const csv = buildAuditLogCsv(events, filters);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audit-log_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setExportMessage(`Exported ${events.length} event${events.length === 1 ? "" : "s"} matching the current filters.`);
+    } catch (error) {
+      setExportError(getApiErrorMessage(error, "Unable to export audit events."));
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   return (
@@ -145,10 +222,26 @@ export function AuditLogPage() {
             />
           </div>
           <div className="sm:col-span-2 xl:col-span-4">
-            <Button type="button" variant="ghost" onClick={resetFilters}>
-              <X aria-hidden="true" />
-              Clear filters
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="ghost" onClick={resetFilters}>
+                  <X aria-hidden="true" />
+                  Clear filters
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void exportCsv()}
+                  disabled={invalidRange || isExporting}
+                >
+                  {isExporting ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Download aria-hidden="true" />}
+                  {isExporting ? "Exporting…" : "Export CSV"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Exports all matching events, across every page.</p>
+            </div>
+            {exportMessage ? <p role="status" className="mt-2 text-sm text-muted-foreground">{exportMessage}</p> : null}
+            {exportError ? <p role="alert" className="mt-2 text-sm text-destructive">{exportError}</p> : null}
           </div>
         </CardContent>
       </Card>

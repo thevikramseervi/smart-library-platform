@@ -23,6 +23,7 @@ from app.models import (  # noqa: F401
     Language,
     Notification,
     Publisher,
+    RecommendationFeedback,
     Reservation,
     Role,
     Transaction,

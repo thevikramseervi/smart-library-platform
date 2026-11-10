@@ -331,16 +331,23 @@ bytes remain in R2; PostgreSQL stores only metadata and the private object key.
 ### Recommendations
 
 The student-only `GET /recommendations/me` endpoint ranks active catalog titles
-with an available copy that the student has not rated or borrowed. It reuses
-current indexed FastEmbed vectors to compare candidates with positively rated
-or borrowed titles, then blends semantic similarity with category interest,
+with an available copy that the student has not rated, borrowed, or dismissed.
+Students can choose “More like this” or
+“Not interested” on dashboard recommendations. Feedback is saved per student
+and title; likes strengthen semantic and category preferences and remain marked
+on their recommendation cards, while dismissed titles are excluded from future
+recommendations. Students can replace or clear
+their feedback through the recommendation API. The service reuses current
+indexed FastEmbed vectors to compare candidates with positively rated, borrowed,
+or liked titles, then blends semantic similarity with category interest,
 circulation popularity, and average ratings. A diversity penalty reduces
 near-duplicate suggestions in the result list. If a suitable vector is missing,
 the service falls back to the available category, popularity, and rating signals;
 it does not load the embedding model or generate vectors during a dashboard
-request. Each result includes a short reason tied to the strongest available
-signal. The dashboard shows up to six suggestions with cover, availability,
-and a link to book details.
+request. Each result includes a short reason, category, rating summary, cover,
+availability, and a link to book details. The dashboard displays six at a time
+and can browse the next ranked suggestions in place, up to the endpoint's limit
+of twenty.
 
 ### In-App Notifications (Implemented)
 

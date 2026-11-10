@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import {
   BookOpen,
@@ -29,9 +30,10 @@ import type { AdminDashboardResponse } from "@/types/dashboard";
 interface AdminDashboardViewProps {
   data: AdminDashboardResponse;
   firstName: string;
+  analyticsOverview?: ReactNode;
 }
 
-export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps) {
+export function AdminDashboardView({ data, firstName, analyticsOverview }: AdminDashboardViewProps) {
   return (
     <section className="space-y-8">
       <DashboardWelcomeHeader
@@ -87,6 +89,8 @@ export function AdminDashboardView({ data, firstName }: AdminDashboardViewProps)
           description="Books currently on loan"
         />
       </div>
+
+      {analyticsOverview}
 
       <div className="dashboard-activity-grid">
         <DashboardSection

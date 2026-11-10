@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { AdminDashboardView } from "@/pages/dashboard/AdminDashboardView";
+import { AdminAnalyticsOverview } from "@/pages/dashboard/AdminAnalyticsOverview";
 import { LibrarianDashboardView } from "@/pages/dashboard/LibrarianDashboardView";
 import { StudentDashboardView } from "@/pages/dashboard/StudentDashboardView";
 import { DashboardLoadingSkeleton } from "@/pages/dashboard/components/DashboardShared";
@@ -84,6 +85,7 @@ export function DashboardPage() {
       <AdminDashboardView
         data={activeQuery.data as Awaited<ReturnType<typeof getAdminDashboard>>}
         firstName={firstName}
+        analyticsOverview={<AdminAnalyticsOverview />}
       />
     );
   }
