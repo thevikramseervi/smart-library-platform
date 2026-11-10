@@ -340,8 +340,9 @@ recommendations. Students can replace or clear
 their feedback through the recommendation API. The service reuses current
 indexed FastEmbed vectors to compare candidates with positively rated, borrowed,
 or liked titles, then blends semantic similarity with category interest,
-circulation popularity, and average ratings. A diversity penalty reduces
-near-duplicate suggestions in the result list. If a suitable vector is missing,
+circulation popularity, and average ratings. It selects in a round-robin across
+rating, like, borrowing, popularity, and community-rating pools, while a
+diversity penalty reduces near-duplicate suggestions. If a suitable vector is missing,
 the service falls back to the available category, popularity, and rating signals;
 it does not load the embedding model or generate vectors during a dashboard
 request. Each result includes a short reason, category, rating summary, cover,

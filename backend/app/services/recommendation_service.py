@@ -1,6 +1,5 @@
 """Explainable hybrid book recommendations from existing library data."""
 
-from collections import defaultdict
 from math import log1p, sqrt
 from typing import Literal, cast
 from uuid import UUID
@@ -49,12 +48,14 @@ class RecommendationService:
     def _category_interest(
         book: Book,
         rating_preferences: dict[UUID, tuple[str, int]],
+        like_preferences: dict[UUID, tuple[str, int]],
         borrow_preferences: dict[UUID, int],
     ) -> float:
         return max(
             0.0,
             sum(
                 rating_preferences.get(category.id, ("", 0))[1]
+                + like_preferences.get(category.id, ("", 0))[1] * 1.5
                 + min(borrow_preferences.get(category.id, 0), 4) * 0.25
                 for category in book.categories
                 if category.deleted_at is None
@@ -86,55 +87,77 @@ class RecommendationService:
         return best_score, best_seed
 
     @staticmethod
-    def _reason(
+    def _signal_reason(
         book: Book,
         *,
+        signal: str,
         semantic_seed: UUID | None,
         semantic_score: float,
         book_titles: dict[UUID, str],
         rating_preferences: dict[UUID, tuple[str, int]],
+        like_preferences: dict[UUID, tuple[str, int]],
         borrow_preferences: dict[UUID, int],
-        popularity: dict[UUID, int],
         rating_averages: dict[UUID, float],
-        reason_counts: dict[str, int],
     ) -> str:
-        reasons: list[str] = []
         seed_title = book_titles.get(semantic_seed) if semantic_seed is not None else None
         if (
             seed_title is not None
             and seed_title.casefold() != book.title.casefold()
             and semantic_score >= 0.55
         ):
-            reasons.append(f'Similar to "{seed_title}"')
-        average_rating = rating_averages.get(book.id, 0)
-        if average_rating > 0:
-            reasons.append(f"Rated {average_rating:.1f}/5 by readers")
-        liked_categories = [
-            (rating_preferences[category.id][1], rating_preferences[category.id][0])
-            for category in book.categories
-            if category.deleted_at is None
-            and category.id in rating_preferences
-            and rating_preferences[category.id][1] > 0
-        ]
-        if liked_categories:
-            _, name = max(liked_categories)
-            reasons.append(f"Because you liked {name} books")
-        if any(
-            category.deleted_at is None and borrow_preferences.get(category.id, 0)
-            for category in book.categories
-        ):
-            reasons.append("Related to your borrowing history")
-        if popularity.get(book.id, 0) > 0:
-            reasons.append("Popular with library readers")
-        reasons.append("Available to borrow")
-        return next((reason for reason in reasons if reason_counts.get(reason, 0) < 2), reasons[0])
+            source_text = {
+                "ratings": "a book you rated highly",
+                "likes": "a book you liked",
+                "borrowing": "a book you borrowed",
+            }[signal]
+            return f'Similar to "{seed_title}", {source_text}'
+
+        categories = [category for category in book.categories if category.deleted_at is None]
+        if signal == "ratings":
+            matches = [
+                (rating_preferences[category.id][1], rating_preferences[category.id][0])
+                for category in categories
+                if category.id in rating_preferences and rating_preferences[category.id][1] > 0
+            ]
+            if matches:
+                return f"Because you rated {max(matches)[1]} books highly"
+        elif signal == "likes":
+            matches = [
+                (like_preferences[category.id][1], like_preferences[category.id][0])
+                for category in categories
+                if category.id in like_preferences
+            ]
+            if matches:
+                return f"More like books you liked in {max(matches)[1]}"
+        elif signal == "borrowing":
+            matches = [
+                (borrow_preferences.get(category.id, 0), category.name)
+                for category in categories
+                if borrow_preferences.get(category.id, 0) > 0
+            ]
+            if matches:
+                return f"Related to your borrowing in {max(matches)[1]}"
+        elif signal == "popular":
+            return "Popular with library readers"
+        elif signal == "reader_ratings":
+            average = rating_averages.get(book.id, 0)
+            return f"Highly rated by library readers ({average:.1f}/5)"
+        return {
+            "ratings": "Based on books you rated highly",
+            "likes": "Based on books you liked",
+            "borrowing": "Related to your borrowing history",
+        }.get(signal, "Recommended for you")
 
     def get_for_student(self, student: User, *, limit: int = 9) -> list[BookRecommendationResponse]:
-        """Return available unseen titles, diverse when semantic vectors are present."""
-        rating_preferences, borrow_preferences = self.repository.get_category_preferences(
-            student.id
+        """Return eligible titles in a rotating mix of personalized and library signals."""
+        rating_preferences, like_preferences, borrow_preferences = (
+            self.repository.get_category_preferences(student.id)
         )
-        seed_weights = self.repository.get_positive_seed_weights(student.id)
+        seed_weights_by_signal = self.repository.get_positive_seed_weights_by_signal(student.id)
+        seed_weights: dict[UUID, float] = {}
+        for weights in seed_weights_by_signal.values():
+            for book_id, weight in weights.items():
+                seed_weights[book_id] = max(seed_weights.get(book_id, 0.0), weight)
         interacted_ids = self.repository.list_interacted_book_ids(student.id)
         feedback_signals = self.repository.feedback_signals(student.id)
         all_books = self.repository.list_candidate_books()
@@ -147,11 +170,24 @@ class RecommendationService:
         candidates = [book for book in candidates if available_copies.get(book.id, 0) > 0]
 
         vectors = self.repository.indexed_vectors(settings.EMBEDDING_MODEL)
+        semantic_by_signal = {
+            signal: {
+                book.id: self._semantic_matches(book.id, weights, vectors) for book in candidates
+            }
+            for signal, weights in seed_weights_by_signal.items()
+        }
         semantic = {
-            book.id: self._semantic_matches(book.id, seed_weights, vectors) for book in candidates
+            book.id: max(
+                (matches[book.id] for matches in semantic_by_signal.values()),
+                key=lambda match: match[0],
+                default=(0.0, None),
+            )
+            for book in candidates
         }
         category_scores = {
-            book.id: self._category_interest(book, rating_preferences, borrow_preferences)
+            book.id: self._category_interest(
+                book, rating_preferences, like_preferences, borrow_preferences
+            )
             for book in candidates
         }
         max_category = max(category_scores.values(), default=0.0)
@@ -159,6 +195,49 @@ class RecommendationService:
             (log1p(popularity.get(book.id, 0)) for book in candidates),
             default=0.0,
         )
+
+        def category_signal(book: Book, signal: str) -> float:
+            active_categories = [
+                category for category in book.categories if category.deleted_at is None
+            ]
+            if signal == "ratings":
+                return sum(
+                    max(rating_preferences.get(category.id, ("", 0))[1], 0)
+                    for category in active_categories
+                )
+            if signal == "likes":
+                return sum(
+                    like_preferences.get(category.id, ("", 0))[1] * 1.5
+                    for category in active_categories
+                )
+            return sum(
+                min(borrow_preferences.get(category.id, 0), 4) * 0.25
+                for category in active_categories
+            )
+
+        max_category_by_signal = {
+            signal: max((category_signal(book, signal) for book in candidates), default=0.0)
+            for signal in ("ratings", "likes", "borrowing")
+        }
+        signal_scores: dict[str, dict[UUID, float]] = {
+            signal: {} for signal in ("ratings", "likes", "borrowing", "popular", "reader_ratings")
+        }
+        for book in candidates:
+            for signal in ("ratings", "likes", "borrowing"):
+                semantic_score = semantic_by_signal[signal][book.id][0]
+                category_max = max_category_by_signal[signal]
+                category_score = (
+                    category_signal(book, signal) / category_max if category_max else 0.0
+                )
+                source_score = max(semantic_score, category_score)
+                if source_score > 0:
+                    signal_scores[signal][book.id] = source_score
+
+            if max_popularity and popularity.get(book.id, 0):
+                signal_scores["popular"][book.id] = log1p(popularity[book.id]) / max_popularity
+            average = rating_averages.get(book.id, 0.0)
+            if average >= 4.0 and rating_counts.get(book.id, 0) > 0:
+                signal_scores["reader_ratings"][book.id] = average / 5.0
 
         def relevance(book: Book) -> float:
             semantic_score, _ = semantic[book.id]
@@ -183,12 +262,55 @@ class RecommendationService:
                 sum(weight * score for weight, score, active in weights if active) / active_weight
             )
 
-        # Greedy maximal marginal relevance: relevance stays primary, with a modest penalty
-        # when a candidate is nearly identical to a title already selected.
-        remaining = list(candidates)
+        # Round-robin source pools ensure a strong personal signal cannot fill the whole list.
+        source_order = ("ratings", "likes", "borrowing", "popular", "reader_ratings")
         selected: list[Book] = []
-        while remaining and len(selected) < limit:
-            scored: list[tuple[float, str, Book]] = []
+        selected_signals: dict[UUID, str] = {}
+        while len(selected) < limit:
+            made_progress = False
+            for signal in source_order:
+                available = [
+                    book
+                    for book in candidates
+                    if book.id not in selected_signals and book.id in signal_scores[signal]
+                ]
+                if not available:
+                    continue
+                scored: list[tuple[float, float, str, Book]] = []
+                for book in available:
+                    vector = vectors.get(book.id)
+                    redundancy = max(
+                        (
+                            self._cosine(vector, vectors[selected_book.id])
+                            for selected_book in selected
+                            if vector is not None and selected_book.id in vectors
+                        ),
+                        default=0.0,
+                    )
+                    score = signal_scores[signal][book.id]
+                    scored.append(
+                        (
+                            score - self.DIVERSITY_PENALTY * redundancy,
+                            relevance(book),
+                            book.title.casefold(),
+                            book,
+                        )
+                    )
+                chosen = min(scored, key=lambda item: (-item[0], -item[1], item[2]))[3]
+                selected.append(chosen)
+                selected_signals[chosen.id] = signal
+                made_progress = True
+                if len(selected) >= limit:
+                    break
+            if not made_progress:
+                break
+
+        # Fill remaining slots with the blended score when a source pool is sparse.
+        while len(selected) < limit:
+            remaining = [book for book in candidates if book.id not in selected_signals]
+            if not remaining:
+                break
+            scored = []
             for book in remaining:
                 vector = vectors.get(book.id)
                 redundancy = max(
@@ -208,24 +330,30 @@ class RecommendationService:
                 )
             chosen = min(scored, key=lambda item: (-item[0], item[1]))[2]
             selected.append(chosen)
-            remaining.remove(chosen)
+            selected_signals[chosen.id] = "fallback"
 
-        reason_counts: defaultdict[str, int] = defaultdict(int)
         recommendations: list[BookRecommendationResponse] = []
         for book in selected:
-            semantic_seed, semantic_score = semantic[book.id]
-            reason = self._reason(
-                book,
-                semantic_seed=semantic_seed,
-                semantic_score=semantic_score,
-                book_titles={book_id: item.title for book_id, item in books_by_id.items()},
-                rating_preferences=rating_preferences,
-                borrow_preferences=borrow_preferences,
-                popularity=popularity,
-                rating_averages=rating_averages,
-                reason_counts=reason_counts,
-            )
-            reason_counts[reason] += 1
+            signal = selected_signals[book.id]
+            if signal == "fallback":
+                reason = "A fresh title from the catalog"
+            elif signal == "popular":
+                reason = "Popular with library readers"
+            elif signal == "reader_ratings":
+                reason = f"Highly rated by library readers ({rating_averages[book.id]:.1f}/5)"
+            else:
+                semantic_score, semantic_seed = semantic_by_signal[signal][book.id]
+                reason = self._signal_reason(
+                    book,
+                    signal=signal,
+                    semantic_seed=semantic_seed,
+                    semantic_score=semantic_score,
+                    book_titles={book_id: item.title for book_id, item in books_by_id.items()},
+                    rating_preferences=rating_preferences,
+                    like_preferences=like_preferences,
+                    borrow_preferences=borrow_preferences,
+                    rating_averages=rating_averages,
+                )
             recommendations.append(
                 BookRecommendationResponse(
                     book=self.book_service._to_response(book),

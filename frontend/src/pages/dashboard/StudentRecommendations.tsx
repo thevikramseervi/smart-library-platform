@@ -54,7 +54,7 @@ export function StudentRecommendations() {
             <Sparkles className="size-4 text-primary" aria-hidden="true" />
             Recommended for you
           </CardTitle>
-          <CardDescription>Based on your ratings, borrowing, and feedback.</CardDescription>
+          <CardDescription>A mix of your interests and popular, highly rated books.</CardDescription>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link to="/catalog/books">Browse catalog</Link>

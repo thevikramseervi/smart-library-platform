@@ -47,19 +47,19 @@ def test_recommendation_reason_does_not_compare_a_book_to_itself() -> None:
     book_id = uuid4()
     book = SimpleNamespace(title="Introduction to Algorithms", categories=[])
 
-    reason = RecommendationService._reason(
+    reason = RecommendationService._signal_reason(
         book,
+        signal="ratings",
         semantic_seed=book_id,
         semantic_score=0.9,
         book_titles={book_id: book.title},
         rating_preferences={},
+        like_preferences={},
         borrow_preferences={},
-        popularity={},
         rating_averages={},
-        reason_counts={},
     )
 
-    assert reason == "Available to borrow"
+    assert reason == "Based on books you rated highly"
 
 
 def test_unrated_borrowed_book_is_a_positive_semantic_seed(
@@ -188,7 +188,7 @@ def test_recommendations_use_positive_category_ratings_and_exclude_seen_books(
     assert response.status_code == 200
     results = response.json()
     recommended = next(item for item in results if item["book"]["id"] == candidate.json()["id"])
-    assert recommended["reason"] == f"Because you liked {category.json()['name']} books"
+    assert recommended["reason"] == f"Because you rated {category.json()['name']} books highly"
     assert all(item["book"]["id"] != book["id"] for item in results)
 
     limited = client.get("/api/v1/recommendations/me?limit=1", headers=student_headers)

@@ -1769,12 +1769,14 @@ GET /api/v1/recommendations/me?limit=9
 Access: student only. `limit` defaults to 9 and must be between 1 and 20.
 Returns active titles with an available copy that the student has not rated,
 borrowed, or dismissed. Ranking combines
-similarity to the student's positively rated, borrowed, or explicitly liked books using already
-indexed embeddings, category interests, issue counts, and average ratings. A
-diversity step reduces near-duplicate suggestions. If embeddings or personal
-signals are unavailable, category and library-wide signals provide a fallback;
-the request does not generate embeddings. Each item contains a complete `book`
-response, a short `reason`, and `average_rating` / `rating_count` fields (zero
+similarity to positively rated, borrowed, or explicitly liked books using
+already indexed embeddings, category interests, issue counts, and average
+ratings. Selection rotates through separate rating, like, borrowing, popularity,
+and community-rating candidate pools, with semantic diversity within each pool;
+this prevents one preference signal from filling the whole list. Missing pools
+are skipped and remaining slots use the blended score. The request does not
+generate embeddings. Each item contains a complete `book` response, one `reason`
+that identifies its selected signal, and `average_rating` / `rating_count` fields (zero
 count and null average when unrated), plus `feedback_signal` (`LIKE` for a
 saved like, otherwise null; dismissed titles are not returned).
 

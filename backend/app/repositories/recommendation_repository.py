@@ -25,8 +25,8 @@ class RecommendationRepository:
 
     def get_category_preferences(
         self, student_id: UUID
-    ) -> tuple[dict[UUID, tuple[str, int]], dict[UUID, int]]:
-        """Return net rating scores and borrow counts for each category."""
+    ) -> tuple[dict[UUID, tuple[str, int]], dict[UUID, tuple[str, int]], dict[UUID, int]]:
+        """Return separate category preferences from ratings, likes, and borrowing."""
         rating_signal = func.sum(
             case(
                 (Rating.score == 5, 2),
@@ -50,7 +50,11 @@ class RecommendationRepository:
         }
 
         liked_category_statement = (
-            select(Category.id, Category.name)
+            select(
+                Category.id,
+                Category.name,
+                func.count(func.distinct(RecommendationFeedback.book_id)),
+            )
             .select_from(RecommendationFeedback)
             .join(BookCategory, BookCategory.book_id == RecommendationFeedback.book_id)
             .join(Category, Category.id == BookCategory.category_id)
@@ -59,11 +63,12 @@ class RecommendationRepository:
                 RecommendationFeedback.signal == "LIKE",
                 Category.deleted_at.is_(None),
             )
-            .distinct()
+            .group_by(Category.id, Category.name)
         )
-        for category_id, name in self.db.execute(liked_category_statement):
-            previous_name, previous_score = rating_preferences.get(category_id, (name, 0))
-            rating_preferences[category_id] = (previous_name, previous_score + 2)
+        like_preferences = {
+            category_id: (name, int(count))
+            for category_id, name, count in self.db.execute(liked_category_statement)
+        }
 
         borrow_signal = func.count(func.distinct(Transaction.id))
         borrow_statement = (
@@ -78,7 +83,7 @@ class RecommendationRepository:
         borrow_preferences = {
             category_id: int(count) for category_id, count in self.db.execute(borrow_statement)
         }
-        return rating_preferences, borrow_preferences
+        return rating_preferences, like_preferences, borrow_preferences
 
     def list_interacted_book_ids(self, student_id: UUID) -> set[UUID]:
         """Return rated, borrowed, or dismissed books to leave out of suggestions."""
@@ -106,13 +111,22 @@ class RecommendationRepository:
         return dict(self.db.execute(statement).all())
 
     def get_positive_seed_weights(self, student_id: UUID) -> dict[UUID, float]:
-        """Return positive rating and borrowing signals for semantic seeds."""
+        """Return combined positive rating, like, and borrowing semantic seeds."""
+        by_signal = self.get_positive_seed_weights_by_signal(student_id)
+        combined: dict[UUID, float] = {}
+        for weights in by_signal.values():
+            for book_id, weight in weights.items():
+                combined[book_id] = max(combined.get(book_id, 0.0), weight)
+        return combined
+
+    def get_positive_seed_weights_by_signal(self, student_id: UUID) -> dict[str, dict[UUID, float]]:
+        """Return separate semantic seed strengths for ratings, likes, and borrowing."""
         ratings = dict(
             self.db.execute(
                 select(Rating.book_id, Rating.score).where(Rating.student_id == student_id)
             ).all()
         )
-        weights = {
+        rated_weights = {
             book_id: (1.0 if score == 4 else 1.5)
             for book_id, score in ratings.items()
             if score >= 4
@@ -123,21 +137,25 @@ class RecommendationRepository:
             .where(Transaction.student_id == student_id)
             .group_by(BookCopy.book_id)
         )
+        borrowed_weights: dict[UUID, float] = {}
         for book_id, count in borrowed:
             # A low rating is an explicit negative signal; do not use it as a seed.
             # Unrated books are not negative: borrowing one is a useful positive signal.
             if book_id in ratings and ratings[book_id] <= 2:
                 continue
-            weights[book_id] = max(weights.get(book_id, 0.0), 0.5 + min(int(count), 3) * 0.1)
+            borrowed_weights[book_id] = 0.5 + min(int(count), 3) * 0.1
         liked_ids = self.db.execute(
             select(RecommendationFeedback.book_id).where(
                 RecommendationFeedback.student_id == student_id,
                 RecommendationFeedback.signal == "LIKE",
             )
         ).scalars()
-        for book_id in liked_ids:
-            weights[book_id] = max(weights.get(book_id, 0.0), 1.2)
-        return weights
+        liked_weights = {book_id: 1.2 for book_id in liked_ids}
+        return {
+            "ratings": rated_weights,
+            "likes": liked_weights,
+            "borrowing": borrowed_weights,
+        }
 
     def upsert_feedback(self, *, student_id: UUID, book_id: UUID, signal: str) -> None:
         """Create or replace one explicit preference for a student and title."""
