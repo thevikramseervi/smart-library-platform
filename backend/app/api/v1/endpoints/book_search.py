@@ -19,8 +19,14 @@ logger = logging.getLogger(__name__)
 def _to_result(
     book,
     score: float | None,
-    copy_counts: tuple[int, int] = (0, 0),
+    copy_counts: tuple[int, int] | None = None,
 ) -> SemanticSearchResult:
+    if copy_counts is None:
+        copies = getattr(book, "copies", []) or []
+        copy_counts = (
+            len(copies),
+            sum(getattr(copy.status, "value", copy.status) == "AVAILABLE" for copy in copies),
+        )
     publisher = getattr(book, "publisher", None)
     return SemanticSearchResult(
         score=round(score, 4) if score is not None else None,
