@@ -31,7 +31,6 @@ class CirculationPolicyService:
     ) -> CirculationPolicyResponse:
         """Update active circulation policy parameters with admin audit logging."""
         previous = self.repository.get_active()
-        updated = self.repository.update_active(payload, admin_user.id)
         previous_values = {
             "daily_overdue_fine_rate": str(previous.daily_overdue_fine_rate),
             "max_fine_amount": str(previous.max_fine_amount),
@@ -40,6 +39,7 @@ class CirculationPolicyService:
             "max_renewals": previous.max_renewals,
             "reservation_expiry_days": previous.reservation_expiry_days,
         }
+        updated = self.repository.update_active(payload, admin_user.id)
         new_values = {
             "daily_overdue_fine_rate": str(updated.daily_overdue_fine_rate),
             "max_fine_amount": str(updated.max_fine_amount),
