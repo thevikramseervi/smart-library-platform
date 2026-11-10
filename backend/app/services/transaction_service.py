@@ -25,6 +25,7 @@ from app.schemas.transaction import (
     TransactionResponse,
     TransactionReturnRequest,
 )
+from app.services.audit_log_service import AuditLogService
 from app.services.fine_service import FineService
 from app.services.notification_service import NotificationService
 
@@ -39,6 +40,7 @@ class TransactionService:
         self.fine_repository = FineRepository(db)
         self.fine_service = FineService(db)
         self.notification_service = NotificationService(db)
+        self.audit_log_service = AuditLogService(db)
         self.policy_repository = CirculationPolicyRepository(db)
         self._max_fine_amount: Decimal | None = None
         self._max_renewals: int | None = None
@@ -107,10 +109,26 @@ class TransactionService:
 
     def _expire_stale_reservations(self) -> None:
         """Expire old queue entries before circulation decisions use the queue."""
-        expired_book_ids = self.reservation_repository.expire_stale_returning_book_ids()
-        if not expired_book_ids:
+        expired_reservations = self.reservation_repository.expire_stale_returning_reservations()
+        if not expired_reservations:
             return
-        for book_id in expired_book_ids:
+        for reservation in expired_reservations:
+            self.audit_log_service.record(
+                actor=None,
+                action="RESERVATION_EXPIRED",
+                entity_type="RESERVATION",
+                entity_id=reservation.id,
+                summary=f'Reservation for "{reservation.book.title}" expired',
+                details={
+                    "book_title": reservation.book.title,
+                    "student_name": (
+                        f"{reservation.student.first_name} {reservation.student.last_name}".strip()
+                    ),
+                    "student_code": reservation.student.student_code,
+                    "expiry_date": reservation.expiry_date.isoformat(),
+                },
+            )
+        for book_id in {reservation.book_id for reservation in expired_reservations}:
             self.circulation_repository.release_reserved_copies_without_queue(book_id)
         commit_or_raise_conflict(self.db, detail="Failed to expire stale reservations")
 
@@ -208,6 +226,21 @@ class TransactionService:
 
         if active_reservation is not None:
             active_reservation.status = ReservationStatus.FULFILLED
+            student_name = f"{student.first_name} {student.last_name}".strip()
+            self.audit_log_service.record(
+                actor=issued_by,
+                action="RESERVATION_FULFILLED",
+                entity_type="RESERVATION",
+                entity_id=active_reservation.id,
+                summary=f'Reservation for "{copy.book.title}" fulfilled for {student_name}',
+                details={
+                    "book_title": copy.book.title,
+                    "inventory_code": copy.inventory_code,
+                    "student_name": student_name,
+                    "student_code": student.student_code,
+                    "transaction_id": str(transaction.id),
+                },
+            )
 
         self.notification_service.create_once(
             user_id=student.id,
@@ -215,10 +248,25 @@ class TransactionService:
             notification_type="BOOK_ISSUED",
             title="Book issued to you",
             message=(
-                f"{copy.book.title} was issued to you and is due on "
-                f"{due_at.strftime('%d %b %Y')}."
+                f"{copy.book.title} was issued to you and is due on {due_at.strftime('%d %b %Y')}."
             ),
             link="/circulation/my-loans",
+        )
+        student_name = f"{student.first_name} {student.last_name}".strip()
+        self.audit_log_service.record(
+            actor=issued_by,
+            action="BOOK_ISSUED",
+            entity_type="TRANSACTION",
+            entity_id=transaction.id,
+            summary=(f'Issued "{copy.book.title}" (copy {copy.inventory_code}) to {student_name}'),
+            details={
+                "book_title": copy.book.title,
+                "inventory_code": copy.inventory_code,
+                "student_name": student_name,
+                "student_code": student.student_code,
+                "due_date": due_at.isoformat(),
+                "reservation_fulfilled": active_reservation is not None,
+            },
         )
 
         commit_or_raise_conflict(
@@ -269,9 +317,28 @@ class TransactionService:
                 detail="Unpaid fines must be cleared before renewing a book",
             )
 
+        previous_due_date = transaction.due_at
         transaction.due_at += timedelta(days=policy.loan_period_days)
         transaction.renewal_count += 1
         self.notification_service.mark_due_reminders_read(student.id, transaction.id)
+        self.audit_log_service.record(
+            actor=student,
+            action="BOOK_RENEWED",
+            entity_type="TRANSACTION",
+            entity_id=transaction.id,
+            summary=(
+                f'Renewed "{transaction.book_copy.book.title}" '
+                f"(copy {transaction.book_copy.inventory_code})"
+            ),
+            details={
+                "book_title": transaction.book_copy.book.title,
+                "inventory_code": transaction.book_copy.inventory_code,
+                "previous_due_date": previous_due_date.isoformat(),
+                "new_due_date": transaction.due_at.isoformat(),
+                "renewal_count": transaction.renewal_count,
+                "student_code": student.student_code,
+            },
+        )
         commit_or_raise_conflict(self.db, detail="Failed to renew loan")
         refreshed = self.repository.get_by_id_with_relations(transaction_id)
         assert refreshed is not None
@@ -337,16 +404,53 @@ class TransactionService:
             )
             self.notification_service.create_once(
                 user_id=transaction.student_id,
-                event_key=(
-                    f"fine-paid:{fine.id}" if fine_was_paid else f"fine-recorded:{fine.id}"
-                ),
+                event_key=(f"fine-paid:{fine.id}" if fine_was_paid else f"fine-recorded:{fine.id}"),
                 notification_type="FINE_PAID" if fine_was_paid else "FINE_RECORDED",
                 title="Fine payment recorded" if fine_was_paid else "Overdue fine recorded",
                 message=(
-                    f"A fine of ₹{fine.amount:.2f} for {copy.book.title} was "
-                    f"{fine_status_message}."
+                    f"A fine of ₹{fine.amount:.2f} for {copy.book.title} was {fine_status_message}."
                 ),
                 link="/circulation/my-fines",
+            )
+
+        student = transaction.student
+        student_name = f"{student.first_name} {student.last_name}".strip()
+        self.audit_log_service.record(
+            actor=returned_by,
+            action="BOOK_RETURNED",
+            entity_type="TRANSACTION",
+            entity_id=transaction.id,
+            summary=(
+                f'Returned "{copy.book.title}" (copy {copy.inventory_code}) from {student_name}'
+            ),
+            details={
+                "book_title": copy.book.title,
+                "inventory_code": copy.inventory_code,
+                "student_name": student_name,
+                "student_code": student.student_code,
+                "due_date": transaction.due_at.isoformat(),
+                "returned_at": returned_at.isoformat(),
+            },
+        )
+        if fine is not None:
+            action = "FINE_PAID" if payload.pay_fine else "FINE_RECORDED"
+            self.audit_log_service.record(
+                actor=returned_by,
+                action=action,
+                entity_type="FINE",
+                entity_id=fine.id,
+                summary=(
+                    f'Fine of ₹{fine.amount:.2f} for "{copy.book.title}" was '
+                    f"{'paid' if payload.pay_fine else 'recorded'} on return"
+                ),
+                details={
+                    "amount": str(fine.amount),
+                    "book_title": copy.book.title,
+                    "inventory_code": copy.inventory_code,
+                    "student_name": student_name,
+                    "student_code": student.student_code,
+                    "paid": bool(payload.pay_fine),
+                },
             )
 
         self.db.commit()

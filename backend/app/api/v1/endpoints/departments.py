@@ -40,30 +40,30 @@ def get_department(
 @router.post("", response_model=DepartmentResponse, status_code=status.HTTP_201_CREATED)
 def create_department(
     payload: DepartmentCreate,
-    _current_user: User = Depends(require_roles("ADMIN")),
+    current_user: User = Depends(require_roles("ADMIN")),
     service: DepartmentService = Depends(get_department_service),
 ) -> DepartmentResponse:
     """Create a department."""
-    return service.create_department(payload)
+    return service.create_department(payload, current_user)
 
 
 @router.put("/{department_id}", response_model=DepartmentResponse)
 def update_department(
     department_id: UUID,
     payload: DepartmentUpdate,
-    _current_user: User = Depends(require_roles("ADMIN")),
+    current_user: User = Depends(require_roles("ADMIN")),
     service: DepartmentService = Depends(get_department_service),
 ) -> DepartmentResponse:
     """Update a department."""
-    return service.update_department(department_id, payload)
+    return service.update_department(department_id, payload, current_user)
 
 
 @router.delete("/{department_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_department(
     department_id: UUID,
-    _current_user: User = Depends(require_roles("ADMIN")),
+    current_user: User = Depends(require_roles("ADMIN")),
     service: DepartmentService = Depends(get_department_service),
 ) -> Response:
     """Delete a department when no users are assigned."""
-    service.delete_department(department_id)
+    service.delete_department(department_id, current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

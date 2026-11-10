@@ -1,6 +1,6 @@
 # Smart Library Platform - Architecture Document
 
-**Implementation snapshot:** 2026-11-09 (Alembic head `019_return_and_fine_paid_types`)
+**Implementation snapshot:** 2026-11-10 (Alembic head `022_digital_resources`)
 
 ## 1. Project Overview
 
@@ -8,7 +8,7 @@ Smart Library Platform is a cloud-based Library Management System developed as a
 
 The current implementation manages physical books, catalog metadata, circulation, reservations, fines, ratings, semantic search, admin user/department management, and role-based dashboards.
 
-Staff QR label printing and issue/return scanning are implemented. Digital resources, recommendations, and analytics remain future work. Semantic book search, ratings, and in-app circulation notifications are implemented.
+Staff QR label printing and issue/return scanning are implemented. Staff can attach one private PDF to a catalog title in Cloudflare R2; authenticated users can open or download it from book details when storage is configured. Admin circulation reports and audit history for catalog and digital resources, copies, reference data, departments, user administration, circulation, reservation lifecycle, fines, and circulation policy changes are implemented; broader analytics remain future work. Semantic book search, ratings and reviews, student recommendations, and in-app circulation notifications are implemented.
 
 ---
 
@@ -25,10 +25,9 @@ Staff QR label printing and issue/return scanning are implemented. Digital resou
 
 ### Future Objectives (Not Yet Built)
 
-* Digital books and cloud storage
-* AI-powered recommendations
-* Analytics dashboards
-* Audit logging
+* Broader analytics dashboards and trends beyond circulation reports
+* Library calendar support for closure-aware due dates or fines
+* Token refresh and explicit server-side logout
 
 ---
 
@@ -59,9 +58,8 @@ Staff QR label printing and issue/return scanning are implemented. Digital resou
 
 ### Future Student/Staff Capabilities
 
-* Digital resource viewing
-* Reviews and recommendations (ratings are live)
-* QR self-service (if added)
+* A custom in-app PDF reader (PDFs currently open in the browser's built-in viewer or download)
+* Student self-service QR circulation; QR label printing and staff scanning are implemented
 
 ---
 
@@ -85,7 +83,7 @@ Responsible for:
 * Catalog, circulation, and admin modules
 * TanStack Query data fetching
 
-Not yet implemented: PDF viewer and analytics charts. Staff QR label printing and copy scanning are implemented in the frontend.
+The catalog opens digital PDFs in the browser's built-in PDF viewer and supports downloading; a custom embedded PDF reader is not implemented. Broader analytics charts are future work. Admin circulation reports and an audit log page are implemented. Staff QR label printing and copy scanning are implemented in the frontend.
 
 ### Backend Layer
 
@@ -122,9 +120,7 @@ Alembic-managed PostgreSQL schema. See [`database.md`](database.md) for implemen
 
 ### Planned (Not Integrated)
 
-* Cloudflare R2 (digital files)
-* Recommendation algorithms
-* Analytics visualization library (no charts are implemented)
+* Broader analytics beyond the implemented circulation and reservation charts
 
 ---
 
@@ -205,6 +201,25 @@ Role-specific summary endpoints and views:
 
 Home route `/` redirects to `/dashboard`.
 
+### Library Analytics
+
+The admin-only `/admin/analytics` page calls `GET /reports/circulation` with a
+UTC calendar date range. It reports issues, returns, overdue loans as of the
+period end, on-time and late returns, overdue age buckets, current unpaid fine
+balance, reservation placements and outcomes, average reservation wait,
+department borrowing participation, and the most-issued titles and categories.
+It charts loans versus returns, fines collected, and reservation placements
+versus fulfillments over the selected range; the aggregation interval adjusts
+from daily to weekly or monthly as the range grows. Department participation
+uses currently active students and current department assignments, and only
+aggregate counts are exposed. Collection health also shows current copy counts
+by status, titles whose active reservation queue exceeds copies already held
+for reservations plus available copies, and titles with available stock but no
+issues in the selected period. These inventory figures are current state; the
+zero-issue signal is period-specific and is not a recommendation to remove a
+title. Admins can download the selected report data as a spreadsheet-friendly
+CSV generated in the browser. Broader analytics remain future work.
+
 ### Catalog Module (Sprint 3)
 
 Books, authors, categories, publishers, languages, physical copies with lifecycle statuses.
@@ -247,7 +262,7 @@ Calendar-day overdue balances accrue for open overdue loans when fine lists, das
 Provides database-backed circulation configuration for loan duration, reservation expiry, fine rate and cap, and active loan limit:
 
 * **Database schema:** `circulation_policies` table (migration `013_circulation_policies`) with check constraints ensuring non-negative fines, positive loan windows, and positive borrowing limits.
-* **Latest-editor attribution:** `updated_by` points to the user who last changed the policy; the UI shows this attribution. There is no history of prior policy values or a general audit log.
+* **Latest-editor attribution:** `updated_by` points to the user who last changed the policy; the UI shows this attribution. Each successful policy change is also recorded in the admin audit log with before/after values.
 * **Concurrency:** `CirculationPolicyRepository.update_active` uses row-level locking (`SELECT ... FOR UPDATE`) to prevent concurrent race conditions on policy updates.
 * **Service integration:**
   * `FineService.sync_open_overdue_fines`: refreshes the accrued balance from `policy.daily_overdue_fine_rate` and `policy.max_fine_amount`.
@@ -257,13 +272,28 @@ Provides database-backed circulation configuration for loan duration, reservatio
 * Fine rate and cap are read when a late book is returned. A policy edit during an open loan therefore applies to that loan's fine; the policy is not snapshotted at issue time.
 * The policy also controls the maximum number of renewals per loan (0–5); a zero limit disables renewals.
 * **Zero-downtime fallback:** If no active policy record exists in the database, the repository seamlessly falls back to static runtime `Settings`.
+
+### Audit Log
+
+The admin-only `/admin/audit-log` page reads `GET /audit-logs`. It lists
+successful book and copy create/update/delete/status changes, user creation,
+updates, deactivation and password resets, book issues/returns/renewals,
+reservation creation/cancellation/expiry/fulfillment, fine recordings/payments,
+and circulation-policy changes. Events are inserted in the same database
+transaction as the action, so a failed action does not leave a success record
+and a committed action cannot silently omit its audit event. It includes
+reservation creation, cancellation, automatic expiration, and fulfillment
+during issue; automatic expiry is attributed to System. The list supports
+search, action/date filters, and pagination. Actor name/email snapshots remain
+available if an account is later removed. Events are read-only through the API;
+actions that occurred before the audit-log migration are not backfilled.
 * **Admin UI:** Dedicated interface at `/admin/circulation-policy` with form validations, reset controls, error retry boundary, and contextual policy guidelines.
 
 ### Semantic Search Module (Sprint 5)
 
 * Canonical text per book built from title/authors/categories/publisher/language/year/description (`app/search/document_builder.py`)
 * Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), lazy-loaded per process
-* Catalog book create/update and author/category/publisher renames mark affected embeddings `PENDING` and schedule targeted background reindexing after the response; failures remain recorded for admin retry in the app or the offline command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
+* Catalog book create/update and author/category/publisher renames or soft deletions mark affected embeddings `PENDING` and schedule targeted background reindexing after the response; deleted reference data is omitted from canonical text. Failures remain recorded for admin retry in the app or the offline command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
 * Admins can inspect indexing counts and start a pending/failed retry or confirmed full rebuild at `/admin/search-index`; matching admin-only API endpoints report job outcome while the server process remains running
 * Soft delete removes the embedding row
 * `GET /api/v1/books/search?q=` prioritizes exact title/ISBN, title-prefix, and other catalog text matches before semantically ranked results. ISBN-shaped queries use text matching only; other queries apply BGE v1.5's query instruction, keep pending/stale books findable through text matches, diversify leading semantic results across titles while retaining editions, and fall back to text if no usable vectors exist or inference fails
@@ -271,30 +301,46 @@ Provides database-backed circulation configuration for loan duration, reservatio
 
 ### Ratings Module (Sprint 5)
 
-* One 1-5 rating per student per book (migration `012`, UNIQUE constraint + CHECK on score range)
+* One 1-5 rating and optional written review per student per book (migrations `012` and `021`, UNIQUE constraint + CHECK constraints)
 * Upsert via ON CONFLICT so concurrent double-posts are deterministic
-* Endpoints: `PUT`/`DELETE /books/{id}/rating` (student-only), `GET /books/{id}/ratings` summary, `GET /books/{id}/ratings/me`
-* Star picker with live average/count on the student book detail page
+* Endpoints: `PUT`/`DELETE /books/{id}/rating` (student-only), `GET /books/{id}/ratings` summary, `GET /books/{id}/ratings/me`, `GET /books/{id}/reviews`, and student-only `PUT`/`DELETE /books/{id}/review`
+* Students can add or edit a review after rating a book; authenticated users see the public review list on book details
+* Star picker with live average/count and review editor for students; admins and librarians see reviews read-only
 
 ---
 
-## 10. Additional Architecture Notes and Planned Work
+## 10. Additional Architecture Notes
 
-QR circulation below describes the implemented staff workflow. The remaining sections describe future design.
+QR circulation and digital library workflows below are implemented. The recommendations section describes the current implementation; broader analytics remain future work.
 
 ### QR-Based Circulation
 
 Staff can print a label for one or all physical copies from the book detail page. The frontend generates a QR image locally from the copy's existing `qr_code_value` (currently the inventory code); it is not stored as an image and requires no database migration. Issue and return pages can scan the label using the camera, then use the scanned inventory code to filter the existing copy or active-loan list. The existing student selection, reservation, fine, and confirmation checks still apply. Manual search remains available.
 
-### Digital Library (Sprint 5+)
+### Digital Library
 
 ```text
-Cloudflare R2 → file URL → PostgreSQL metadata
+Authenticated API → private Cloudflare R2 object
+                    ↘ PostgreSQL metadata and opaque key
 ```
 
-### Recommendation Engine (Future)
+Staff can upload, replace, or remove one PDF (up to 25 MB) for a catalog title.
+Authenticated users can open or download it from the book detail page. File
+bytes remain in R2; PostgreSQL stores only metadata and the private object key.
 
-Popularity, content-based, and collaborative filtering over borrow/rating signals.
+### Recommendations
+
+The student-only `GET /recommendations/me` endpoint ranks active catalog titles
+with an available copy that the student has not rated or borrowed. It reuses
+current indexed FastEmbed vectors to compare candidates with positively rated
+or borrowed titles, then blends semantic similarity with category interest,
+circulation popularity, and average ratings. A diversity penalty reduces
+near-duplicate suggestions in the result list. If a suitable vector is missing,
+the service falls back to the available category, popularity, and rating signals;
+it does not load the embedding model or generate vectors during a dashboard
+request. Each result includes a short reason tied to the strongest available
+signal. The dashboard shows up to six suggestions with cover, availability,
+and a link to book details.
 
 ### In-App Notifications (Implemented)
 
@@ -304,9 +350,10 @@ The notification center supports unread counts and read state.
 Due and overdue reminders are generated when the authenticated user opens the
 app; no background scheduler, email provider, or push service is required.
 
-### Analytics (Future)
+### Broader Analytics (Future)
 
-Trend dashboards distinct from Sprint 4.6 operational role dashboards.
+Trend dashboards beyond the implemented date-filtered circulation reports and
+Sprint 4.6 operational role dashboards.
 
 ---
 
@@ -314,13 +361,15 @@ Trend dashboards distinct from Sprint 4.6 operational role dashboards.
 
 ```text
 React Frontend → Vercel
-FastAPI Backend → Render / Railway / Fly.io
+FastAPI Backend → Render (current deployment)
 PostgreSQL → Neon
 ```
 
 See [`deployment.md`](deployment.md) for environment variables and checklist.
 
-Digital resources (future) will add Cloudflare R2.
+Digital PDF storage uses a private Cloudflare R2 bucket. The Render backend
+must have the `CLOUD_STORAGE_*` settings configured, and the target database
+must be migrated through `022_digital_resources`.
 
 ---
 
@@ -345,11 +394,11 @@ Digital resources (future) will add Cloudflare R2.
 
 ### Included (Current Implementation)
 
-Physical library catalog and inventory, circulation, reservations, fines, ratings, semantic search, admin users/departments, role dashboards, reservation-aware staff UX.
+Physical library catalog and inventory, digital PDF files, circulation, reservations, fines, ratings and reviews, recommendations, semantic search, admin users/departments, role dashboards, reservation-aware staff UX, catalog/reference-data/department/user/circulation/policy audit history.
 
 ### Excluded / Future
 
-Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, digital resources, QR, recommendations, audit logs, analytics.
+Payment gateway, multi-branch libraries, RFID, microservices, AI chatbots, and analytics beyond circulation reports.
 
 ---
 
@@ -366,7 +415,7 @@ Setup: [`setup.md`](setup.md)
 
 | Document | Purpose |
 |----------|---------|
-| [`api-spec.md`](api-spec.md) | REST API (implemented + planned appendix) |
+| [`api-spec.md`](api-spec.md) | REST API (implemented + future endpoints) |
 | [`database.md`](database.md) | Schema (implemented + planned) |
 | [`sprint-4-summary.md`](sprint-4-summary.md) | Sprint delivery history |
 | [`project-rules.md`](project-rules.md) | Engineering standards |

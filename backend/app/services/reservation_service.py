@@ -19,6 +19,7 @@ from app.schemas.reservation import (
     ReservationResponse,
     ReservationStudentSummary,
 )
+from app.services.audit_log_service import AuditLogService
 
 
 class ReservationService:
@@ -29,6 +30,7 @@ class ReservationService:
         self.circulation_repository = CirculationRepository(db)
         self.transaction_repository = TransactionRepository(db)
         self.policy_repository = CirculationPolicyRepository(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
 
     def _to_response(self, reservation: Reservation) -> ReservationResponse:
@@ -47,10 +49,26 @@ class ReservationService:
 
     def _expire_stale(self) -> None:
         """Expire reservations past their expiry date and persist changes."""
-        expired_books = self.repository.expire_stale_returning_book_ids()
-        if not expired_books:
+        expired_reservations = self.repository.expire_stale_returning_reservations()
+        if not expired_reservations:
             return
-        for book_id in expired_books:
+        for reservation in expired_reservations:
+            self.audit_log_service.record(
+                actor=None,
+                action="RESERVATION_EXPIRED",
+                entity_type="RESERVATION",
+                entity_id=reservation.id,
+                summary=f'Reservation for "{reservation.book.title}" expired',
+                details={
+                    "book_title": reservation.book.title,
+                    "student_name": (
+                        f"{reservation.student.first_name} {reservation.student.last_name}".strip()
+                    ),
+                    "student_code": reservation.student.student_code,
+                    "expiry_date": reservation.expiry_date.isoformat(),
+                },
+            )
+        for book_id in {reservation.book_id for reservation in expired_reservations}:
             self.circulation_repository.release_reserved_copies_without_queue(book_id)
         commit_or_raise_conflict(self.db, detail="Failed to expire stale reservations")
 
@@ -88,6 +106,19 @@ class ReservationService:
             status=ReservationStatus.ACTIVE,
         )
         created = self.repository.create(reservation)
+        self.audit_log_service.record(
+            actor=student,
+            action="RESERVATION_CREATED",
+            entity_type="RESERVATION",
+            entity_id=created.id,
+            summary=f'Reserved "{book.title}"',
+            details={
+                "book_title": book.title,
+                "student_name": f"{student.first_name} {student.last_name}".strip(),
+                "student_code": student.student_code,
+                "expiry_date": reservation.expiry_date.isoformat(),
+            },
+        )
         commit_or_raise_conflict(
             self.db,
             detail="Student already has an active reservation for this book",
@@ -121,6 +152,20 @@ class ReservationService:
         reservation.status = ReservationStatus.CANCELLED
         self.db.flush()
         self.circulation_repository.release_reserved_copies_without_queue(reservation.book_id)
+        self.audit_log_service.record(
+            actor=actor,
+            action="RESERVATION_CANCELLED",
+            entity_type="RESERVATION",
+            entity_id=reservation.id,
+            summary=f'Reservation for "{reservation.book.title}" cancelled',
+            details={
+                "book_title": reservation.book.title,
+                "student_name": (
+                    f"{reservation.student.first_name} {reservation.student.last_name}".strip()
+                ),
+                "student_code": reservation.student.student_code,
+            },
+        )
         self.db.commit()
 
     def list_my_reservations(self, student: User) -> list[ReservationResponse]:

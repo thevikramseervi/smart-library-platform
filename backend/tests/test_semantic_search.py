@@ -19,6 +19,7 @@ from app.models.book_embedding import BookEmbedding
 from app.models.publisher import Publisher
 from app.schemas.book import SemanticSearchResult
 from app.search import provider as provider_module
+from app.search.document_builder import build_canonical_text
 from app.services.embedding_service import (
     EmbeddingService,
     _search_query_text,
@@ -337,6 +338,92 @@ def test_index_status_counts_unmarked_content_hash_mismatch_as_pending(
     assert response.status_code == 200
     assert response.json()["indexed_books"] == 0
     assert response.json()["pending_books"] == 1
+
+
+@pytest.mark.parametrize("metadata_type", ["author", "category", "publisher"])
+def test_deleting_searchable_metadata_marks_books_pending_and_reindexes(
+    client: TestClient,
+    admin_token: str,  # noqa: F811
+    metadata_type: str,
+) -> None:
+    """Deleting searchable metadata removes it from canonical text and refreshes vectors."""
+    headers = _headers(admin_token)
+    book = _create_book(
+        client,
+        admin_token,
+        f"Metadata Delete {metadata_type}",
+        "Reference data deletion test",
+    )
+    if metadata_type == "author":
+        entity = client.post(
+            "/api/v1/authors",
+            headers=headers,
+            json={"name": f"Deleted Author {uuid4().hex}"},
+        ).json()
+        linked = client.put(
+            f"/api/v1/books/{book['id']}",
+            headers=headers,
+            json={"author_ids": [entity["id"]]},
+        )
+        endpoint = "authors"
+        deleted_name = entity["name"]
+    elif metadata_type == "category":
+        entity = client.post(
+            "/api/v1/categories",
+            headers=headers,
+            json={"name": f"Deleted Category {uuid4().hex}"},
+        ).json()
+        linked = client.put(
+            f"/api/v1/books/{book['id']}",
+            headers=headers,
+            json={"category_ids": [entity["id"]]},
+        )
+        endpoint = "categories"
+        deleted_name = entity["name"]
+    else:
+        publisher = _request_db().get(Publisher, UUID(book["publisher_id"]))  # type: ignore[union-attr]
+        assert publisher is not None
+        entity = {"id": str(publisher.id)}
+        endpoint = "publishers"
+        deleted_name = publisher.name
+
+    if metadata_type != "publisher":
+        assert linked.status_code == 200
+
+    service = EmbeddingService(_request_db())  # type: ignore[arg-type]
+    assert service.reindex_book(book["id"]) is True
+    indexed_row = (
+        _request_db()
+        .execute(select(BookEmbedding).where(BookEmbedding.book_id == book["id"]))  # type: ignore[union-attr]
+        .scalar_one()
+    )
+    assert indexed_row.embedding_status.value == "INDEXED"
+    previous_hash = indexed_row.content_hash
+
+    scheduled: list[str] = []
+    previous = app.dependency_overrides[get_embedding_reindexer]
+    app.dependency_overrides[get_embedding_reindexer] = lambda: scheduled.append
+    try:
+        response = client.delete(f"/api/v1/{endpoint}/{entity['id']}", headers=headers)
+    finally:
+        app.dependency_overrides[get_embedding_reindexer] = previous
+
+    assert response.status_code == 204
+    assert scheduled == [book["id"]]
+    current_book = service.repository.get_book_with_relations(UUID(book["id"]))
+    assert current_book is not None
+    canonical_text = build_canonical_text(current_book)
+    assert deleted_name not in canonical_text
+
+    pending_row = (
+        _request_db()
+        .execute(select(BookEmbedding).where(BookEmbedding.book_id == book["id"]))  # type: ignore[union-attr]
+        .scalar_one()
+    )
+    assert pending_row.embedding_status.value == "PENDING"
+    assert pending_row.embedding is None
+    assert pending_row.content_hash == service.hash_for_book(current_book)
+    assert pending_row.content_hash != previous_hash
 
 
 def test_reindex_book_indexes_only_the_current_book(

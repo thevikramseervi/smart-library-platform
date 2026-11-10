@@ -14,6 +14,7 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.auth import UserResponse
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.user_admin import UserCreate, UserPasswordReset, UserUpdate
+from app.services.audit_log_service import AuditLogService
 
 
 class UserService:
@@ -23,6 +24,7 @@ class UserService:
         self.repository = UserRepository(db)
         self.role_repository = RoleRepository(db)
         self.department_repository = DepartmentRepository(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
 
     def _to_response(self, user: User) -> UserResponse:
@@ -134,7 +136,7 @@ class UserService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         return self._to_response(user)
 
-    def create_user(self, payload: UserCreate) -> UserResponse:
+    def create_user(self, payload: UserCreate, actor: User) -> UserResponse:
         """Create a user with hashed password."""
         role = self._get_role(payload.role_id)
         department = self._get_department(payload.department_id)
@@ -172,6 +174,24 @@ class UserService:
             is_active=payload.is_active,
         )
         created = self.repository.create(user)
+        self.audit_log_service.record(
+            actor=actor,
+            action="USER_CREATED",
+            entity_type="USER",
+            entity_id=created.id,
+            summary=(
+                f'Created {role.name.lower()} account for '
+                f"{created.first_name} {created.last_name} ({created.email})"
+            ),
+            details={
+                "name": f"{created.first_name} {created.last_name}".strip(),
+                "email": created.email,
+                "role": role.name,
+                "department": department.name if department else None,
+                "student_code": created.student_code,
+                "is_active": created.is_active,
+            },
+        )
         commit_or_raise_conflict(
             self.db,
             detail="Email or student code already exists",
@@ -180,11 +200,21 @@ class UserService:
         assert refreshed is not None
         return self._to_response(refreshed)
 
-    def update_user(self, user_id: UUID, payload: UserUpdate, *, actor_id: UUID) -> UserResponse:
+    def update_user(self, user_id: UUID, payload: UserUpdate, *, actor: User) -> UserResponse:
         """Update an existing user."""
         user = self.repository.get_by_id_with_relations(user_id)
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        before = {
+            "name": f"{user.first_name} {user.last_name}".strip(),
+            "email": user.email,
+            "role": user.role.name,
+            "department": user.department.name if user.department else None,
+            "student_code": user.student_code,
+            "semester": user.semester,
+            "is_active": user.is_active,
+        }
 
         next_role = self._get_role(payload.role_id) if payload.role_id is not None else user.role
         uses_field_semantics = "department_id" in payload.model_fields_set
@@ -198,14 +228,16 @@ class UserService:
             self._ensure_last_admin_guard(user, action="demote the last active admin from")
 
         if payload.is_active is False:
-            self._ensure_not_self(actor_id, user.id, "deactivate")
+            self._ensure_not_self(actor.id, user.id, "deactivate")
             self._ensure_last_admin_guard(user, action="deactivate the last active admin")
 
         if payload.role_id is not None:
             user.role_id = next_role.id
         if "department_id" in payload.model_fields_set:
-            self._get_department(next_department_id)
+            next_department = self._get_department(next_department_id)
             user.department_id = next_department_id
+        else:
+            next_department = user.department
         if payload.first_name is not None:
             user.first_name = payload.first_name
         if payload.last_name is not None:
@@ -244,6 +276,39 @@ class UserService:
             semester=user.semester,
         )
 
+        after = {
+            "name": f"{user.first_name} {user.last_name}".strip(),
+            "email": user.email,
+            "role": next_role.name,
+            "department": next_department.name if next_department else None,
+            "student_code": user.student_code,
+            "semester": user.semester,
+            "is_active": user.is_active,
+        }
+        changes = {
+            key: {"before": before[key], "after": after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            self.audit_log_service.record(
+                actor=actor,
+                action="USER_UPDATED",
+                entity_type="USER",
+                entity_id=user.id,
+                summary=f'Updated account for {after["name"]} ({user.email})',
+                details={"changes": changes},
+            )
+        if payload.password is not None:
+            self.audit_log_service.record(
+                actor=actor,
+                action="USER_PASSWORD_RESET",
+                entity_type="USER",
+                entity_id=user.id,
+                summary=f"Reset password for {after['name']} ({user.email})",
+                details={"password_value_recorded": False},
+            )
+
         commit_or_raise_conflict(
             self.db,
             detail="Email or student code already exists",
@@ -257,7 +322,7 @@ class UserService:
         user_id: UUID,
         payload: UserPasswordReset,
         *,
-        actor_id: UUID,
+        actor: User,
     ) -> None:
         """Reset a user's password and revoke their outstanding sessions."""
         user = self.repository.get_by_id_with_relations(user_id)
@@ -266,17 +331,37 @@ class UserService:
 
         user.password_hash = hash_password(payload.password)
         user.token_version = (user.token_version or 0) + 1
+        self.audit_log_service.record(
+            actor=actor,
+            action="USER_PASSWORD_RESET",
+            entity_type="USER",
+            entity_id=user.id,
+            summary=f"Reset password for {user.first_name} {user.last_name} ({user.email})",
+            details={"password_value_recorded": False},
+        )
         self.db.commit()
 
-    def deactivate_user(self, user_id: UUID, *, actor_id: UUID) -> None:
+    def deactivate_user(self, user_id: UUID, *, actor: User) -> None:
         """Soft delete a user and mark them inactive."""
         user = self.repository.get_by_id_with_relations(user_id)
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        self._ensure_not_self(actor_id, user.id, "deactivate")
+        self._ensure_not_self(actor.id, user.id, "deactivate")
         self._ensure_last_admin_guard(user, action="delete the last active admin")
 
         user.is_active = False
         self.repository.soft_delete(user)
+        self.audit_log_service.record(
+            actor=actor,
+            action="USER_DEACTIVATED",
+            entity_type="USER",
+            entity_id=user.id,
+            summary=f"Deactivated account for {user.first_name} {user.last_name} ({user.email})",
+            details={
+                "name": f"{user.first_name} {user.last_name}".strip(),
+                "email": user.email,
+                "student_code": user.student_code,
+            },
+        )
         self.db.commit()

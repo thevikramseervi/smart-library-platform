@@ -87,7 +87,7 @@ class CirculationPolicyRepository(BaseRepository[CirculationPolicy]):
             policy.updated_by = updated_by_id
             policy.updated_at = now
 
-        self.db.commit()
+        self.db.flush()
 
         # Re-fetch with loaded relationship
         return self.get_active()

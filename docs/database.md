@@ -1,6 +1,6 @@
 # Smart Library Platform - Database Design
 
-**Implementation snapshot:** 2026-11-09 (Alembic head `019_return_and_fine_paid_types`)
+**Implementation snapshot:** 2026-11-10 (Alembic head `022_digital_resources`)
 
 ## Overview
 
@@ -45,7 +45,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables and changes created by Alembic migrations `001` through `016`.
+Tables and changes created by Alembic migrations `001` through `022`.
 
 ## Migration History
 
@@ -70,6 +70,9 @@ Tables and changes created by Alembic migrations `001` through `016`.
 | `017_book_issued_type` | Allows `BOOK_ISSUED` notification records |
 | `018_loan_overdue_type` | Allows `LOAN_OVERDUE` notification records |
 | `019_return_and_fine_paid_types` | Allows `BOOK_RETURNED` and `FINE_PAID` notification records |
+| `020_audit_logs` | Adds append-only `audit_logs` for catalog, reference-data, department, user, circulation, and policy actions |
+| `021_rating_reviews` | Adds optional written review text to each student's existing rating |
+| `022_digital_resources` | Adds metadata for one private R2 PDF per catalog book |
 
 Migration `014` aligns the copy and rating indexes with SQLAlchemy metadata.
 The `fines.transaction_id` uniqueness is represented once as a database
@@ -200,8 +203,8 @@ are unique. Author names are not unique.
 
 ## books
 
-Core bibliographic record. `is_digital` is a metadata flag only; digital
-resource storage and delivery are not implemented.
+Core bibliographic record. `is_digital` indicates that a digital resource is
+attached to the book; upload/removal endpoints keep this flag in sync.
 
 | Column | Type | Constraints / notes |
 | ------ | ---- | --------------------- |
@@ -234,6 +237,21 @@ GIN index `ix_books_search_vector` (partial: `deleted_at IS NULL`). Trigram inde
 | model_version | VARCHAR(50) | Stored field; current reindexing writes an empty string |
 | last_error | TEXT | Populated when `FAILED` |
 | indexed_at | TIMESTAMPTZ | Set when status → `INDEXED` |
+| created_at / updated_at | TIMESTAMPTZ | Standard |
+
+## digital_resources
+
+At most one private PDF resource per catalog book. File bytes are stored in
+Cloudflare R2; PostgreSQL stores only metadata and an opaque object key.
+
+| Column | Type | Constraints / notes |
+| ------ | ---- | ------------------- |
+| id | UUID | PK |
+| book_id | UUID | FK → `books.id` ON DELETE CASCADE, UNIQUE |
+| storage_key | VARCHAR(500) | UNIQUE opaque R2 object key |
+| original_filename | VARCHAR(255) | Display/download filename |
+| file_size | BIGINT | Positive; upload limit is 25 MB |
+| uploaded_by | UUID | Nullable FK → `users.id` ON DELETE SET NULL |
 | created_at / updated_at | TIMESTAMPTZ | Standard |
 
 Indexes: HNSW on `embedding` (`vector_cosine_ops`), partial btree `ix_book_embeddings_indexed` for indexed rows.
@@ -383,6 +401,34 @@ student loans due today through three days ahead. Overdue alerts are created
 once per overdue loan on the same app-driven check. Neither uses a background
 scheduler.
 
+## audit_logs
+
+Added in migration `020_audit_logs`. Events are created in the same transaction
+as the successful action. The API exposes read-only, admin-only listing; older
+actions are not backfilled.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID | Primary key |
+| actor_user_id | UUID nullable | FK to `users.id`, set null on physical deletion |
+| actor_name | VARCHAR(201) | Actor name snapshot retained independently of the user row |
+| actor_email | VARCHAR(255) | Actor email snapshot retained independently of the user row |
+| action | VARCHAR(40) | Book/copy changes, user administration, circulation, reservations, fines, or policy action (see the API specification for values) |
+| entity_type | VARCHAR(40) | Related entity family, such as `TRANSACTION`, `FINE`, or `CIRCULATION_POLICY` |
+| entity_id | VARCHAR(100) | Related entity identifier |
+| summary | VARCHAR(500) | Human-readable action description |
+| details | JSONB | Structured action-specific context; never includes passwords or tokens |
+| occurred_at | TIMESTAMPTZ | Event creation time, defaulting to database time |
+
+Reservation creation, cancellation, expiration, and fulfillment events use
+`entity_type = RESERVATION` and the reservation UUID as `entity_id`. Automatic
+expiration uses the `System` actor snapshot and leaves `actor_user_id` null.
+
+Indexes: `occurred_at`, `(action, occurred_at)`, and `(entity_type, entity_id)`.
+No update or delete endpoint is exposed. Standalone author, category, publisher,
+and department operations are covered; language currently supports creation only.
+Relation changes made through a book update are also captured in the book event.
+
 Migration `013` inserts a default active policy (₹10/day, ₹500 cap, 14-day
 loan, five concurrent loans, seven-day reservation expiry); `015` adds a
 default maximum of one renewal per loan. The application
@@ -400,9 +446,12 @@ Implemented in migration `012_ratings`. One rating (1–5) per student per book.
 | book_id | UUID | FK → `books.id` ON DELETE CASCADE |
 | student_id | UUID | FK → `users.id` ON DELETE CASCADE |
 | score | INTEGER | CHECK between 1 and 5 |
+| review_text | VARCHAR(2000), nullable | Optional written review; blank-only values are rejected |
 | created_at / updated_at | TIMESTAMPTZ | Standard timestamps |
 
-Unique constraint on `(book_id, student_id)` creates a composite unique index.
+Unique constraint on `(book_id, student_id)` creates a composite unique index. A student
+can attach, edit, or remove one written review alongside their rating. Removing a
+rating also removes its review because both are stored on the same row.
 Migration `014` also adds separate lookup indexes on `book_id` and `student_id`
 to match the SQLAlchemy model metadata.
 
@@ -418,26 +467,14 @@ to match the SQLAlchemy model metadata.
 | Circulation policy | Admin UI manages the active rules and records the latest editor; no policy-change history is stored | Multi-tier policies (by patron / material type) |
 | Reservation queue | FIFO by `reservation_date`; returns hold copies `RESERVED` for queue head; issues honor queue unless `bypass_reservation` | — |
 | Session revocation | Password reset/change bumps `users.token_version`; old JWTs rejected immediately | Token refresh endpoint (planned) |
-| Copy QR | `qr_code_value` stored; no QR API yet | Sprint 5+ QR endpoints |
+| Copy QR | `qr_code_value` stores the inventory code; frontend generates printable labels and staff scanning locally | — |
 | Book renewal | Students can renew eligible active loans up to the admin-configured limit (default 1); the due date extends by the policy loan period | — |
 
 ---
 
 # Planned Schema (Not Yet Implemented)
 
-The tables below are **design targets**. They do **not** exist in current migrations.
-
-## digital_resources
-
-PDF and file metadata with URLs pointing to Cloudflare R2 (not PostgreSQL blobs).
-
-## reviews
-
-One review text per student per book.
-
-## audit_logs
-
-Administrative action audit trail.
+The table below is a **design target** and does not exist in current migrations.
 
 ## library_calendar
 
@@ -453,8 +490,9 @@ an HNSW index. Catalog changes mark affected embeddings pending and schedule
 targeted background indexing. Admins can inspect indexing status, retry pending
 or failed records, and start a confirmed full rebuild from `/admin/search-index`;
 the offline command `uv run python -m app.scripts.reindex_embeddings` is also
-available. Search analytics (`search_query_logs`) and recommendations remain
-planned.
+available. Search analytics (`search_query_logs`) remain planned.
+Recommendations use existing ratings, transactions, categories, and catalog
+records; they do not require a separate database table.
 
 ---
 

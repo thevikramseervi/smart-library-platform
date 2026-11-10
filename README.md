@@ -2,16 +2,16 @@
 
 An AI-powered, cloud-based Library Management System built as a final-year engineering project.
 
-This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings, semantic book search, in-app notifications, and QR-based copy labels/scanning are implemented. Digital resources, recommendations, and analytics remain future work.
+This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings and written reviews, student book recommendations, semantic book search, in-app notifications, QR-based copy labels/scanning, private digital PDFs, admin circulation reports, and audit history for catalog, inventory, reference data, departments, users, circulation, reservations, fines, and policy actions are implemented. Broader analytics remain future work.
 
-**Documentation snapshot:** 2026-11-09. See the sprint reports for dated
+**Documentation snapshot:** 2026-11-10. See the sprint reports for dated
 delivery history; their old test counts and limitations are not current status.
 
 ---
 
 ## Project Overview
 
-Smart Library Platform is a web application for managing a physical library catalog, inventory, circulation, reservations, fines, and role-based administration. It provides separate experiences for **Admin**, **Librarian**, and **Student** users through a React frontend and a FastAPI backend backed by PostgreSQL.
+Smart Library Platform is a web application for managing a library catalog, physical inventory, private digital PDFs, circulation, reservations, fines, and role-based administration. It provides separate experiences for **Admin**, **Librarian**, and **Student** users through a React frontend and a FastAPI backend backed by PostgreSQL.
 
 **Live stack (implemented):**
 
@@ -29,16 +29,20 @@ Smart Library Platform is a web application for managing a physical library cata
 | **User Management** | Admin CRUD for users, password reset, soft delete, role/department assignment |
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
+| **Digital Books** | With Cloudflare R2 configured and migration `022_digital_resources` applied, staff can upload, replace, or remove one private PDF per title; authenticated users can open or download it from book details |
 | **Inventory / Physical Copies** | Book copies, inventory codes, copy lifecycle (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, `RETIRED`) |
 | **Circulation** | Issue, return, student self-service renewals, active/overdue loans (UTC calendar), student loan history, per-student loan limit, server-side staff loan search and pagination; staff can scan a copy QR code to filter/select it |
 | **QR Copy Labels** | Staff can print a QR label per copy or print all labels for a book; the QR encodes the existing inventory code |
-| **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions |
+| **Reservations** | FIFO reservation queue enforced at issue and return time; expired reservations are processed before circulation queue decisions; creation, cancellation, expiry, and fulfillment are included in the admin audit log |
 | **Fines** | Overdue balances accrue on open loans (calendar days, capped), finalize on return, block new borrowing while unpaid, and can be marked paid exactly once after return |
 | **Circulation Policy** | Dynamic DB-backed policy management (fine rate, max fine cap, loan period, max active loans, renewal limit, hold expiry), latest editor attribution, and Admin UI |
 | **Dashboards** | Role-specific home dashboards with KPIs and recent activity |
+| **Analytics & Reports** | Admin-only date-filtered circulation and reservation totals/trends, return performance, overdue aging, unpaid fine balance, reservation wait, popular books/categories, department participation, current inventory pressure/utilization, and CSV export |
+| **Audit Log** | Admin-only, read-only history for catalog, digital PDF, inventory, reference-data, department, and user changes; book issue/return/renewal; reservation creation/cancellation/expiry/fulfillment; fine recording/payment; and circulation policy changes |
 | **In-app Notifications** | User-scoped confirmations for book issues/returns and fine payments, plus alerts for reservation-ready copies, due-soon or overdue loans, and recorded fines |
-| **Ratings** | Students rate books 1–5 (one rating each), live averages on the detail page |
-| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits and searchable author/category/publisher renames queue affected books for background reindexing, with admin status/retry/full rebuild and an offline reindex command |
+| **Ratings & Reviews** | Students rate each book once (1–5) and can add, edit, or remove an optional written review; authenticated users can see the average and recent reviews on book detail pages |
+| **Recommendations** | Student dashboard ranks available, unseen titles using existing semantic embeddings, positive ratings, borrowing history, category interests, and library popularity, with diversity and non-semantic fallbacks |
+| **Semantic Search** | `GET /books/search` natural-language ranking via FastEmbed (`BAAI/bge-small-en-v1.5`) + pgvector; book creates/edits and searchable author/category/publisher renames or soft deletions queue affected books for background reindexing, with admin status/retry/full rebuild and an offline reindex command |
 
 For API details see [`docs/api-spec.md`](docs/api-spec.md). For schema details see [`docs/database.md`](docs/database.md).
 
@@ -50,11 +54,7 @@ The following remain **design targets not implemented** in the current codebase:
 
 | Area | Status |
 |------|--------|
-| Digital Resources (PDF upload, R2 storage) | Sprint 5+ |
-| Recommendation Engine | Future |
-| Analytics dashboards | Future |
-| Audit Logs | Future |
-| Reviews | Future (ratings are live) |
+| Broader analytics dashboards and trends beyond circulation reports | Future |
 | Library calendar / working-day fines | Future |
 | Token refresh / server-side logout | Server-side revocation on password reset/change is live (`users.token_version`); refresh endpoint is Future |
 
@@ -267,8 +267,7 @@ cd frontend && pnpm build
 
 ### Planned (not yet integrated)
 
-- Cloudflare R2 (digital resources)
-- Recommendation algorithms and analytics charting
+- Broader analytics charting beyond the existing circulation and operational dashboards
 
 ---
 

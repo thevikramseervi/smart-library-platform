@@ -58,12 +58,12 @@ def get_book(
 def create_book(
     payload: BookCreate,
     background_tasks: BackgroundTasks,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookService = Depends(get_book_service),
     reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> BookResponse:
     """Create a book."""
-    created = service.create_book(payload)
+    created = service.create_book(payload, current_user)
     if settings.SEMANTIC_SEARCH_ENABLED:
         background_tasks.add_task(reindex_book, str(created.id))
     return created
@@ -74,12 +74,12 @@ def update_book(
     book_id: UUID,
     payload: BookUpdate,
     background_tasks: BackgroundTasks,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookService = Depends(get_book_service),
     reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> BookResponse:
     """Update a book."""
-    updated = service.update_book(book_id, payload)
+    updated = service.update_book(book_id, payload, current_user)
     if settings.SEMANTIC_SEARCH_ENABLED:
         background_tasks.add_task(reindex_book, str(updated.id))
     return updated
@@ -88,9 +88,9 @@ def update_book(
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_book(
     book_id: UUID,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookService = Depends(get_book_service),
 ) -> Response:
     """Soft delete a book."""
-    service.delete_book(book_id)
+    service.delete_book(book_id, current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

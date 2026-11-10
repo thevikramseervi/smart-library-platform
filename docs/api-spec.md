@@ -1,6 +1,6 @@
 # Smart Library Platform - API Specification
 
-**Implementation snapshot:** 2026-11-09 (API prefix `/api/v1`)
+**Implementation snapshot:** 2026-11-10 (API prefix `/api/v1`)
 
 ## Overview
 
@@ -25,7 +25,7 @@ Base URL:
 /api/v1
 ```
 
-Planned endpoints that are **not yet implemented** are listed in [Appendix: Planned APIs](#appendix-planned-apis-not-yet-implemented) at the end of this document.
+Additional implemented endpoints and future API designs are listed in the [additional API reference](#additional-api-reference) at the end of this document. Each section is labeled **Implemented** or **Future**; future endpoints are not registered in the current FastAPI application.
 
 ---
 
@@ -87,7 +87,7 @@ Get current user profile.
 
 # Dashboard
 
-Role-specific summary endpoints. All return real aggregated data; no charts or analytics.
+Role-specific summary endpoints. These return real aggregated data; admin circulation reporting is documented separately below. Broader analytics charts are not implemented.
 
 ## Student Dashboard
 
@@ -757,6 +757,8 @@ Soft Delete
 Business rules:
 
 * Blocked with 409 while any copy of the book is `AVAILABLE` or `BORROWED`.
+* Blocked with 409 while a digital PDF is attached; remove the PDF first so
+  its private R2 object is not orphaned.
 * Copies whose book is soft-deleted can no longer be issued; they are hidden
   from available-copy listings.
 
@@ -1378,6 +1380,7 @@ Business rules:
   indexing and recovery.
 * Catalog writes mark their embedding row `PENDING`; this no longer disables vector ranking for the rest of the catalog. Reindexing adds the updated book back to semantic ranking.
 * Book create and update schedule a targeted background embedding job after saving the catalog record. Search can use text matching while that job runs; a failure is recorded and can be retried from the admin UI or with the offline reindex command.
+* Soft-deleting an author, category, or publisher omits that metadata from canonical embedding text, marks linked books `PENDING` in the same database transaction, then schedules targeted reindexing after the response.
 
 ## Admin Index Maintenance
 
@@ -1424,7 +1427,7 @@ Access:
 Student
 ```
 
-Returns the caller's rating or `null`.
+Returns the caller's rating and optional `review_text`, or `null`.
 
 ---
 
@@ -1446,6 +1449,41 @@ Business rules:
 
 * Upsert semantics via ON CONFLICT — re-rating updates the existing row, so concurrent double-posts are deterministic.
 * Soft-deleted books return 404. Staff roles receive 403.
+
+---
+
+## Book Reviews
+
+### List reviews
+
+```http
+GET /api/v1/books/{book_id}/reviews?page=1&page_size=10
+```
+
+Access: any authenticated user. Returns a paginated list of written reviews,
+newest first. Each entry contains the rating score, review text, a display name
+using the reviewer's first name and last initial, and creation/update timestamps.
+Page size is limited to 50.
+
+### Create or edit my review
+
+```http
+PUT /api/v1/books/{book_id}/review
+```
+
+Access: student. Request body: `{ "review_text": "..." }`; text is trimmed,
+must contain non-whitespace characters, and is limited to 2,000 characters.
+The student must already have a rating for the book (otherwise `409`). A review
+is optional; rating alone remains supported.
+
+### Remove my review
+
+```http
+DELETE /api/v1/books/{book_id}/review
+```
+
+Access: student. Returns `204` while keeping the star rating, or `404` if the
+student has no written review. Removing the rating also removes its review.
 
 ---
 
@@ -1483,9 +1521,12 @@ Response: `200` when API and database are healthy; `503` when database is unreac
 
 ---
 
-# Appendix: Planned APIs (Not Yet Implemented)
+# Additional API Reference
 
-The endpoints below are **design targets** for future sprints. They are **not registered** in the current FastAPI application.
+This reference contains endpoint details added after the core API sections above.
+Sections labeled **Implemented** describe routes registered in the current
+application. Sections labeled **Future** are design targets and are not
+registered.
 
 ## Authentication (Future)
 
@@ -1494,33 +1535,22 @@ The endpoints below are **design targets** for future sprints. They are **not re
 | POST | `/api/v1/auth/refresh` | Token refresh |
 | POST | `/api/v1/auth/logout` | Server-side logout |
 
-## Book Copies (Future)
+## Digital Resources (Implemented)
 
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | `/api/v1/book-copies/{id}/qr` | QR code image for copy |
+| Method | Path | Access |
+|--------|------|--------|
+| GET | `/api/v1/digital-resources/books/{book_id}` | Any authenticated user |
+| PUT | `/api/v1/digital-resources/books/{book_id}` | Admin or librarian; multipart PDF upload or replacement |
+| GET | `/api/v1/digital-resources/books/{book_id}/content` | Any authenticated user; streams the private PDF |
+| DELETE | `/api/v1/digital-resources/books/{book_id}` | Admin or librarian |
 
-## Digital Resources (Sprint 5+)
+One PDF up to 25 MB may be attached to a book. Uploading a new PDF replaces
+the previous file. PDF files are stored privately in Cloudflare R2; the API
+does not expose the object key or a public URL. Set all `CLOUD_STORAGE_*`
+variables to enable upload and retrieval. With storage unconfigured, metadata
+queries still work, while upload and content retrieval return a service error.
 
-| Method | Path |
-|--------|------|
-| POST | `/api/v1/digital-resources` |
-| GET | `/api/v1/digital-resources` |
-| GET | `/api/v1/digital-resources/{id}` |
-
-Requires Cloudflare R2 configuration (`CLOUD_STORAGE_*` env vars).
-
-## Reviews (Future)
-
-Ratings are **implemented** — see the [Ratings](#ratings) section. Reviews remain a design target:
-
-| Method | Path |
-|--------|------|
-| POST | `/api/v1/books/{book_id}/reviews` |
-| PUT | `/api/v1/books/{book_id}/reviews/{id}` |
-| DELETE | `/api/v1/books/{book_id}/reviews/{id}` |
-
-## Notifications
+## Notifications (Implemented)
 
 All notification endpoints require authentication and only return or modify
 records owned by the authenticated user.
@@ -1576,27 +1606,224 @@ POST /api/v1/notifications/read-all
 Marks all unread notifications belonging to the authenticated user as read and
 returns `204 No Content`.
 
-## Analytics (Future)
+## Circulation Reports (Implemented)
+
+Admin-only circulation summary for a UTC calendar date range. Dates are
+optional; the default range is the most recent 30 days ending today. The end
+date cannot be in the future and the start date must not be after the end date.
+
+```http
+GET /api/v1/reports/circulation?start_date=2026-11-01&end_date=2026-11-09
+```
+
+Access: `Admin`
+
+Response: `200`
+
+```json
+{
+  "start_date": "2026-11-01",
+  "end_date": "2026-11-09",
+  "loans_issued": 18,
+  "returns_processed": 14,
+  "overdue_at_period_end": 3,
+  "fines_collected": "250.00",
+  "popular_books": [
+    { "book_title": "Example Book", "loans_issued": 5 }
+  ],
+  "trend_interval": "day",
+  "trend": [
+    {
+      "period_start": "2026-11-01",
+      "loans_issued": 2,
+      "returns_processed": 1,
+      "fines_collected": "50.00"
+    }
+  ],
+  "reservations_placed": 4,
+  "reservations_fulfilled": 2,
+  "reservations_expired": 1,
+  "reservations_cancelled": 1,
+  "average_reservation_wait_days": "2.30",
+  "reservation_trend": [
+    {
+      "period_start": "2026-11-01",
+      "reservations_placed": 2,
+      "reservations_fulfilled": 1
+    }
+  ],
+  "popular_categories": [
+    { "category_name": "Computer Science", "loans_issued": 8 }
+  ],
+  "on_time_returns": 12,
+  "late_returns": 2,
+  "on_time_return_rate_percent": "85.7",
+  "average_days_late": "4.5",
+  "overdue_1_7_days_at_period_end": 1,
+  "overdue_8_30_days_at_period_end": 1,
+  "overdue_31_plus_days_at_period_end": 1,
+  "current_unpaid_fine_balance": "780.00",
+  "current_unpaid_fine_count": 3,
+  "department_participation": [
+    {
+      "department_name": "Computer Science",
+      "active_students": 20,
+      "borrowing_students": 8,
+      "participation_rate_percent": "40.0",
+      "loans_issued": 14
+    }
+  ],
+  "inventory_status": {
+    "total_copies": 120,
+    "available_copies": 70,
+    "borrowed_copies": 35,
+    "reserved_copies": 5,
+    "out_of_service_copies": 10
+  },
+  "reservation_pressure_title_count": 1,
+  "reservation_pressure_books": [
+    {
+      "book_title": "Example Book",
+      "waiting_reservations": 4,
+      "available_copies": 1,
+      "reserved_copies": 2,
+      "loans_issued": 8
+    }
+  ],
+  "no_loan_title_count": 1,
+  "no_loan_books": [
+    { "book_title": "Another Example", "available_copies": 3 }
+  ]
+}
+```
+
+`overdue_at_period_end` is a point-in-time count for the selected end date;
+`fines_collected` sums payments recorded within the selected date range. Trend
+points use daily buckets for ranges up to 45 days, weekly buckets up to 180 days,
+and monthly buckets for longer ranges. Buckets with no activity are returned as
+zeroes so charts remain continuous. Reservation placements are grouped by
+`reservation_date`; fulfilled, expired, and cancelled outcomes use the
+reservation's `updated_at` timestamp, which is set when its status changes.
+Average wait is measured from placement to fulfillment. Category issue counts
+use each book's current category assignments, so a multi-category book's loan
+appears under each category.
+On-time return rate and late-return delay use the return timestamp's UTC date
+compared with the due date. Overdue-age buckets are a point-in-time breakdown
+at `end_date`; the unpaid fine balance/count are current values and include
+refreshed accruals for currently overdue loans.
+Department participation counts distinct currently active students who had at
+least one issue during the selected period, divided by currently active,
+department-assigned students. It uses current department assignments and does
+not include student-level details.
+Inventory status and reservation pressure describe current catalog/copy state,
+not the selected date range. Reservation pressure counts active reservations
+after subtracting copies already in `RESERVED` status, and flags a title when
+the remaining waiting queue is greater than the number of currently available
+copies. The response lists at most five highest-pressure titles and includes
+the total matching title count. No-loan titles have at least one currently
+available copy, no issue in the selected period, and no active reservation;
+the response lists at most five, ordered by available copies, with a total
+matching title count. A no-loan result is a review signal, not a removal
+recommendation. Copy counts include active catalog titles only; out-of-service
+copies combine `LOST`, `DAMAGED`, and `RETIRED` statuses.
+
+## Broader Analytics (Future)
 
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/api/v1/analytics/dashboard` | Superseded in design by role dashboards (`/dashboard/admin`); may be revisited |
 
-## Recommendations (Future)
+## Recommendations (Implemented)
 
-| Method | Path |
-|--------|------|
-| GET | `/api/v1/recommendations/me` |
+### Get my recommendations
+
+```http
+GET /api/v1/recommendations/me?limit=6
+```
+
+Access: student only. `limit` defaults to 6 and must be between 1 and 20.
+Returns active titles with an available copy that the student has not rated or borrowed. Ranking combines
+similarity to the student's positively rated or borrowed books using already
+indexed embeddings, category interests, issue counts, and average ratings. A
+diversity step reduces near-duplicate suggestions. If embeddings or personal
+signals are unavailable, category and library-wide signals provide a fallback;
+the request does not generate embeddings. Each item contains a complete `book`
+response and a short `reason` tied to the strongest available signal. The response can be empty when the student
+has already rated or borrowed every active title.
 
 Semantic book search is already implemented at `GET /api/v1/books/search` and
 is documented above. The previously proposed `/api/v1/search/semantic` path is
 not registered.
 
-## Audit Logs (Future)
+## Audit Logs (Implemented)
 
-| Method | Path |
-|--------|------|
-| GET | `/api/v1/audit-logs` |
+Administrators can review append-only events for books and digital PDFs, copies, authors, categories, publishers, languages, departments, user administration, circulation, reservation lifecycle changes, fines, and policy actions.
+
+```http
+GET /api/v1/audit-logs?page=1&page_size=20&action=BOOK_ISSUED&q=ACC-00001&start_date=2026-11-01&end_date=2026-11-09
+```
+
+Access: `Admin` only. Librarians and students receive `403 Forbidden`.
+
+Query parameters:
+
+| Parameter | Notes |
+|-----------|-------|
+| `page` | 1-based page, defaults to `1` |
+| `page_size` | 1–100, defaults to `20` |
+| `action` | `BOOK_CREATED`, `BOOK_UPDATED`, `BOOK_DELETED`, `DIGITAL_RESOURCE_UPLOADED`, `DIGITAL_RESOURCE_REMOVED`, `COPY_CREATED`, `COPY_UPDATED`, `AUTHOR_CREATED`, `AUTHOR_UPDATED`, `AUTHOR_DELETED`, `CATEGORY_CREATED`, `CATEGORY_UPDATED`, `CATEGORY_DELETED`, `PUBLISHER_CREATED`, `PUBLISHER_UPDATED`, `PUBLISHER_DELETED`, `LANGUAGE_CREATED`, `DEPARTMENT_CREATED`, `DEPARTMENT_UPDATED`, `DEPARTMENT_DELETED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `USER_PASSWORD_RESET`, `BOOK_ISSUED`, `BOOK_RETURNED`, `BOOK_RENEWED`, `RESERVATION_CREATED`, `RESERVATION_CANCELLED`, `RESERVATION_EXPIRED`, `RESERVATION_FULFILLED`, `FINE_RECORDED`, `FINE_PAID`, or `CIRCULATION_POLICY_UPDATED` |
+| `q` | Search actor name/email, summary, entity type, or entity ID; max 200 characters |
+| `start_date`, `end_date` | Inclusive UTC calendar dates; start must be on or before end |
+
+Response: `200`, using the standard paginated response shape. Each item includes
+the actor name/email snapshot, action, entity type and ID, a human-readable
+summary, action-specific details, and `occurred_at`.
+
+```json
+{
+  "items": [
+    {
+      "id": "8f337c21-49db-4af3-9e35-d61bc6b06cb0",
+      "actor_user_id": "5b704954-8996-452d-a8a0-953f686ce330",
+      "actor_name": "Dev Librarian",
+      "actor_email": "librarian@library.local",
+      "action": "BOOK_ISSUED",
+      "entity_type": "TRANSACTION",
+      "entity_id": "b4e1650e-ccdd-4f1d-bf67-4856ee82c826",
+      "summary": "Issued \"Clean Code\" (copy ACC-00001) to Abhishek I",
+      "details": {
+        "book_title": "Clean Code",
+        "inventory_code": "ACC-00001",
+        "student_name": "Abhishek I",
+        "student_code": "STU-001",
+        "due_date": "2026-11-23",
+        "reservation_fulfilled": false
+      },
+      "occurred_at": "2026-11-09T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}
+```
+
+Events are created only for successful actions and share the action's database
+transaction. User-change events never record password values or hashes. Actor
+name/email snapshots are retained; the user foreign key is set to null if the
+account is physically removed. No events are backfilled for activity before
+the audit log migration, and no edit/delete API is exposed. Language currently
+supports creation only, so its event history covers creation; edit/delete actions
+are recorded for departments and authors, categories, and publishers where those
+operations exist. Author/category/publisher/language relationships changed while
+editing a book are included in that book's update event.
+
+Reservation creation, cancellation, expiration, and fulfillment are recorded
+against the reservation ID. Expiration is attributed to `System` with a null
+user ID because it is processed automatically during reservation or circulation
+requests. Fulfillment is recorded alongside the corresponding `BOOK_ISSUED`
+event when staff issue a copy to the reservation holder.
 
 ## Library Calendar (Future)
 
@@ -1606,8 +1833,3 @@ not registered.
 | POST | `/api/v1/library-calendar` |
 
 Will support working-day fine calculation (currently fines use **calendar days**).
-
-## Book Renewal (Future)
-
-No endpoint defined yet. Renewal workflow is not implemented.
-

@@ -43,11 +43,11 @@ def get_author(
 @router.post("", response_model=AuthorResponse, status_code=status.HTTP_201_CREATED)
 def create_author(
     payload: AuthorCreate,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: AuthorService = Depends(get_author_service),
 ) -> AuthorResponse:
     """Create an author."""
-    return service.create_author(payload)
+    return service.create_author(payload, current_user)
 
 
 @router.put("/{author_id}", response_model=AuthorResponse)
@@ -55,12 +55,12 @@ def update_author(
     author_id: UUID,
     payload: AuthorUpdate,
     background_tasks: BackgroundTasks,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: AuthorService = Depends(get_author_service),
     reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> AuthorResponse:
     """Update an author."""
-    response, affected_book_ids = service.update_author(author_id, payload)
+    response, affected_book_ids = service.update_author(author_id, payload, actor=current_user)
     if settings.SEMANTIC_SEARCH_ENABLED:
         for book_id in affected_book_ids:
             background_tasks.add_task(reindex_book, str(book_id))
@@ -70,9 +70,14 @@ def update_author(
 @router.delete("/{author_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_author(
     author_id: UUID,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: AuthorService = Depends(get_author_service),
+    reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> Response:
     """Soft delete an author."""
-    service.delete_author(author_id)
+    affected_book_ids = service.delete_author(author_id, current_user)
+    if settings.SEMANTIC_SEARCH_ENABLED:
+        for book_id in affected_book_ids:
+            background_tasks.add_task(reindex_book, str(book_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

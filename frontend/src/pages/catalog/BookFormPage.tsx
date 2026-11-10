@@ -38,7 +38,6 @@ export function BookFormPage() {
   const [publicationYear, setPublicationYear] = useState("");
   const [description, setDescription] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
-  const [isDigital, setIsDigital] = useState(false);
   const [authorIds, setAuthorIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,7 +80,6 @@ export function BookFormPage() {
     setPublicationYear(book.publication_year?.toString() ?? "");
     setDescription(book.description ?? "");
     setCoverImageUrl(book.cover_image_url ?? "");
-    setIsDigital(book.is_digital);
     setAuthorIds(book.authors?.map((author) => author.id) ?? []);
     setCategoryIds(book.categories?.map((category) => category.id) ?? []);
   }
@@ -97,7 +95,6 @@ export function BookFormPage() {
         publication_year: publicationYear ? Number(publicationYear) : null,
         description: description || null,
         cover_image_url: coverImageUrl || null,
-        is_digital: isDigital,
         author_ids: authorIds,
         category_ids: categoryIds,
       };
@@ -236,15 +233,6 @@ export function BookFormPage() {
                   onChange={(event) => setCoverImageUrl(event.target.value)}
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={isDigital}
-                  onChange={(event) => setIsDigital(event.target.checked)}
-                  className="size-4 rounded border-input"
-                />
-                Digital resource available
-              </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <MultiSelectList
                   label="Authors"

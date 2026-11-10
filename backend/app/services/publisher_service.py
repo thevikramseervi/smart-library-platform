@@ -6,8 +6,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.publisher import Publisher
+from app.models.user import User
 from app.repositories.publisher_repository import PublisherRepository
 from app.schemas.publisher import PublisherCreate, PublisherResponse, PublisherUpdate
+from app.services.audit_log_service import AuditLogService
 from app.services.embedding_service import EmbeddingService
 
 
@@ -16,6 +18,7 @@ class PublisherService:
 
     def __init__(self, db: Session) -> None:
         self.repository = PublisherRepository(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
 
     def list_publishers(self) -> list[PublisherResponse]:
@@ -30,7 +33,7 @@ class PublisherService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Publisher not found")
         return PublisherResponse.model_validate(publisher)
 
-    def create_publisher(self, payload: PublisherCreate) -> PublisherResponse:
+    def create_publisher(self, payload: PublisherCreate, actor: User) -> PublisherResponse:
         """Create a publisher with unique name."""
         if self.repository.get_by_name(payload.name, active_only=False) is not None:
             raise HTTPException(
@@ -44,6 +47,14 @@ class PublisherService:
             country=payload.country,
         )
         created = self.repository.create(publisher)
+        self.audit_log_service.record(
+            actor=actor,
+            action="PUBLISHER_CREATED",
+            entity_type="PUBLISHER",
+            entity_id=created.id,
+            summary=f'Created publisher "{created.name}"',
+            details={"name": created.name, "website": created.website, "country": created.country},
+        )
         self.db.commit()
         self.db.refresh(created)
         return PublisherResponse.model_validate(created)
@@ -52,11 +63,19 @@ class PublisherService:
         self,
         publisher_id: UUID,
         payload: PublisherUpdate,
+        *,
+        actor: User,
     ) -> tuple[PublisherResponse, list[UUID]]:
         """Update an active publisher."""
         publisher = self.repository.get_active_by_id(publisher_id)
         if publisher is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Publisher not found")
+
+        before = {
+            "name": publisher.name,
+            "website": publisher.website,
+            "country": publisher.country,
+        }
 
         affected_book_ids = (
             self.repository.list_active_book_ids(publisher_id)
@@ -77,16 +96,52 @@ class PublisherService:
         if payload.country is not None:
             publisher.country = payload.country
 
+        after = {
+            "name": publisher.name,
+            "website": publisher.website,
+            "country": publisher.country,
+        }
+        changes = {
+            key: {"before": before[key], "after": after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            self.audit_log_service.record(
+                actor=actor,
+                action="PUBLISHER_UPDATED",
+                entity_type="PUBLISHER",
+                entity_id=publisher.id,
+                summary=f'Updated publisher "{publisher.name}"',
+                details={"changes": changes},
+            )
+
         if affected_book_ids:
             EmbeddingService(self.db).mark_books_pending(affected_book_ids)
         self.db.commit()
         self.db.refresh(publisher)
         return PublisherResponse.model_validate(publisher), affected_book_ids
 
-    def delete_publisher(self, publisher_id: UUID) -> None:
+    def delete_publisher(self, publisher_id: UUID, actor: User) -> list[UUID]:
         """Soft delete a publisher."""
         publisher = self.repository.get_active_by_id(publisher_id)
         if publisher is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Publisher not found")
+        affected_book_ids = self.repository.list_active_book_ids(publisher_id)
         self.repository.soft_delete(publisher)
+        if affected_book_ids:
+            EmbeddingService(self.db).mark_books_pending(affected_book_ids)
+        self.audit_log_service.record(
+            actor=actor,
+            action="PUBLISHER_DELETED",
+            entity_type="PUBLISHER",
+            entity_id=publisher.id,
+            summary=f'Marked publisher "{publisher.name}" as deleted',
+            details={
+                "name": publisher.name,
+                "website": publisher.website,
+                "country": publisher.country,
+            },
+        )
         self.db.commit()
+        return affected_book_ids

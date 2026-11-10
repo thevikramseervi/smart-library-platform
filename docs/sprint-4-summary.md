@@ -231,6 +231,14 @@ Student loan renewals are now implemented with an admin-configurable limit,
 defaulting to one renewal per loan. See the current README, architecture,
 database, and API documents for the implemented rules.
 
+### Current implementation update (2026-11-09, continued)
+
+The admin audit log now also records book and physical-copy changes, user
+creation/updates/deactivation, and password resets. Passwords and hashes are
+never included. Department and standalone author, category, publisher, and
+language creation/change actions are covered where the corresponding API
+operation exists.
+
 ---
 
 ## Related Documents

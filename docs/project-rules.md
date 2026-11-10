@@ -451,6 +451,10 @@ CLOUD_STORAGE_BUCKET=
 
 CLOUD_STORAGE_KEY=
 
+CLOUD_STORAGE_SECRET=
+
+CLOUD_STORAGE_ENDPOINT=
+
 ---
 
 ## Frontend
@@ -492,7 +496,13 @@ Similarity Metric:
 * Cosine similarity
 
 The current reindex command is `uv run python -m app.scripts.reindex_embeddings`.
-Recommendations are future work; do not describe or expose them as implemented.
+The implemented `/recommendations/me` endpoint reuses indexed embeddings to
+compare available unseen titles with positively rated or borrowed books, blended
+with category interest, popularity, and average ratings. Missing vectors fall
+back to the existing catalog signals; requests must not perform model inference.
+Keep results explainable and add diversity to avoid repetitive suggestions. Do
+not add an external model, LangChain, LlamaIndex, or autonomous agents for this
+feature.
 
 ---
 

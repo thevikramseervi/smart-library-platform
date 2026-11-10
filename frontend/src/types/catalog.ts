@@ -218,5 +218,15 @@ export interface RatingSummaryResponse {
 export interface MyRatingResponse {
   book_id: string;
   score: number;
+  review_text: string | null;
+  updated_at: string;
+}
+
+export interface BookReview {
+  id: string;
+  score: number;
+  review_text: string;
+  reviewer_name: string;
+  created_at: string;
   updated_at: string;
 }

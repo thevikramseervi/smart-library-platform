@@ -26,6 +26,7 @@ import {
   StatusBadge,
 } from "@/pages/circulation/components/CirculationShared";
 import type { StudentDashboardResponse } from "@/types/dashboard";
+import { StudentRecommendations } from "@/pages/dashboard/StudentRecommendations";
 
 interface StudentDashboardViewProps {
   data: StudentDashboardResponse;
@@ -89,6 +90,8 @@ export function StudentDashboardView({ data, firstName }: StudentDashboardViewPr
           description="All-time circulation history"
         />
       </div>
+
+      <StudentRecommendations />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <DashboardSection

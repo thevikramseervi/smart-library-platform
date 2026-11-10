@@ -67,12 +67,8 @@ class ReservationRepository(BaseRepository[Reservation]):
         )
         return self.db.execute(statement).scalar_one_or_none()
 
-    def expire_stale_returning_book_ids(self) -> list[UUID]:
-        """Expire stale active reservations in one statement.
-
-        Returns the distinct book ids whose queues shrank so callers can
-        release RESERVED copies when no active reservations remain.
-        """
+    def expire_stale_returning_reservations(self) -> list[Reservation]:
+        """Expire stale active reservations and return their related records."""
         now = datetime.now(UTC)
         statement = (
             update(Reservation)
@@ -81,11 +77,14 @@ class ReservationRepository(BaseRepository[Reservation]):
                 Reservation.expiry_date < now,
             )
             .values(status=ReservationStatus.EXPIRED)
-            .returning(Reservation.book_id)
+            .returning(Reservation.id)
         )
-        result = self.db.execute(statement)
-        book_ids = {row[0] for row in result}
-        return sorted(book_ids)
+        reservation_ids = list(self.db.execute(statement).scalars())
+        if not reservation_ids:
+            return []
+        query = self._with_relations().where(Reservation.id.in_(reservation_ids))
+        query = query.execution_options(populate_existing=True)
+        return list(self.db.execute(query).unique().scalars().all())
 
     def list_for_student(self, student_id: UUID) -> list[Reservation]:
         """Return reservations for a student."""
@@ -123,9 +122,7 @@ class ReservationRepository(BaseRepository[Reservation]):
         if status is not None:
             statement = statement.where(Reservation.status == status)
 
-        total = self.db.execute(
-            select(func.count()).select_from(statement.subquery())
-        ).scalar_one()
+        total = self.db.execute(select(func.count()).select_from(statement.subquery())).scalar_one()
         statement = (
             statement.order_by(Reservation.reservation_date.asc())
             .offset((page - 1) * page_size)

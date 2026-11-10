@@ -162,7 +162,10 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 | `SEMANTIC_SEARCH_ENABLED` | `true` | Master switch for vector queries |
 | `DEV_ADMIN_*` | see `.env.example` | Dev seed overrides (local only) |
 | `DEV_LIBRARIAN_*` | see `config.py` defaults | Dev seed overrides (local only) |
-| `CLOUD_STORAGE_*` | empty | Reserved configuration only; digital-resource storage is not implemented |
+| `CLOUD_STORAGE_BUCKET` | empty | R2 bucket name; required for digital PDF operations |
+| `CLOUD_STORAGE_KEY` | empty | R2 access key ID |
+| `CLOUD_STORAGE_SECRET` | empty | R2 secret access key |
+| `CLOUD_STORAGE_ENDPOINT` | empty | Account-specific R2 S3 endpoint, e.g. `https://<account-id>.r2.cloudflarestorage.com` |
 
 ### Frontend (required)
 
@@ -175,7 +178,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 ## Post-Deploy Checklist
 
 - [ ] `DATABASE_URL` set with `sslmode=require` (Neon)
-- [ ] `uv run alembic upgrade head` succeeded (through revision `019_return_and_fine_paid_types`)
+- [ ] `uv run alembic upgrade head` succeeded (through revision `022_digital_resources`)
 - [ ] `JWT_SECRET_KEY` is a strong unique value — the server **refuses to start** on known defaults or secrets under 32 characters
 - [ ] `CORS_ORIGINS` includes the exact Vercel frontend URL (scheme + host, no trailing slash)
 - [ ] `VITE_API_BASE_URL` points to the deployed backend `/api/v1`
@@ -231,11 +234,11 @@ Returns `200` with `status: ok` when the database is reachable; `503` when degra
 
 ## Configuration Notes for Implemented and Future Features
 
-Future features may require additional configuration:
+Features may require additional configuration:
 
 | Feature | Additional config |
 |---------|-------------------|
-| Digital resources | Cloudflare R2 (`CLOUD_STORAGE_*`) |
+| Digital PDFs | Configure all four `CLOUD_STORAGE_*` values for a private Cloudflare R2 bucket |
 | Semantic search | Already implemented. PostgreSQL must support pgvector; build embeddings with the reindex command. Keyword search is used if no index is available or semantic inference fails. |
 
 In-app notifications use the application database and need no external service.

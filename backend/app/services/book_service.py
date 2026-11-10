@@ -6,13 +6,16 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.book import Book
+from app.models.user import User
 from app.repositories.author_repository import AuthorRepository
 from app.repositories.book_repository import BookRepository
 from app.repositories.category_repository import CategoryRepository
+from app.repositories.digital_resource_repository import DigitalResourceRepository
 from app.repositories.language_repository import LanguageRepository
 from app.repositories.publisher_repository import PublisherRepository
 from app.schemas.book import BookCreate, BookResponse, BookUpdate
 from app.schemas.pagination import PaginatedResponse
+from app.services.audit_log_service import AuditLogService
 from app.services.embedding_service import EmbeddingService
 
 
@@ -25,8 +28,25 @@ class BookService:
         self.language_repository = LanguageRepository(db)
         self.author_repository = AuthorRepository(db)
         self.category_repository = CategoryRepository(db)
+        self.digital_resource_repository = DigitalResourceRepository(db)
         self.embedding_service = EmbeddingService(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
+
+    @staticmethod
+    def _audit_snapshot(book: Book) -> dict[str, object]:
+        """Return safe, concise catalog fields for audit details."""
+        return {
+            "title": book.title,
+            "isbn": book.isbn,
+            "publisher": book.publisher.name,
+            "language": book.language.name,
+            "edition": book.edition,
+            "publication_year": book.publication_year,
+            "authors": sorted(author.name for author in book.authors),
+            "categories": sorted(category.name for category in book.categories),
+            "is_digital": book.is_digital,
+        }
 
     def _to_response(self, book: Book) -> BookResponse:
         """Build a book response with copy aggregates."""
@@ -130,7 +150,7 @@ class BookService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
         return self._to_response(book)
 
-    def create_book(self, payload: BookCreate) -> BookResponse:
+    def create_book(self, payload: BookCreate, actor: User) -> BookResponse:
         """Create a book with author and category links."""
         self._validate_isbn(payload.isbn)
         authors, categories = self._validate_foreign_keys(
@@ -154,6 +174,14 @@ class BookService:
         created = self.repository.create(book)
         self.repository.sync_authors(created, authors)
         self.repository.sync_categories(created, categories)
+        self.audit_log_service.record(
+            actor=actor,
+            action="BOOK_CREATED",
+            entity_type="BOOK",
+            entity_id=created.id,
+            summary=f'Added book "{created.title}" to the catalog',
+            details=self._audit_snapshot(created),
+        )
         self.db.commit()
 
         self.embedding_service.mark_book_pending(str(created.id))
@@ -161,11 +189,13 @@ class BookService:
         assert refreshed is not None
         return self._to_response(refreshed)
 
-    def update_book(self, book_id: UUID, payload: BookUpdate) -> BookResponse:
+    def update_book(self, book_id: UUID, payload: BookUpdate, actor: User) -> BookResponse:
         """Update an active book."""
         book = self.repository.get_active_by_id(book_id)
         if book is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
+        before = self._audit_snapshot(book)
 
         if "isbn" in payload.model_fields_set:
             self._validate_isbn(payload.isbn, exclude_id=book_id)
@@ -210,17 +240,39 @@ class BookService:
         if payload.is_digital is not None:
             book.is_digital = payload.is_digital
 
+        if any(field is not None for field in relation_fields):
+            # Relationship objects may still reflect the pre-update foreign keys.
+            # Flush the assignments, then reload those relations before snapshotting.
+            self.db.flush()
+            self.db.expire(book, ["publisher", "language", "authors", "categories"])
+
+        after = self._audit_snapshot(book)
+        changes = {
+            key: {"before": before[key], "after": after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            self.audit_log_service.record(
+                actor=actor,
+                action="BOOK_UPDATED",
+                entity_type="BOOK",
+                entity_id=book.id,
+                summary=f'Updated catalog record for "{book.title}"',
+                details={"changes": changes},
+            )
         self.db.commit()
         self.embedding_service.mark_book_pending(str(book_id))
         refreshed = self.repository.get_active_by_id(book_id)
         assert refreshed is not None
         return self._to_response(refreshed)
 
-    def delete_book(self, book_id: UUID) -> None:
+    def delete_book(self, book_id: UUID, actor: User) -> None:
         """Soft delete a book when no copy is available or on loan."""
         book = self.repository.get_active_by_id(book_id)
         if book is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+        snapshot = self._audit_snapshot(book)
         circulating = self.repository.count_circulating_copies(book_id)
         if circulating > 0:
             raise HTTPException(
@@ -230,6 +282,19 @@ class BookService:
                     "and cannot be deleted"
                 ),
             )
+        if self.digital_resource_repository.get_for_book(book_id) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Remove the attached digital PDF before deleting this book.",
+            )
         self.repository.soft_delete(book)
+        self.audit_log_service.record(
+            actor=actor,
+            action="BOOK_DELETED",
+            entity_type="BOOK",
+            entity_id=book.id,
+            summary=f'Marked "{book.title}" as deleted from the catalog',
+            details=snapshot,
+        )
         self.db.commit()
         self.embedding_service.clear_book(str(book_id))

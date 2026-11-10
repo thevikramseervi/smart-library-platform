@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const TABLE_HEAD_CELL_CLASS =
   "px-5 py-4 text-left text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground";
@@ -167,20 +168,23 @@ export function FormSelect({
       <label htmlFor={id} className="text-sm font-medium leading-none">
         {label}
       </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
+      <Select
+        value={value || (required ? undefined : "__empty__")}
+        onValueChange={(nextValue) => onChange(nextValue === "__empty__" ? "" : nextValue)}
         required={required}
-        className="flex h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger id={id} aria-label={label}>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {!required ? <SelectItem value="__empty__">{placeholder}</SelectItem> : null}
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

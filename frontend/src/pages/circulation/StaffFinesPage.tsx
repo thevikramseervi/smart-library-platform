@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatDate } from "@/lib/format";
 import { formatInr } from "@/lib/formatCurrency";
@@ -79,19 +80,22 @@ export function StaffFinesPage() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="fine-status">Payment status</Label>
-          <select
-            id="fine-status"
+          <Select
             value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value as typeof statusFilter);
+            onValueChange={(value) => {
+              setStatusFilter(value as typeof statusFilter);
               setPage(1);
             }}
-            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="all">All fines</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="paid">Paid</option>
-          </select>
+            <SelectTrigger id="fine-status" aria-label="Payment status" className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All fines</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

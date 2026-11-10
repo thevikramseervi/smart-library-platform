@@ -1,4 +1,4 @@
-import { Building2, Database, Shield, SlidersHorizontal, Users } from "lucide-react";
+import { BarChart3, Building2, Database, History, Shield, SlidersHorizontal, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
@@ -9,6 +9,8 @@ const navItems: Array<{ to: string; label: string; icon: LucideIcon }> = [
   { to: "/admin/departments", label: "Departments", icon: Building2 },
   { to: "/admin/circulation-policy", label: "Circulation Policy", icon: SlidersHorizontal },
   { to: "/admin/search-index", label: "Search Index", icon: Database },
+  { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/admin/audit-log", label: "Audit Log", icon: History },
 ];
 
 export function AdminLayout() {

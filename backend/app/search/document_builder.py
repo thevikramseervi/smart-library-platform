@@ -13,9 +13,17 @@ def build_canonical_text(book: Book) -> str:
     Requires ``book.publisher``, ``book.language``, ``book.authors``, and
     ``book.categories`` to be loaded when called from indexing jobs.
     """
-    authors = "; ".join(sorted(author.name for author in book.authors))
-    categories = "; ".join(sorted(category.name for category in book.categories))
-    publisher_name = book.publisher.name if book.publisher is not None else ""
+    authors = "; ".join(
+        sorted(author.name for author in book.authors if author.deleted_at is None)
+    )
+    categories = "; ".join(
+        sorted(category.name for category in book.categories if category.deleted_at is None)
+    )
+    publisher_name = (
+        book.publisher.name
+        if book.publisher is not None and book.publisher.deleted_at is None
+        else ""
+    )
     language_name = book.language.name if book.language is not None else ""
 
     lines = [

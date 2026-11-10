@@ -43,11 +43,11 @@ def get_category(
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 def create_category(
     payload: CategoryCreate,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: CategoryService = Depends(get_category_service),
 ) -> CategoryResponse:
     """Create a category."""
-    return service.create_category(payload)
+    return service.create_category(payload, current_user)
 
 
 @router.put("/{category_id}", response_model=CategoryResponse)
@@ -55,12 +55,12 @@ def update_category(
     category_id: UUID,
     payload: CategoryUpdate,
     background_tasks: BackgroundTasks,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: CategoryService = Depends(get_category_service),
     reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> CategoryResponse:
     """Update a category."""
-    response, affected_book_ids = service.update_category(category_id, payload)
+    response, affected_book_ids = service.update_category(category_id, payload, actor=current_user)
     if settings.SEMANTIC_SEARCH_ENABLED:
         for book_id in affected_book_ids:
             background_tasks.add_task(reindex_book, str(book_id))
@@ -70,9 +70,14 @@ def update_category(
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_category(
     category_id: UUID,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: CategoryService = Depends(get_category_service),
+    reindex_book: Callable[[str], None] = Depends(get_embedding_reindexer),
 ) -> Response:
     """Soft delete a category."""
-    service.delete_category(category_id)
+    affected_book_ids = service.delete_category(category_id, current_user)
+    if settings.SEMANTIC_SEARCH_ENABLED:
+        for book_id in affected_book_ids:
+            background_tasks.add_task(reindex_book, str(book_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)

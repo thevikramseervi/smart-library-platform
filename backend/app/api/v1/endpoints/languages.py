@@ -28,8 +28,8 @@ def list_languages(
 @router.post("", response_model=LanguageResponse, status_code=status.HTTP_201_CREATED)
 def create_language(
     payload: LanguageCreate,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: LanguageService = Depends(get_language_service),
 ) -> LanguageResponse:
     """Create a language."""
-    return service.create_language(payload)
+    return service.create_language(payload, current_user)

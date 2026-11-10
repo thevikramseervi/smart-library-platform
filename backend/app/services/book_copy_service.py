@@ -6,10 +6,12 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.book_copy import BookCopy, BookCopyStatus
+from app.models.user import User
 from app.repositories.book_copy_repository import BookCopyRepository
 from app.repositories.book_repository import BookRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.book_copy import BookCopyCreate, BookCopyResponse, BookCopyUpdate
+from app.services.audit_log_service import AuditLogService
 
 CIRCULATION_MANAGED_STATUSES = {BookCopyStatus.BORROWED, BookCopyStatus.RESERVED}
 INACTIVE_COPY_STATUSES = {BookCopyStatus.LOST, BookCopyStatus.DAMAGED, BookCopyStatus.RETIRED}
@@ -22,6 +24,7 @@ class BookCopyService:
         self.repository = BookCopyRepository(db)
         self.book_repository = BookRepository(db)
         self.transaction_repository = TransactionRepository(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
 
     def list_copies(
@@ -41,7 +44,7 @@ class BookCopyService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book copy not found")
         return BookCopyResponse.model_validate(book_copy)
 
-    def create_copy(self, payload: BookCopyCreate) -> BookCopyResponse:
+    def create_copy(self, payload: BookCopyCreate, actor: User) -> BookCopyResponse:
         """Create a book copy with qr_code_value equal to inventory_code."""
         book = self.book_repository.get_active_by_id(payload.book_id)
         if book is None:
@@ -64,6 +67,23 @@ class BookCopyService:
             acquired_date=payload.acquired_date,
         )
         created = self.repository.create(book_copy)
+        self.audit_log_service.record(
+            actor=actor,
+            action="COPY_CREATED",
+            entity_type="BOOK_COPY",
+            entity_id=created.id,
+            summary=f'Added copy {created.inventory_code} of "{book.title}"',
+            details={
+                "book_title": book.title,
+                "book_id": str(book.id),
+                "inventory_code": created.inventory_code,
+                "location": created.location,
+                "status": created.status.value,
+                "acquired_date": created.acquired_date.isoformat()
+                if created.acquired_date
+                else None,
+            },
+        )
         self.db.commit()
         self.db.refresh(created)
         return BookCopyResponse.model_validate(created)
@@ -82,11 +102,19 @@ class BookCopyService:
             detail="Unable to generate inventory code",
         )
 
-    def update_copy(self, copy_id: UUID, payload: BookCopyUpdate) -> BookCopyResponse:
+    def update_copy(self, copy_id: UUID, payload: BookCopyUpdate, actor: User) -> BookCopyResponse:
         """Update a book copy."""
         book_copy = self.repository.get_by_id(copy_id)
         if book_copy is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book copy not found")
+
+        before = {
+            "location": book_copy.location,
+            "status": book_copy.status.value,
+            "acquired_date": book_copy.acquired_date.isoformat()
+            if book_copy.acquired_date
+            else None,
+        }
 
         if payload.location is not None:
             book_copy.location = payload.location
@@ -94,6 +122,35 @@ class BookCopyService:
             self._apply_status_update(book_copy, payload.status)
         if payload.acquired_date is not None:
             book_copy.acquired_date = payload.acquired_date
+
+        after = {
+            "location": book_copy.location,
+            "status": book_copy.status.value,
+            "acquired_date": book_copy.acquired_date.isoformat()
+            if book_copy.acquired_date
+            else None,
+        }
+        changes = {
+            key: {"before": before[key], "after": after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            self.audit_log_service.record(
+                actor=actor,
+                action="COPY_UPDATED",
+                entity_type="BOOK_COPY",
+                entity_id=book_copy.id,
+                summary=(
+                    f"Updated copy {book_copy.inventory_code} of "
+                    f'"{book_copy.book.title}"'
+                ),
+                details={
+                    "book_title": book_copy.book.title,
+                    "inventory_code": book_copy.inventory_code,
+                    "changes": changes,
+                },
+            )
 
         self.db.commit()
         self.db.refresh(book_copy)

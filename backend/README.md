@@ -101,6 +101,9 @@ Migration files live in `alembic/versions/`:
 | `017_book_issued_type` | Allows book-issue confirmation notifications |
 | `018_loan_overdue_type` | Allows one-time overdue loan notifications |
 | `019_return_and_fine_paid_types` | Allows book-return and fine-payment notifications |
+| `020_audit_logs` | Adds admin-visible audit records for catalog and digital-resource, reference data, department, user, circulation, reservation, fine, and policy changes |
+| `021_rating_reviews` | Adds optional student-written review text to book ratings |
+| `022_digital_resources` | Adds metadata for one private Cloudflare R2 PDF per catalog book |
 
 ---
 

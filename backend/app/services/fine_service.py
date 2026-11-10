@@ -17,6 +17,7 @@ from app.repositories.fine_repository import FineRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.schemas.fine import FineResponse
 from app.schemas.pagination import PaginatedResponse
+from app.services.audit_log_service import AuditLogService
 from app.services.notification_service import NotificationService
 
 
@@ -28,6 +29,7 @@ class FineService:
         self.policy_repository = CirculationPolicyRepository(db)
         self.transaction_repository = TransactionRepository(db)
         self.notification_service = NotificationService(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
         self._active_policy: CirculationPolicy | None = None
 
@@ -134,7 +136,7 @@ class FineService:
         responses = [self._response(item) for item in items]
         return PaginatedResponse.create(responses, total, page, page_size)
 
-    def mark_paid(self, fine_id: UUID) -> FineResponse:
+    def mark_paid(self, fine_id: UUID, paid_by: User) -> FineResponse:
         """Mark a fine as paid exactly once, even under concurrent requests."""
         fine = self.repository.get_by_id(fine_id)
         if fine is None:
@@ -159,6 +161,24 @@ class FineService:
                 f"{fine.transaction.book_copy.book.title} has been recorded."
             ),
             link="/circulation/my-fines",
+        )
+        student = fine.transaction.student
+        self.audit_log_service.record(
+            actor=paid_by,
+            action="FINE_PAID",
+            entity_type="FINE",
+            entity_id=fine.id,
+            summary=(
+                f"Fine of ₹{fine.amount:.2f} for \"{fine.transaction.book_copy.book.title}\" "
+                f"was marked paid for {student.first_name} {student.last_name}"
+            ),
+            details={
+                "amount": str(fine.amount),
+                "book_title": fine.transaction.book_copy.book.title,
+                "inventory_code": fine.transaction.book_copy.inventory_code,
+                "student_name": f"{student.first_name} {student.last_name}".strip(),
+                "student_code": student.student_code,
+            },
         )
         self.db.commit()
         return self._response(self.repository.get_by_id(fine_id))

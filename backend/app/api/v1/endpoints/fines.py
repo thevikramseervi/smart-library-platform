@@ -51,8 +51,8 @@ def list_fines(
 @router.post("/{fine_id}/pay", response_model=FineResponse)
 def mark_fine_paid(
     fine_id: UUID,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: FineService = Depends(get_fine_service),
 ) -> FineResponse:
     """Mark a fine as paid."""
-    return service.mark_paid(fine_id)
+    return service.mark_paid(fine_id, current_user)

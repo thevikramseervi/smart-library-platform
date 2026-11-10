@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsStaff } from "@/lib/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import type { Book } from "@/types/catalog";
 import type { Reservation } from "@/types/circulation";
 import { BookRatingCard } from "@/pages/catalog/components/BookRatingCard";
 import { BookCoverImage } from "@/pages/catalog/components/BookCoverImage";
+import { DigitalResourcePanel } from "@/pages/catalog/components/DigitalResourcePanel";
 import {
   CatalogRecordCard,
   CatalogTable,
@@ -112,18 +114,22 @@ function CopyStatusCell({
   }
 
   return (
-    <select
-      className="rounded-md border bg-background px-2 py-1 text-sm"
+    <Select
       value={copy.status}
       disabled={updateStatusMutation.isPending}
-      onChange={(event) => updateStatusMutation.mutate(event.target.value as BookCopyStatus)}
+      onValueChange={(value) => updateStatusMutation.mutate(value as BookCopyStatus)}
     >
-      {STAFF_MANAGEABLE_COPY_STATUSES.map((status) => (
-        <option key={status} value={status}>
-          {status}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger aria-label="Copy status" className="h-8 w-36 px-2">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {STAFF_MANAGEABLE_COPY_STATUSES.map((status) => (
+          <SelectItem key={status} value={status}>
+            {status}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -350,7 +356,7 @@ export function BookDetailPage() {
         </CardContent>
       </Card>
 
-      {!isStaff ? <BookRatingCard bookId={book.id} /> : null}
+      <DigitalResourcePanel bookId={book.id} isDigital={book.is_digital} isStaff={isStaff} />
 
       {!isStaff && book.total_copies > 0 ? (
         <Card>
@@ -414,6 +420,8 @@ export function BookDetailPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <BookRatingCard bookId={book.id} allowRating={!isStaff} />
 
       {isStaff ? (
         <Card>

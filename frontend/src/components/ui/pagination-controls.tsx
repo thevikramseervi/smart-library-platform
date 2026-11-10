@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -41,20 +42,21 @@ export function PaginationControls({
       </p>
       <div className="flex flex-wrap items-center gap-3">
         {pageSize != null && onPageSizeChange ? (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>Per page</span>
-            <select
-              value={pageSize}
-              onChange={(event) => onPageSizeChange(Number(event.target.value))}
-              className="h-8 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+            <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+              <SelectTrigger aria-label="Per page" className="h-8 w-20 px-2">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
               {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
+                <SelectItem key={option} value={String(option)}>
                   {option}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-          </label>
+              </SelectContent>
+            </Select>
+          </div>
         ) : null}
         {showPageNav ? (
           <div className="flex gap-2">

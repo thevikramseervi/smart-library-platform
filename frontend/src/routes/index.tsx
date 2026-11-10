@@ -46,6 +46,12 @@ const CirculationPolicyPage = lazy(() =>
 const SearchIndexPage = lazy(() =>
   import("@/pages/admin/SearchIndexPage").then((m) => ({ default: m.SearchIndexPage })));
 
+const CirculationReportsPage = lazy(() =>
+  import("@/pages/admin/CirculationReportsPage").then((m) => ({ default: m.CirculationReportsPage })));
+
+const AuditLogPage = lazy(() =>
+  import("@/pages/admin/AuditLogPage").then((m) => ({ default: m.AuditLogPage })));
+
 const DepartmentFormPage = lazy(() =>
   import("@/pages/admin/DepartmentFormPage").then((m) => ({ default: m.DepartmentFormPage })));
 
@@ -414,6 +420,22 @@ export const router = createBrowserRouter([
                 <SearchIndexPage />
               </Suspense>
             ),
+                  },
+                  {
+                    path: "analytics",
+                    element: (
+                      <Suspense fallback={<TableListSkeleton columns={4} />}>
+                        <CirculationReportsPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "audit-log",
+                    element: (
+                      <Suspense fallback={<TableListSkeleton columns={4} />}>
+                        <AuditLogPage />
+                      </Suspense>
+                    ),
                   },
                 ],
               },

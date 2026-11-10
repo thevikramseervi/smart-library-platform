@@ -6,8 +6,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.category import Category
+from app.models.user import User
 from app.repositories.category_repository import CategoryRepository
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.services.audit_log_service import AuditLogService
 from app.services.embedding_service import EmbeddingService
 
 
@@ -16,6 +18,7 @@ class CategoryService:
 
     def __init__(self, db: Session) -> None:
         self.repository = CategoryRepository(db)
+        self.audit_log_service = AuditLogService(db)
         self.db = db
 
     def list_categories(self) -> list[CategoryResponse]:
@@ -30,7 +33,7 @@ class CategoryService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
         return CategoryResponse.model_validate(category)
 
-    def create_category(self, payload: CategoryCreate) -> CategoryResponse:
+    def create_category(self, payload: CategoryCreate, actor: User) -> CategoryResponse:
         """Create a category with unique name."""
         if self.repository.get_by_name(payload.name, active_only=False) is not None:
             raise HTTPException(
@@ -40,6 +43,14 @@ class CategoryService:
 
         category = Category(name=payload.name, description=payload.description)
         created = self.repository.create(category)
+        self.audit_log_service.record(
+            actor=actor,
+            action="CATEGORY_CREATED",
+            entity_type="CATEGORY",
+            entity_id=created.id,
+            summary=f'Created category "{created.name}"',
+            details={"name": created.name, "description": created.description},
+        )
         self.db.commit()
         self.db.refresh(created)
         return CategoryResponse.model_validate(created)
@@ -48,11 +59,15 @@ class CategoryService:
         self,
         category_id: UUID,
         payload: CategoryUpdate,
+        *,
+        actor: User,
     ) -> tuple[CategoryResponse, list[UUID]]:
         """Update an active category."""
         category = self.repository.get_active_by_id(category_id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+
+        before = {"name": category.name, "description": category.description}
 
         affected_book_ids = (
             self.repository.list_active_book_ids(category_id)
@@ -71,16 +86,44 @@ class CategoryService:
         if payload.description is not None:
             category.description = payload.description
 
+        after = {"name": category.name, "description": category.description}
+        changes = {
+            key: {"before": before[key], "after": after[key]}
+            for key in before
+            if before[key] != after[key]
+        }
+        if changes:
+            self.audit_log_service.record(
+                actor=actor,
+                action="CATEGORY_UPDATED",
+                entity_type="CATEGORY",
+                entity_id=category.id,
+                summary=f'Updated category "{category.name}"',
+                details={"changes": changes},
+            )
+
         if affected_book_ids:
             EmbeddingService(self.db).mark_books_pending(affected_book_ids)
         self.db.commit()
         self.db.refresh(category)
         return CategoryResponse.model_validate(category), affected_book_ids
 
-    def delete_category(self, category_id: UUID) -> None:
+    def delete_category(self, category_id: UUID, actor: User) -> list[UUID]:
         """Soft delete a category."""
         category = self.repository.get_active_by_id(category_id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        affected_book_ids = self.repository.list_active_book_ids(category_id)
         self.repository.soft_delete(category)
+        if affected_book_ids:
+            EmbeddingService(self.db).mark_books_pending(affected_book_ids)
+        self.audit_log_service.record(
+            actor=actor,
+            action="CATEGORY_DELETED",
+            entity_type="CATEGORY",
+            entity_id=category.id,
+            summary=f'Marked category "{category.name}" as deleted',
+            details={"name": category.name, "description": category.description},
+        )
         self.db.commit()
+        return affected_book_ids

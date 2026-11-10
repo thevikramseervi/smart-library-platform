@@ -43,19 +43,19 @@ def get_book_copy(
 @router.post("", response_model=BookCopyResponse, status_code=status.HTTP_201_CREATED)
 def create_book_copy(
     payload: BookCopyCreate,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookCopyService = Depends(get_book_copy_service),
 ) -> BookCopyResponse:
     """Create a book copy."""
-    return service.create_copy(payload)
+    return service.create_copy(payload, current_user)
 
 
 @router.put("/{copy_id}", response_model=BookCopyResponse)
 def update_book_copy(
     copy_id: UUID,
     payload: BookCopyUpdate,
-    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
     service: BookCopyService = Depends(get_book_copy_service),
 ) -> BookCopyResponse:
     """Update a book copy."""
-    return service.update_copy(copy_id, payload)
+    return service.update_copy(copy_id, payload, current_user)

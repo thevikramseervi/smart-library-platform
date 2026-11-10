@@ -55,11 +55,11 @@ def get_user(
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
     payload: UserCreate,
-    _current_user: User = Depends(require_roles("ADMIN")),
+    current_user: User = Depends(require_roles("ADMIN")),
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     """Create a user."""
-    return service.create_user(payload)
+    return service.create_user(payload, current_user)
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -70,18 +70,18 @@ def update_user(
     service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     """Update a user."""
-    return service.update_user(user_id, payload, actor_id=current_user.id)
+    return service.update_user(user_id, payload, actor=current_user)
 
 
 @router.post("/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT)
 def reset_user_password(
     user_id: UUID,
     payload: UserPasswordReset,
-    _current_user: User = Depends(require_roles("ADMIN")),
+    current_user: User = Depends(require_roles("ADMIN")),
     service: UserService = Depends(get_user_service),
 ) -> Response:
     """Reset a user's password."""
-    service.reset_password(user_id, payload, actor_id=_current_user.id)
+    service.reset_password(user_id, payload, actor=current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -92,5 +92,5 @@ def deactivate_user(
     service: UserService = Depends(get_user_service),
 ) -> Response:
     """Soft delete a user."""
-    service.deactivate_user(user_id, actor_id=current_user.id)
+    service.deactivate_user(user_id, actor=current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

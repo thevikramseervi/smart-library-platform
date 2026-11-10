@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RatingUpsert(BaseModel):
@@ -20,6 +20,21 @@ class RatingSummaryResponse(BaseModel):
     count: int
 
 
+class ReviewUpsert(BaseModel):
+    """Payload for creating or editing written feedback on a rated book."""
+
+    review_text: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("review_text")
+    @classmethod
+    def strip_and_require_text(cls, value: str) -> str:
+        """Reject reviews that contain only whitespace."""
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Review cannot be blank")
+        return cleaned
+
+
 class MyRatingResponse(BaseModel):
     """The authenticated student's own rating for a book."""
 
@@ -27,6 +42,18 @@ class MyRatingResponse(BaseModel):
 
     book_id: UUID
     score: int
+    review_text: str | None
+    updated_at: datetime
+
+
+class BookReviewResponse(BaseModel):
+    """Public review content with a minimal reviewer display name."""
+
+    id: UUID
+    score: int
+    review_text: str
+    reviewer_name: str
+    created_at: datetime
     updated_at: datetime
 
 
