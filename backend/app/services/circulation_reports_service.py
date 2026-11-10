@@ -83,6 +83,9 @@ class CirculationReportsService:
         issue_totals, return_totals, fine_totals = self.repository.get_trend(
             resolved_start, resolved_end, interval
         )
+        loans_issued = sum(issue_totals.values())
+        returns_processed = sum(return_totals.values())
+        fines_collected = sum(fine_totals.values(), Decimal("0.00"))
         (
             reservations_placed,
             reservations_fulfilled,
@@ -147,12 +150,10 @@ class CirculationReportsService:
         return CirculationReportResponse(
             start_date=resolved_start,
             end_date=resolved_end,
-            loans_issued=self.repository.count_issues(resolved_start, resolved_end),
-            returns_processed=self.repository.count_returns(resolved_start, resolved_end),
+            loans_issued=loans_issued,
+            returns_processed=returns_processed,
             overdue_at_period_end=self.repository.count_overdue_at_period_end(resolved_end),
-            fines_collected=_money(
-                self.repository.sum_fines_collected(resolved_start, resolved_end)
-            ),
+            fines_collected=_money(fines_collected),
             popular_books=[
                 PopularBookReport(book_title=title, loans_issued=count)
                 for title, count in self.repository.list_popular_books(

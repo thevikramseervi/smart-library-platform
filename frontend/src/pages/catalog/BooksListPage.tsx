@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, Grid2X2, List as ListIcon } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { useDebouncedValue } from "@/lib/hooks";
+import { REFERENCE_DATA_STALE_TIME } from "@/lib/queryClient";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -249,10 +250,10 @@ export function BooksListPage() {
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const semanticActive = smartSearch && !hasActiveFilters && trimmedSearch.length > 0;
 
-  const authorsQuery = useQuery({ queryKey: ["authors"], queryFn: listAuthors });
-  const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: listCategories });
-  const publishersQuery = useQuery({ queryKey: ["publishers"], queryFn: listPublishers });
-  const languagesQuery = useQuery({ queryKey: ["languages"], queryFn: listLanguages });
+  const authorsQuery = useQuery({ queryKey: ["authors"], queryFn: listAuthors, staleTime: REFERENCE_DATA_STALE_TIME });
+  const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: listCategories, staleTime: REFERENCE_DATA_STALE_TIME });
+  const publishersQuery = useQuery({ queryKey: ["publishers"], queryFn: listPublishers, staleTime: REFERENCE_DATA_STALE_TIME });
+  const languagesQuery = useQuery({ queryKey: ["languages"], queryFn: listLanguages, staleTime: REFERENCE_DATA_STALE_TIME });
 
   const listQuery = useQuery({
     queryKey: ["books", page, pageSize, trimmedSearch, filters],

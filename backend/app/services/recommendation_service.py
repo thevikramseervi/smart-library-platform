@@ -164,8 +164,7 @@ class RecommendationService:
         books_by_id = {book.id: book for book in all_books}
         candidates = [book for book in all_books if book.id not in interacted_ids]
         popularity = self.repository.popularity_counts()
-        rating_averages = self.repository.rating_averages()
-        rating_counts = self.repository.rating_counts()
+        rating_averages, rating_counts = self.repository.rating_summaries()
         available_copies = self.repository.available_copy_counts([book.id for book in candidates])
         candidates = [book for book in candidates if available_copies.get(book.id, 0) > 0]
 

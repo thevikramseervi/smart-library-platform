@@ -3,8 +3,8 @@
 import re
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import case, func, or_, select
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.sql import contains_pattern
 from app.models.author import Author
@@ -22,12 +22,16 @@ class BookRepository(BaseRepository[Book]):
 
     def _with_relations(self):
         """Base select with eager-loaded relations."""
+        return self._with_catalog_relations().options(selectinload(Book.copies))
+
+    @staticmethod
+    def _with_catalog_relations():
+        """Load the book metadata used in list and detail responses."""
         return select(Book).options(
-            selectinload(Book.publisher),
-            selectinload(Book.language),
+            joinedload(Book.publisher),
+            joinedload(Book.language),
             selectinload(Book.authors),
             selectinload(Book.categories),
-            selectinload(Book.copies),
         )
 
     def get_active_by_id(self, book_id: UUID) -> Book | None:
@@ -105,7 +109,7 @@ class BookRepository(BaseRepository[Book]):
 
         book_ids_subq = id_query.subquery()
         statement = (
-            self._with_relations()
+            self._with_catalog_relations()
             .join(book_ids_subq, Book.id == book_ids_subq.c.id)
             .order_by(order)
             .offset((page - 1) * page_size)
@@ -132,18 +136,41 @@ class BookRepository(BaseRepository[Book]):
 
     def get_copy_counts(self, book_id: UUID) -> tuple[int, int]:
         """Return total and available copy counts for a book."""
-        total_stmt = select(func.count()).select_from(BookCopy).where(BookCopy.book_id == book_id)
-        available_stmt = (
-            select(func.count())
-            .select_from(BookCopy)
-            .where(
-                BookCopy.book_id == book_id,
-                BookCopy.status == BookCopyStatus.AVAILABLE,
-            )
+        available_count = func.coalesce(
+            func.sum(case((BookCopy.status == BookCopyStatus.AVAILABLE, 1), else_=0)),
+            0,
         )
-        total = self.db.execute(total_stmt).scalar_one()
-        available = self.db.execute(available_stmt).scalar_one()
-        return total, available
+        statement = (
+            select(func.count(BookCopy.id), available_count)
+            .where(BookCopy.book_id == book_id)
+        )
+        total, available = self.db.execute(statement).one()
+        return int(total), int(available)
+
+    def get_copy_counts_by_book_ids(
+        self, book_ids: list[UUID]
+    ) -> dict[UUID, tuple[int, int]]:
+        """Return total and available copy counts for a batch of books."""
+        counts = {book_id: (0, 0) for book_id in book_ids}
+        if not book_ids:
+            return counts
+
+        available_count = func.coalesce(
+            func.sum(case((BookCopy.status == BookCopyStatus.AVAILABLE, 1), else_=0)),
+            0,
+        )
+        statement = (
+            select(BookCopy.book_id, func.count(BookCopy.id), available_count)
+            .where(BookCopy.book_id.in_(book_ids))
+            .group_by(BookCopy.book_id)
+        )
+        counts.update(
+            {
+                book_id: (int(total), int(available))
+                for book_id, total, available in self.db.execute(statement)
+            }
+        )
+        return counts
 
     def count_circulating_copies(self, book_id: UUID) -> int:
         """Return count of copies that are available or currently on loan."""

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -25,15 +26,41 @@ function utcDateOffset(days: number): string {
 }
 
 export function AdminAnalyticsOverview() {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [isNearViewport, setIsNearViewport] = useState(false);
   const startDate = utcDateOffset(-29);
   const endDate = utcDateOffset(0);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      const timeoutId = window.setTimeout(() => setIsNearViewport(true), 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setIsNearViewport(true);
+        observer.disconnect();
+      },
+      { rootMargin: "160px 0px" },
+    );
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+
   const reportQuery = useQuery({
     queryKey: ["reports", "circulation", startDate, endDate],
     queryFn: () => getCirculationReport(startDate, endDate),
     staleTime: 5 * 60 * 1000,
+    enabled: isNearViewport,
   });
 
   return (
+    <div ref={panelRef}>
     <Card className="gap-0 overflow-hidden border-primary/15 bg-card/90 py-0 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="space-y-1">
@@ -64,7 +91,10 @@ export function AdminAnalyticsOverview() {
             </Button>
           </div>
         ) : reportQuery.isLoading || !reportQuery.data ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Loading analytics overview">
+          <div
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            aria-label={isNearViewport ? "Loading analytics overview" : "Analytics overview will load when visible"}
+          >
             {Array.from({ length: 4 }, (_, index) => (
               <div key={index} className="space-y-2">
                 <Skeleton className="h-4 w-28" />
@@ -108,6 +138,7 @@ export function AdminAnalyticsOverview() {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }
 

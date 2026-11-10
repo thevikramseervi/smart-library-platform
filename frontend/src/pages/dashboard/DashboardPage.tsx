@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { DASHBOARD_STALE_TIME } from "@/lib/queryClient";
 import { AdminDashboardView } from "@/pages/dashboard/AdminDashboardView";
 import { AdminAnalyticsOverview } from "@/pages/dashboard/AdminAnalyticsOverview";
 import { LibrarianDashboardView } from "@/pages/dashboard/LibrarianDashboardView";
@@ -22,18 +23,21 @@ export function DashboardPage() {
     queryKey: ["dashboard", "student"],
     queryFn: getStudentDashboard,
     enabled: roleName === "STUDENT",
+    staleTime: DASHBOARD_STALE_TIME,
   });
 
   const librarianQuery = useQuery({
     queryKey: ["dashboard", "librarian"],
     queryFn: getLibrarianDashboard,
     enabled: roleName === "LIBRARIAN",
+    staleTime: DASHBOARD_STALE_TIME,
   });
 
   const adminQuery = useQuery({
     queryKey: ["dashboard", "admin"],
     queryFn: getAdminDashboard,
     enabled: roleName === "ADMIN",
+    staleTime: DASHBOARD_STALE_TIME,
   });
 
   const activeQuery =

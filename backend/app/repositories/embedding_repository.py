@@ -180,7 +180,6 @@ class EmbeddingRepository:
         distance = BookEmbedding.embedding.cosine_distance(query_vector).label("distance")
         statement = (
             self._book_with_relations()
-            .options(selectinload(Book.copies))
             .join(BookEmbedding, BookEmbedding.book_id == Book.id)
             .add_columns(distance)
             .where(

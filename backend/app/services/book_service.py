@@ -48,9 +48,16 @@ class BookService:
             "is_digital": book.is_digital,
         }
 
-    def _to_response(self, book: Book) -> BookResponse:
+    def _to_response(
+        self,
+        book: Book,
+        *,
+        copy_counts: tuple[int, int] | None = None,
+    ) -> BookResponse:
         """Build a book response with copy aggregates."""
-        total_copies, available_copies = self.repository.get_copy_counts(book.id)
+        total_copies, available_copies = (
+            copy_counts if copy_counts is not None else self.repository.get_copy_counts(book.id)
+        )
         return BookResponse(
             id=book.id,
             title=book.title,
@@ -140,7 +147,11 @@ class BookService:
             author_id=author_id,
             sort=sort,
         )
-        items = [self._to_response(book) for book in books]
+        copy_counts = self.repository.get_copy_counts_by_book_ids([book.id for book in books])
+        items = [
+            self._to_response(book, copy_counts=copy_counts[book.id])
+            for book in books
+        ]
         return PaginatedResponse.create(items, total, page, page_size)
 
     def get_book(self, book_id: UUID) -> BookResponse:

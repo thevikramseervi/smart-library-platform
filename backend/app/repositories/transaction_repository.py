@@ -1,5 +1,6 @@
 """Transaction repository."""
 
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import func, or_, select
@@ -147,15 +148,15 @@ class TransactionRepository(BaseRepository[Transaction]):
         )
         return list(self.db.execute(statement).unique().scalars().all())
 
-    def list_open_overdue(self, student_id: UUID | None = None) -> list[Transaction]:
-        """Return open loans that are past their due date."""
-        statement = select(Transaction).where(
+    def list_open_overdue(self, student_id: UUID | None = None) -> list[tuple[UUID, date]]:
+        """Return only loan IDs and due dates for overdue open loans."""
+        statement = select(Transaction.id, Transaction.due_at).where(
             Transaction.status == TransactionStatus.ISSUED,
             Transaction.due_at < utc_today(),
         )
         if student_id is not None:
             statement = statement.where(Transaction.student_id == student_id)
-        return list(self.db.execute(statement).scalars().all())
+        return list(self.db.execute(statement).all())
 
     def count_active_for_student(self, student_id: UUID) -> int:
         """Count a student's open loans."""

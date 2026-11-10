@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { appToast } from "@/lib/toast";
+import { REFERENCE_DATA_STALE_TIME } from "@/lib/queryClient";
 import {
   createBook,
   getBook,
@@ -53,23 +54,27 @@ export function BookFormPage() {
   });
 
   const publishersQuery = useQuery({
-    queryKey: ["publishers", "all"],
+    queryKey: ["publishers"],
     queryFn: listPublishers,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const languagesQuery = useQuery({
-    queryKey: ["languages", "all"],
+    queryKey: ["languages"],
     queryFn: listLanguages,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const authorsQuery = useQuery({
-    queryKey: ["authors", "all"],
+    queryKey: ["authors"],
     queryFn: listAuthors,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const categoriesQuery = useQuery({
-    queryKey: ["categories", "all"],
+    queryKey: ["categories"],
     queryFn: listCategories,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const [hydratedId, setHydratedId] = useState<string | null>(null);

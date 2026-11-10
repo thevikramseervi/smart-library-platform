@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
-from app.models.book_copy import BookCopyStatus
 from app.models.user import User
 from app.schemas.book import SemanticSearchResponse, SemanticSearchResult
 from app.services.book_service import BookService
@@ -17,8 +16,11 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _to_result(book, score: float | None) -> SemanticSearchResult:
-    copies = getattr(book, "copies", []) or []
+def _to_result(
+    book,
+    score: float | None,
+    copy_counts: tuple[int, int] = (0, 0),
+) -> SemanticSearchResult:
     publisher = getattr(book, "publisher", None)
     return SemanticSearchResult(
         score=round(score, 4) if score is not None else None,
@@ -30,8 +32,8 @@ def _to_result(book, score: float | None) -> SemanticSearchResult:
         publication_year=book.publication_year,
         authors=[author.name for author in book.authors],
         categories=[category.name for category in book.categories],
-        total_copies=len(copies),
-        available_copies=sum(copy.status == BookCopyStatus.AVAILABLE for copy in copies),
+        total_copies=copy_counts[0],
+        available_copies=copy_counts[1],
     )
 
 
@@ -98,13 +100,14 @@ def semantic_search(
     if _looks_like_isbn(q):
         service = BookService(db)
         books, _total = service.repository.list_books(page=1, page_size=limit, q=q)
+        copy_counts = service.repository.get_copy_counts_by_book_ids([book.id for book in books])
         books.sort(key=lambda book: (_text_match_priority(book, q), _normalized(book.title)))
         return SemanticSearchResponse(
             query=q,
             indexed_books=indexed_books,
             used_semantic=False,
             text_match_count=len(books),
-            results=[_to_result(book, None) for book in books],
+            results=[_to_result(book, None, copy_counts[book.id]) for book in books],
         )
     if settings.SEMANTIC_SEARCH_ENABLED and indexed_books > 0:
         try:
@@ -121,14 +124,21 @@ def semantic_search(
                 page_size=min(100, max(limit, 50)),
                 q=q,
             )
-            semantic_results = [_to_result(book, score) for book, score in hits]
+            all_result_book_ids = list(
+                {book.id for book, _ in hits} | {book.id for book in keyword_books}
+            )
+            copy_counts = service.repository.get_copy_counts_by_book_ids(all_result_book_ids)
+            semantic_results = [
+                _to_result(book, score, copy_counts[book.id]) for book, score in hits
+            ]
             semantic_by_id = {result.id: result for result in semantic_results}
             ordered_keyword_books = sorted(
                 keyword_books,
                 key=lambda book: (_text_match_priority(book, q), _normalized(book.title)),
             )
             keyword_results = [
-                semantic_by_id.get(book.id) or _to_result(book, None)
+                semantic_by_id.get(book.id)
+                or _to_result(book, None, copy_counts[book.id])
                 for book in ordered_keyword_books
             ][:limit]
             keyword_ids = {result.id for result in keyword_results}
@@ -148,11 +158,12 @@ def semantic_search(
 
     service = BookService(db)
     books, _total = service.repository.list_books(page=1, page_size=limit, q=q)
+    copy_counts = service.repository.get_copy_counts_by_book_ids([book.id for book in books])
     books.sort(key=lambda book: (_text_match_priority(book, q), _normalized(book.title)))
     return SemanticSearchResponse(
         query=q,
         indexed_books=indexed_books,
         used_semantic=False,
         text_match_count=len(books),
-        results=[_to_result(book, None) for book in books],
+        results=[_to_result(book, None, copy_counts[book.id]) for book in books],
     )

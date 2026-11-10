@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { REFERENCE_DATA_STALE_TIME } from "@/lib/queryClient";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
@@ -28,6 +29,7 @@ export function PublishersListPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["publishers"],
     queryFn: listPublishers,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const filteredPublishers = useMemo(() => {

@@ -8,8 +8,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.clock import utc_today
+from app.core.config import settings
 from app.models.book import Book
 from app.models.book_copy import BookCopy
+from app.models.circulation_policy import CirculationPolicy
 from app.models.department import Department
 from app.models.fine import Fine
 from app.models.reservation import Reservation, ReservationStatus
@@ -135,9 +137,39 @@ class DashboardRepository:
         return int(self.db.execute(statement).scalar_one())
 
     def count_unpaid_fines(self) -> int:
-        """Count unpaid fines."""
-        statement = select(func.count()).select_from(Fine).where(Fine.paid.is_(False))
-        return int(self.db.execute(statement).scalar_one())
+        """Count unpaid fines, including overdue loans not yet materialized as fines."""
+        recorded = (
+            select(func.count())
+            .select_from(Fine)
+            .where(Fine.paid.is_(False))
+            .scalar_subquery()
+        )
+        policy = self.db.execute(
+            select(
+                CirculationPolicy.daily_overdue_fine_rate,
+                CirculationPolicy.max_fine_amount,
+            )
+            .where(CirculationPolicy.is_active.is_(True))
+            .order_by(CirculationPolicy.updated_at.desc())
+            .limit(1)
+        ).one_or_none()
+        rate, cap = policy or (settings.DAILY_OVERDUE_FINE_RATE, settings.MAX_FINE_AMOUNT)
+        if rate <= 0 or cap <= 0:
+            return int(self.db.execute(select(recorded)).scalar_one())
+
+        unrecorded_overdue = (
+            select(func.count())
+            .select_from(Transaction)
+            .where(
+                Transaction.status == TransactionStatus.ISSUED,
+                Transaction.due_at < utc_today(),
+                ~select(Fine.id)
+                .where(Fine.transaction_id == Transaction.id)
+                .exists(),
+            )
+            .scalar_subquery()
+        )
+        return int(self.db.execute(select(recorded + unrecorded_overdue)).scalar_one())
 
     def list_recent_transactions(self) -> list[Transaction]:
         """Return recent circulation transactions."""
@@ -193,22 +225,6 @@ class DashboardRepository:
             .limit(self.RECENT_LIMIT)
         )
         return list(self.db.execute(statement).unique().scalars().all())
-
-    def compute_queue_position(self, reservation: Reservation) -> int | None:
-        """Return 1-based queue position for an active reservation."""
-        if reservation.status != ReservationStatus.ACTIVE:
-            return None
-        statement = (
-            select(func.count())
-            .select_from(Reservation)
-            .where(
-                Reservation.book_id == reservation.book_id,
-                Reservation.status == ReservationStatus.ACTIVE,
-                Reservation.reservation_date < reservation.reservation_date,
-            )
-        )
-        earlier = int(self.db.execute(statement).scalar_one())
-        return earlier + 1
 
     @staticmethod
     def _student_name(user: User) -> str:

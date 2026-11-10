@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.repositories.dashboard_repository import DashboardRepository
+from app.repositories.reservation_repository import ReservationRepository
 from app.schemas.dashboard import (
     AdminCirculationActivity,
     AdminDashboardResponse,
@@ -22,6 +23,7 @@ class DashboardService:
 
     def __init__(self, db: Session) -> None:
         self.repository = DashboardRepository(db)
+        self.reservation_repository = ReservationRepository(db)
         self.fine_service = FineService(db)
 
     def get_student_dashboard(self, student: User) -> StudentDashboardResponse:
@@ -37,13 +39,15 @@ class DashboardService:
             )
             for transaction in self.repository.list_recent_loans_for_student(student.id)
         ]
+        reservations = self.repository.list_recent_reservations_for_student(student.id)
+        queue_positions = self.reservation_repository.queue_positions(reservations)
         recent_reservations = [
             StudentRecentReservation(
                 book_title=reservation.book.title,
-                queue_position=self.repository.compute_queue_position(reservation),
+                queue_position=queue_positions.get(reservation.id),
                 reservation_date=reservation.reservation_date,
             )
-            for reservation in self.repository.list_recent_reservations_for_student(student.id)
+            for reservation in reservations
         ]
 
         return StudentDashboardResponse(
@@ -57,7 +61,6 @@ class DashboardService:
 
     def get_librarian_dashboard(self) -> LibrarianDashboardResponse:
         """Build the librarian dashboard summary."""
-        self.fine_service.sync_open_overdue_fines()
         recent_transactions = [
             LibrarianRecentTransaction(
                 book_title=transaction.book_copy.book.title,
@@ -81,7 +84,6 @@ class DashboardService:
 
     def get_admin_dashboard(self) -> AdminDashboardResponse:
         """Build the admin dashboard summary."""
-        self.fine_service.sync_open_overdue_fines()
         created_activity = [
             AdminUserActivity(
                 activity_type="CREATED",

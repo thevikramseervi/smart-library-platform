@@ -33,7 +33,12 @@ class ReservationService:
         self.audit_log_service = AuditLogService(db)
         self.db = db
 
-    def _to_response(self, reservation: Reservation) -> ReservationResponse:
+    def _to_response(
+        self,
+        reservation: Reservation,
+        *,
+        queue_positions: dict[UUID, int] | None = None,
+    ) -> ReservationResponse:
         """Build a reservation API response with queue position."""
         return ReservationResponse(
             id=reservation.id,
@@ -42,7 +47,11 @@ class ReservationService:
             reservation_date=reservation.reservation_date,
             expiry_date=reservation.expiry_date,
             status=reservation.status.value,
-            queue_position=self.repository.compute_queue_position(reservation),
+            queue_position=(
+                queue_positions.get(reservation.id)
+                if queue_positions is not None
+                else self.repository.compute_queue_position(reservation)
+            ),
             book=reservation.book,
             student=ReservationStudentSummary.model_validate(reservation.student),
         )
@@ -172,7 +181,8 @@ class ReservationService:
         """Return reservations for the authenticated student."""
         self._expire_stale()
         items = self.repository.list_for_student(student.id)
-        return [self._to_response(item) for item in items]
+        queue_positions = self.repository.queue_positions(items)
+        return [self._to_response(item, queue_positions=queue_positions) for item in items]
 
     def list_reservations(
         self,
@@ -190,7 +200,10 @@ class ReservationService:
             book_id=book_id,
             status=status_filter,
         )
-        responses = [self._to_response(item) for item in items]
+        queue_positions = self.repository.queue_positions(items)
+        responses = [
+            self._to_response(item, queue_positions=queue_positions) for item in items
+        ]
         return PaginatedResponse.create(responses, total, page, page_size)
 
     def get_queue(self, book_id: UUID) -> list[ReservationResponse]:
@@ -200,4 +213,5 @@ class ReservationService:
         if book is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
         items = self.repository.list_queue_for_book(book_id)
-        return [self._to_response(item) for item in items]
+        queue_positions = self.repository.queue_positions(items)
+        return [self._to_response(item, queue_positions=queue_positions) for item in items]

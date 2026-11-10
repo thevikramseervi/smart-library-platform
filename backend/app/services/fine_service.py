@@ -45,15 +45,19 @@ class FineService:
             return
         policy = self._get_active_policy()
         today = utc_today()
-        for transaction in transactions:
-            days_late = (today - transaction.due_at).days
+        accrued: list[tuple[UUID, Decimal, int]] = []
+        for transaction_id, due_at in transactions:
+            days_late = (today - due_at).days
             amount = min(
                 Decimal(days_late) * policy.daily_overdue_fine_rate,
                 policy.max_fine_amount,
             )
             if amount <= 0:
                 continue
-            self.repository.save_accrued(transaction.id, amount, days_late)
+            accrued.append((transaction_id, amount, days_late))
+        self.repository.save_accrued_many(accrued)
+        if not accrued:
+            return
         self.db.commit()
 
     def create_overdue_fine(self, transaction: Transaction, returned_at: datetime) -> Fine | None:

@@ -5,6 +5,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.sql import contains_pattern
@@ -132,19 +133,35 @@ class FineRepository(BaseRepository[Fine]):
         self.db.flush()
         return fine
 
-    def save_accrued(self, transaction_id: UUID, amount, days_late: int) -> Fine:
-        """Create or refresh the single unpaid fine for an overdue open loan."""
-        fine = self.get_by_transaction_id(transaction_id)
-        if fine is None:
-            fine = Fine(
-                transaction_id=transaction_id,
-                amount=amount,
-                reason=f"Currently overdue: {days_late} day(s)",
-                paid=False,
+    def save_accrued_many(self, accrued: list[tuple[UUID, Decimal, int]]) -> None:
+        """Create or refresh overdue balances with one batched statement."""
+        if not accrued:
+            return
+
+        statement = pg_insert(Fine).values(
+            [
+                {
+                    "transaction_id": transaction_id,
+                    "amount": amount,
+                    "reason": f"Currently overdue: {days_late} day(s)",
+                    "paid": False,
+                }
+                for transaction_id, amount, days_late in accrued
+            ]
+        )
+        self.db.execute(
+            statement.on_conflict_do_update(
+                index_elements=[Fine.transaction_id],
+                set_={
+                    "amount": statement.excluded.amount,
+                    "reason": statement.excluded.reason,
+                    "updated_at": func.now(),
+                },
+                # A paid fine must never become unpaid due to a concurrent refresh.
+                where=Fine.paid.is_(False)
+                & (
+                    (Fine.amount != statement.excluded.amount)
+                    | (Fine.reason != statement.excluded.reason)
+                ),
             )
-            return self.create(fine)
-        if not fine.paid:
-            fine.amount = amount
-            fine.reason = f"Currently overdue: {days_late} day(s)"
-            self.db.flush()
-        return fine
+        )

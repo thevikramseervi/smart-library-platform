@@ -103,7 +103,7 @@ class ReservationRepository(BaseRepository[Reservation]):
                 Reservation.book_id == book_id,
                 Reservation.status == ReservationStatus.ACTIVE,
             )
-            .order_by(Reservation.reservation_date.asc())
+            .order_by(Reservation.reservation_date.asc(), Reservation.id.asc())
         )
         return list(self.db.execute(statement).unique().scalars().all())
 
@@ -124,7 +124,7 @@ class ReservationRepository(BaseRepository[Reservation]):
 
         total = self.db.execute(select(func.count()).select_from(statement.subquery())).scalar_one()
         statement = (
-            statement.order_by(Reservation.reservation_date.asc())
+            statement.order_by(Reservation.reservation_date.asc(), Reservation.id.asc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
@@ -135,17 +135,43 @@ class ReservationRepository(BaseRepository[Reservation]):
         """Return 1-based queue position for an active reservation."""
         if reservation.status != ReservationStatus.ACTIVE:
             return None
-        statement = (
-            select(func.count())
-            .select_from(Reservation)
-            .where(
-                Reservation.book_id == reservation.book_id,
-                Reservation.status == ReservationStatus.ACTIVE,
-                Reservation.reservation_date < reservation.reservation_date,
+        return self.queue_positions([reservation]).get(reservation.id)
+
+    def queue_positions(self, reservations: list[Reservation]) -> dict[UUID, int]:
+        """Return FIFO positions for many reservations with one database query."""
+        active = [
+            reservation
+            for reservation in reservations
+            if reservation.status == ReservationStatus.ACTIVE
+        ]
+        if not active:
+            return {}
+
+        reservation_ids = [reservation.id for reservation in active]
+        book_ids = {reservation.book_id for reservation in active}
+        ranked = (
+            select(
+                Reservation.id.label("reservation_id"),
+                func.row_number()
+                .over(
+                    partition_by=Reservation.book_id,
+                    order_by=(Reservation.reservation_date, Reservation.id),
+                )
+                .label("queue_position"),
             )
+            .where(
+                Reservation.book_id.in_(book_ids),
+                Reservation.status == ReservationStatus.ACTIVE,
+            )
+            .subquery()
         )
-        earlier = self.db.execute(statement).scalar_one()
-        return earlier + 1
+        statement = select(ranked.c.reservation_id, ranked.c.queue_position).where(
+            ranked.c.reservation_id.in_(reservation_ids)
+        )
+        return {
+            reservation_id: int(position)
+            for reservation_id, position in self.db.execute(statement)
+        }
 
     def create(self, reservation: Reservation) -> Reservation:
         """Persist a new reservation."""

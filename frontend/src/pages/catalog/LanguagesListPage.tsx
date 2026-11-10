@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { REFERENCE_DATA_STALE_TIME } from "@/lib/queryClient";
 
 import { Button } from "@/components/ui/button";
 import { TableListSkeleton } from "@/components/ui/table-list-skeleton";
@@ -30,6 +31,7 @@ export function LanguagesListPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["languages"],
     queryFn: listLanguages,
+    staleTime: REFERENCE_DATA_STALE_TIME,
   });
 
   const filteredLanguages = useMemo(() => {
