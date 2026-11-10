@@ -1,6 +1,8 @@
 """Authentication business logic."""
 
 import logging
+from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -76,7 +78,18 @@ class AuthService:
                 detail="Session revoked; please sign in again",
             )
 
+        if self.repository.is_revoked(sha256(token.encode()).hexdigest()):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
+
         return user
+
+    def logout(self, token: str) -> None:
+        """Revoke this token until its expiry without affecting other sessions."""
+        payload = decode_access_token(token)
+        self.repository.revoke(
+            sha256(token.encode()).hexdigest(), datetime.fromtimestamp(payload.exp, UTC)
+        )
+        self.db.commit()
 
     def get_user_profile(self, user_id: UUID) -> UserResponse:
         """Return the authenticated user's profile."""

@@ -7,7 +7,7 @@
 The backend exposes REST APIs using FastAPI.
 
 Authentication is JWT-based. The implemented authentication endpoints are
-`POST /auth/login`, `GET /auth/me`, and `POST /auth/change-password`; the rest of the implemented API is
+`POST /auth/login`, `GET /auth/me`, `POST /auth/logout`, and `POST /auth/change-password`; the rest of the implemented API is
 documented in the sections below. Login is rate limited (429 after repeated
 failures), and tokens are revoked server-side when a user's password changes.
 
@@ -116,7 +116,14 @@ password values are never recorded.
 
 Errors: `400` incorrect current password · `422` invalid or unchanged new password.
 
-> **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are not registered. The browser persists the JWT in local storage and clears it on client-side logout; logout does not revoke the token server-side. Password reset/change increments `users.token_version` and does revoke existing tokens.
+## Logout
+
+`POST /api/v1/auth/logout` requires a bearer token and returns `204` after
+revoking that token. Other sessions remain active. Expired token digests are
+removed during later logout requests. Password reset/change revokes all prior
+tokens. The frontend clears its local auth state after successful logout.
+
+`POST /auth/refresh` is not implemented.
 
 ---
 
@@ -1581,7 +1588,6 @@ registered.
 | Method | Path | Notes |
 |--------|------|-------|
 | POST | `/api/v1/auth/refresh` | Token refresh |
-| POST | `/api/v1/auth/logout` | Server-side logout |
 
 ## Digital Resources (Implemented)
 

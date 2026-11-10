@@ -1,13 +1,25 @@
 """Authentication endpoints."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials
 
-from app.api.deps import get_auth_service, get_current_user
+from app.api.deps import get_auth_service, get_current_user, security
 from app.models.user import User
 from app.schemas.auth import LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter()
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    _current_user: User = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> Response:
+    """Revoke the bearer token used for this session."""
+    auth_service.logout(credentials.credentials)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 def _client_ip(request: Request) -> str:

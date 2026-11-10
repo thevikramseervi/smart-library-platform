@@ -3,8 +3,8 @@
 React + TypeScript + Vite client for the Smart Library Platform API. It uses
 React Router for routes, Zustand with browser local-storage persistence for
 JWT-backed auth state, Axios for API requests, and TanStack Query for server
-state. Logout clears local auth and query-cache state; token revocation occurs
-server-side only when a password changes or resets.
+state. Logout revokes the current token on the server, then clears local auth
+and query-cache state. Password changes and resets revoke all previous tokens.
 
 ## Application areas
 

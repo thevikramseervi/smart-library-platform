@@ -1,6 +1,6 @@
 # Smart Library Platform - Database Design
 
-**Implementation snapshot:** 2026-11-11 (Alembic head `024_recommendation_feedback`)
+**Implementation snapshot:** 2026-11-11 (Alembic head `025_revoked_tokens`)
 
 ## Overview
 
@@ -45,7 +45,7 @@ Applied to: `users`, `books`, `authors`, `categories`, `publishers` (when delete
 
 # Implemented Schema
 
-Tables and changes created by Alembic migrations `001` through `024`.
+Tables and changes created by Alembic migrations `001` through `025`.
 
 ## Migration History
 
@@ -75,6 +75,7 @@ Tables and changes created by Alembic migrations `001` through `024`.
 | `022_digital_resources` | Adds metadata for one private R2 PDF per catalog book |
 | `023_student_admission_year` | Replaces `users.semester` with optional `users.admission_year`; existing semester values are not reinterpreted |
 | `024_recommendation_feedback` | Adds persistent per-student, per-book recommendation feedback (`LIKE` or `DISMISS`) |
+| `025_revoked_tokens` | Stores logged-out token digests and their expiration times |
 
 Migration `014` aligns the copy and rating indexes with SQLAlchemy metadata.
 The `fines.transaction_id` uniqueness is represented once as a database
@@ -479,6 +480,13 @@ Unique constraint: `(student_id, book_id)`. Index: `book_id`.
 
 # Business Rules Summary
 
+## revoked_tokens
+
+`digest` is a SHA-256 token digest and the primary key; `expires_at` is an
+indexed timestamp. Logout records the current token until it expires. Expired
+entries are cleaned up during later logout requests. Password changes and resets
+continue to invalidate all older tokens using `users.token_version`.
+
 | Topic | Current behaviour | Future |
 |-------|-------------------|--------|
 | Overdue detection | Derived (`ISSUED` + past `due_at`, UTC calendar) | — |
@@ -486,7 +494,7 @@ Unique constraint: `(student_id, book_id)`. Index: `book_id`.
 | Loan limit | Max `max_active_loans` (active policy, default 5) concurrent loans per student | — |
 | Circulation policy | Admin UI manages the active rules and records the latest editor; successful changes are captured in `audit_logs` with before/after values | Multi-tier policies (by patron / material type) |
 | Reservation queue | FIFO by `reservation_date`; returns hold copies `RESERVED` for queue head; issues honor queue unless `bypass_reservation` | — |
-| Session revocation | Password reset/change bumps `users.token_version`; old JWTs rejected immediately | Token refresh endpoint (planned) |
+| Session revocation | Logout revokes the current token; password reset/change bumps `users.token_version` and revokes prior tokens | Token refresh endpoint (planned) |
 | QR codes | Copy labels encode `inventory_code`; student library-card QR encodes `student_code`. Frontend generates both locally. Staff scan copy codes on issue/return pages and scan student codes on the issue page; scanning does not bypass eligibility or confirmation | Student self-service issue/return is not implemented |
 | Book renewal | Students can renew eligible active loans up to the admin-configured limit (default 1); the due date extends by the policy loan period | — |
 

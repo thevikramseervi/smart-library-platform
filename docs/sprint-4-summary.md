@@ -258,9 +258,9 @@ recommendation vectors, batched notification reminders, and reduced database
 round trips for common dashboard, loan, and fine reads. Admin dashboards also
 have a compact 30-day circulation overview endpoint. See the current backend
 README, architecture, deployment, and API specification for behavior and
-configuration. These additions do not change the database schema; the Alembic
-head remains `024_recommendation_feedback`. This is a status note, not a claim
-that the full test suite was run on this date.
+configuration. Those performance additions did not change the schema. A later
+change adds current-session server-side logout and migration `025_revoked_tokens`.
+This is a status note, not a claim that the full test suite was run on this date.
 
 ---
 

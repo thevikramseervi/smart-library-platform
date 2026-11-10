@@ -30,7 +30,7 @@ Smart Library Platform is a web application for managing a library catalog, phys
 
 | Module | Capabilities |
 |--------|--------------|
-| **Authentication & RBAC** | JWT login with in-process failed-login lockout, self-service password change with session rotation, password reset/change revokes prior tokens, role-based route and API protection (Admin, Librarian, Student) |
+| **Authentication & RBAC** | JWT login, current-session server-side logout, in-process failed-login lockout, self-service password change with session rotation, password reset/change revokes prior tokens, role-based route and API protection (Admin, Librarian, Student) |
 | **User Management** | Admin CRUD for users, admin password reset, soft delete, role/department assignment, and optional student admission year |
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
@@ -62,7 +62,6 @@ The following remain **design targets not implemented** in the current codebase:
 | Broader analytics dashboards and trends beyond circulation reports | Future |
 | Library calendar / working-day fines | Future |
 | Token refresh | Future — there is no endpoint to renew an expired access token; the user must sign in again |
-| Server-side logout | Future — logout clears the browser's token, but does not revoke it on the server; password reset/change does revoke prior tokens |
 
 ---
 

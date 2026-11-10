@@ -272,6 +272,7 @@ Password Storage:
 
 Session Revocation:
 
+* Logout stores the current token's digest until expiry, revoking that session
 * `users.token_version` is embedded in tokens; password resets and changes bump it, invalidating old JWTs
 
 Login Abuse Prevention:

@@ -84,6 +84,18 @@ def test_login_success(client: TestClient) -> None:
     assert data["token_type"] == "bearer"
 
 
+def test_logout_revokes_only_current_session(client: TestClient) -> None:
+    credentials = {"email": settings.DEV_ADMIN_EMAIL, "password": settings.DEV_ADMIN_PASSWORD}
+    first = client.post("/api/v1/auth/login", json=credentials).json()["access_token"]
+    second = client.post("/api/v1/auth/login", json=credentials).json()["access_token"]
+    first_headers = {"Authorization": f"Bearer {first}"}
+    second_headers = {"Authorization": f"Bearer {second}"}
+    assert first != second
+    assert client.post("/api/v1/auth/logout", headers=first_headers).status_code == 204
+    assert client.get("/api/v1/auth/me", headers=first_headers).status_code == 401
+    assert client.get("/api/v1/auth/me", headers=second_headers).status_code == 200
+
+
 def test_login_wrong_password(client: TestClient) -> None:
     """Invalid password should return 401."""
     response = client.post(

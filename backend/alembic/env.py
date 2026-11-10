@@ -25,6 +25,7 @@ from app.models import (  # noqa: F401
     Publisher,
     RecommendationFeedback,
     Reservation,
+    RevokedToken,
     Role,
     Transaction,
     User,

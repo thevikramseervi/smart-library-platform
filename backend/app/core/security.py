@@ -1,7 +1,7 @@
 """Security utilities for password hashing and JWT tokens."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import bcrypt
 import jwt
@@ -17,6 +17,7 @@ class TokenPayload(BaseModel):
 
     sub: str
     ver: int
+    exp: int
 
 
 def hash_password(password: str) -> str:
@@ -42,7 +43,7 @@ def create_access_token(
     token_version: int = 0,
     expires_delta: timedelta | None = None,
 ) -> str:
-    """Create a signed JWT carrying sub, ver, iat, and exp claims."""
+    """Create a signed JWT with a unique identifier for this session."""
     now = datetime.now(UTC)
     expire_at = now + (
         expires_delta if expires_delta is not None
@@ -53,6 +54,7 @@ def create_access_token(
         "ver": token_version,
         "iat": now,
         "exp": expire_at,
+        "jti": str(uuid4()),
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
@@ -73,4 +75,4 @@ def decode_access_token(token: str) -> TokenPayload:
     if subject is None:
         raise ValueError("Invalid token payload")
 
-    return TokenPayload(sub=subject, ver=int(payload["ver"]))
+    return TokenPayload(sub=subject, ver=int(payload["ver"]), exp=int(payload["exp"]))

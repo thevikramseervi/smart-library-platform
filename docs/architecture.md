@@ -1,6 +1,6 @@
 # Smart Library Platform - Architecture Document
 
-**Implementation snapshot:** 2026-11-11 (Alembic head `024_recommendation_feedback`)
+**Implementation snapshot:** 2026-11-11 (Alembic head `025_revoked_tokens`)
 
 ## 1. Project Overview
 
@@ -27,7 +27,7 @@ Staff QR label printing and issue/return scanning are implemented. Students have
 
 * Broader analytics dashboards and trends beyond circulation reports
 * Library calendar support for closure-aware due dates or fines
-* Token refresh and explicit server-side logout
+* Token refresh
 
 ---
 
@@ -165,7 +165,7 @@ require_roles() / get_current_user dependencies
 
 Roles: `ADMIN`, `LIBRARIAN`, `STUDENT`.
 
-Frontend route guards (`AdminRoute`, `StaffRoute`, `ProtectedRoute`) improve UX; **backend RBAC is authoritative**. Zustand persists the access token and user profile in browser local storage. Client logout clears that state and the TanStack Query cache; it does not revoke the token server-side.
+Frontend route guards (`AdminRoute`, `StaffRoute`, `ProtectedRoute`) improve UX; **backend RBAC is authoritative**. Zustand persists the access token and user profile in browser local storage. Logout revokes the current token on the server, then clears local auth and the TanStack Query cache.
 
 Session security:
 
@@ -175,7 +175,7 @@ Session security:
 * Login rate-limit state is in process memory; it is not shared across API workers/replicas and resets on process restart
 * Startup validation rejects weak or default `JWT_SECRET_KEY` values
 
-**Not implemented:** token refresh endpoint, explicit server-side logout (revocation currently happens on credential changes).
+**Not implemented:** token refresh endpoint. Logout affects the current token; password changes and resets revoke all prior tokens.
 
 ---
 
@@ -394,7 +394,7 @@ See [`deployment.md`](deployment.md) for environment variables and checklist.
 
 Digital PDF storage uses a private Cloudflare R2 bucket. The Render backend
 must have the `CLOUD_STORAGE_*` settings configured, and the target database
-must be migrated through the current repository head, `024_recommendation_feedback`.
+must be migrated through the current repository head, `025_revoked_tokens`.
 
 ---
 

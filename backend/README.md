@@ -106,6 +106,7 @@ Migration files live in `alembic/versions/`:
 | `022_digital_resources` | Adds metadata for one private Cloudflare R2 PDF per catalog book |
 | `023_student_admission_year` | Replaces the users' `semester` column with optional `admission_year`; existing semester values are not converted |
 | `024_recommendation_feedback` | Adds per-student, per-book `LIKE` and `DISMISS` feedback for recommendations |
+| `025_revoked_tokens` | Tracks logged-out access token digests until expiry |
 
 ---
 

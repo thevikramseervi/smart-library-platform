@@ -18,6 +18,7 @@ from app.models.publisher import Publisher
 from app.models.rating import Rating
 from app.models.recommendation_feedback import RecommendationFeedback
 from app.models.reservation import Reservation, ReservationStatus
+from app.models.revoked_token import RevokedToken
 from app.models.role import Role
 from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
@@ -44,6 +45,7 @@ __all__ = [
     "Rating",
     "Reservation",
     "ReservationStatus",
+    "RevokedToken",
     "Role",
     "Transaction",
     "TransactionStatus",
