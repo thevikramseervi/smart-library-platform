@@ -30,6 +30,11 @@ def _period_start(value: date, interval: str) -> date:
     return value
 
 
+def _money(value: Decimal) -> Decimal:
+    """Keep report currency values at the API's two-decimal INR precision."""
+    return value.quantize(Decimal("0.01"))
+
+
 def _period_starts(start_date: date, end_date: date, interval: str) -> list[date]:
     current = _period_start(start_date, interval)
     last = _period_start(end_date, interval)
@@ -94,7 +99,7 @@ class CirculationReportsService:
                 period_start=period,
                 loans_issued=issue_totals.get(period, 0),
                 returns_processed=return_totals.get(period, 0),
-                fines_collected=fine_totals.get(period, Decimal("0.00")),
+                fines_collected=_money(fine_totals.get(period, Decimal("0.00"))),
             )
             for period in periods
         ]
@@ -113,6 +118,7 @@ class CirculationReportsService:
         current_unpaid_fine_balance, current_unpaid_fine_count = (
             self.repository.get_current_unpaid_fines()
         )
+        current_unpaid_fine_balance = _money(current_unpaid_fine_balance)
         on_time_return_rate = (
             (Decimal(on_time_returns * 100) / Decimal(on_time_returns + late_returns)).quantize(
                 Decimal("0.1")
@@ -144,7 +150,9 @@ class CirculationReportsService:
             loans_issued=self.repository.count_issues(resolved_start, resolved_end),
             returns_processed=self.repository.count_returns(resolved_start, resolved_end),
             overdue_at_period_end=self.repository.count_overdue_at_period_end(resolved_end),
-            fines_collected=self.repository.sum_fines_collected(resolved_start, resolved_end),
+            fines_collected=_money(
+                self.repository.sum_fines_collected(resolved_start, resolved_end)
+            ),
             popular_books=[
                 PopularBookReport(book_title=title, loans_issued=count)
                 for title, count in self.repository.list_popular_books(

@@ -139,6 +139,10 @@ describe("CirculationReportsPage", () => {
   });
 
   it("does not request a report for an invalid date range", async () => {
+    const tomorrowDate = new Date();
+    tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+    const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+
     vi.mocked(getCirculationReport).mockResolvedValue({
       start_date: "2026-11-01",
       end_date: "2026-11-09",
@@ -182,7 +186,7 @@ describe("CirculationReportsPage", () => {
 
     await waitFor(() => expect(getCirculationReport).toHaveBeenCalled());
     vi.clearAllMocks();
-    fireEvent.change(screen.getByLabelText("From"), { target: { value: "2026-11-10" } });
+    fireEvent.change(screen.getByLabelText("From"), { target: { value: tomorrow } });
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The start date must be on or before the end date.",
     );

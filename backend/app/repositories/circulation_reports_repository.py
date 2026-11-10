@@ -214,8 +214,13 @@ class CirculationReportsRepository:
                 func.count(Reservation.id)
                 .filter(Reservation.status == ReservationStatus.CANCELLED),
                 func.avg(
-                    func.extract(
-                        "epoch", Reservation.updated_at - Reservation.reservation_date
+                    # App and database clocks can differ slightly; elapsed time
+                    # cannot be negative, so clamp each fulfilled wait at zero.
+                    func.greatest(
+                        func.extract(
+                            "epoch", Reservation.updated_at - Reservation.reservation_date
+                        ),
+                        0,
                     )
                     / 86400
                 ).filter(Reservation.status == ReservationStatus.FULFILLED),
