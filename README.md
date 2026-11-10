@@ -4,7 +4,12 @@ An AI-powered, cloud-based Library Management System built as a final-year engin
 
 This README describes the **current implementation**. Physical catalog, circulation, reservations, fines, ratings and written reviews, student book recommendations, semantic book search, in-app notifications, QR-based copy labels and student library cards, private digital PDFs, admin circulation reports, and audit history for catalog, inventory, reference data, departments, users, circulation, reservations, fines, and policy actions are implemented. Staff can scan copy QR codes on issue/return pages and scan a student's library-card QR while issuing a book. Broader analytics remain future work.
 
-**Documentation snapshot:** 2026-11-10. See the sprint reports for dated
+Backend responses include request timing information for diagnosing API latency;
+recommendation and semantic-search endpoints also report processing-stage
+timings. See the backend README and API reference for what these measurements
+include and how to inspect them.
+
+**Documentation snapshot:** 2026-11-11. See the sprint reports for dated
 delivery history; their old test counts and limitations are not current status.
 
 ---

@@ -160,6 +160,7 @@ Same pattern: install with `uv sync`, migrate on deploy, start Uvicorn on `$PORT
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `300` | Lockout window |
 | `EMBEDDING_MODEL` | `BAAI/bge-small-en-v1.5` | FastEmbed model for semantic search |
 | `SEMANTIC_SEARCH_ENABLED` | `true` | Master switch for vector queries |
+| `SEMANTIC_SEARCH_PREWARM_ENABLED` | `true` | Preload the embedding model in a background thread after startup; set `false` to load on the first semantic query instead |
 | `DEV_ADMIN_*` | see `.env.example` | Dev seed overrides (local only) |
 | `DEV_LIBRARIAN_*` | see `config.py` defaults | Dev seed overrides (local only) |
 | `CLOUD_STORAGE_BUCKET` | empty | R2 bucket name; required for digital PDF operations |
@@ -244,6 +245,12 @@ Features may require additional configuration:
 In-app notifications use the application database and need no external service.
 See [`architecture.md`](architecture.md) for the current module overview and
 remaining planned modules.
+
+With semantic search enabled, model prewarming is on by default. The first
+model initialization can use CPU and memory and may download model files if
+they are not already cached. Prewarming runs in the background and a failure
+does not block application startup; set `SEMANTIC_SEARCH_PREWARM_ENABLED=false`
+to defer initialization until a semantic query arrives.
 
 ---
 

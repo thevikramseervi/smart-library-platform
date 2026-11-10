@@ -1,6 +1,6 @@
 # Smart Library Platform - Architecture Document
 
-**Implementation snapshot:** 2026-11-10 (Alembic head `024_recommendation_feedback`)
+**Implementation snapshot:** 2026-11-11 (Alembic head `024_recommendation_feedback`)
 
 ## 1. Project Overview
 
@@ -203,8 +203,11 @@ Home route `/` redirects to `/dashboard`.
 
 ### Library Analytics
 
-The admin-only `/admin/analytics` page calls `GET /reports/circulation` with a
-UTC calendar date range. It reports issues, returns, overdue loans as of the
+The admin dashboard's analytics overview calls the admin-only
+`GET /reports/circulation/overview` endpoint for a compact summary of the last
+30 UTC calendar days. The `/admin/analytics` page calls
+`GET /reports/circulation` with a UTC calendar date range. It reports issues,
+returns, overdue loans as of the
 period end, on-time and late returns, overdue age buckets, current unpaid fine
 balance, reservation placements and outcomes, average reservation wait,
 department borrowing participation, and the most-issued titles and categories.
@@ -271,15 +274,17 @@ Provides database-backed circulation configuration for loan duration, reservatio
   * `ReservationService.create_reservation`: uses `policy.reservation_expiry_days`.
 * Fine rate and cap are read when a late book is returned. A policy edit during an open loan therefore applies to that loan's fine; the policy is not snapshotted at issue time.
 * The policy also controls the maximum number of renewals per loan (0–5); a zero limit disables renewals.
-* **Zero-downtime fallback:** If no active policy record exists in the database, the repository seamlessly falls back to static runtime `Settings`.
+* **Configuration fallback:** If no active policy record exists in the database, the repository falls back to static runtime `Settings`.
+* **Admin UI:** Dedicated interface at `/admin/circulation-policy` with form validation, reset controls, error retry boundary, and contextual policy guidelines.
 
 ### Audit Log
 
 The admin-only `/admin/audit-log` page reads `GET /audit-logs`. It lists
-successful book and copy create/update/delete/status changes, user creation,
-updates, deactivation and password resets, book issues/returns/renewals,
-reservation creation/cancellation/expiry/fulfillment, fine recordings/payments,
-and circulation-policy changes. Events are inserted in the same database
+successful book, digital PDF, copy, author, category, publisher, language, and
+department changes; user creation, updates, deactivation, and password resets;
+book issues, returns, and renewals; reservation creation, cancellation, expiry,
+and fulfillment; fine recordings and payments; and circulation-policy changes.
+Events are inserted in the same database
 transaction as the action, so a failed action does not leave a success record
 and a committed action cannot silently omit its audit event. It includes
 reservation creation, cancellation, automatic expiration, and fulfillment
@@ -287,12 +292,11 @@ during issue; automatic expiry is attributed to System. The list supports
 search, action/date filters, and pagination. Actor name/email snapshots remain
 available if an account is later removed. Events are read-only through the API;
 actions that occurred before the audit-log migration are not backfilled.
-* **Admin UI:** Dedicated interface at `/admin/circulation-policy` with form validations, reset controls, error retry boundary, and contextual policy guidelines.
 
 ### Semantic Search Module (Sprint 5)
 
 * Canonical text per book built from title/authors/categories/publisher/language/year/description (`app/search/document_builder.py`)
-* Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), lazy-loaded per process
+* Embeddings via FastEmbed ONNX (`BAAI/bge-small-en-v1.5`, 384-dim), initialized once per process. When semantic search is enabled, a background startup task prewarms the model by default; set `SEMANTIC_SEARCH_PREWARM_ENABLED=false` to leave loading on demand. A failed prewarm does not prevent startup.
 * Catalog book create/update and author/category/publisher renames or soft deletions mark affected embeddings `PENDING` and schedule targeted background reindexing after the response; deleted reference data is omitted from canonical text. Failures remain recorded for admin retry in the app or the offline command: `uv run python -m app.scripts.reindex_embeddings` (batched, per-book failure tracking, `--force` to re-embed unchanged)
 * Admins can inspect indexing counts and start a pending/failed retry or confirmed full rebuild at `/admin/search-index`; matching admin-only API endpoints report job outcome while the server process remains running
 * Soft delete removes the embedding row
@@ -312,6 +316,18 @@ actions that occurred before the audit-log migration are not backfilled.
 ## 10. Additional Architecture Notes
 
 QR circulation and digital library workflows below are implemented. The recommendations section describes the current implementation; broader analytics remain future work.
+
+### Performance and Request Timing
+
+The API measures backend processing time to response headers with the
+`Server-Timing` response header and logs the route template, status, and
+duration without request data. Recommendation and semantic-search endpoints
+also expose stage timings. Recommendation vectors are cached in each backend
+process for up to 30 seconds, with a database revision check on each request.
+Book metadata and copy availability remain fresh database reads. Notification
+reminder checks batch due-loan selection and notification inserts. These are
+latency improvements, not a distributed cache or background job system; each
+worker maintains its own vector cache.
 
 ### QR-Based Circulation
 

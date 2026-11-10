@@ -1,6 +1,6 @@
 # Smart Library Platform - API Specification
 
-**Implementation snapshot:** 2026-11-10 (API prefix `/api/v1`)
+**Implementation snapshot:** 2026-11-11 (API prefix `/api/v1`)
 
 ## Overview
 
@@ -26,6 +26,16 @@ Base URL:
 ```
 
 Additional implemented endpoints and future API designs are listed in the [additional API reference](#additional-api-reference) at the end of this document. Each section is labeled **Implemented** or **Future**; future endpoints are not registered in the current FastAPI application.
+
+## Response timing
+
+The API adds an `app;dur` entry to the `Server-Timing` response header. It
+measures backend request processing until response headers are ready; it does
+not include browser-to-server network time or downloading the response body.
+The header is exposed to browser clients through CORS. Recommendation responses
+also include `rec-data`, `rec-ranking`, and data-stage timings; semantic search
+includes `embedding` and `vector-query` timings when vector search runs. Use
+the browser Network panel to compare these values with total request time.
 
 ---
 
@@ -1087,6 +1097,19 @@ Librarian, Admin
 ```
 
 Query params: `book_id`, `q` (matches inventory code or book title).
+
+## Look Up a Copy by Inventory Code
+
+```http
+GET /api/v1/circulation/copies/lookup?inventory_code=ACC-00001
+```
+
+Access: Librarian or Admin. Looks up a non-deleted copy regardless of its
+circulation status and returns its inventory code, book ID and title, location,
+and current status (`AVAILABLE`, `BORROWED`, `RESERVED`, `LOST`, `DAMAGED`, or
+`RETIRED`). Staff QR scans use this to show why a copy can or cannot be issued.
+Returns `404` when no copy with that inventory code exists. The required
+`inventory_code` query value must be 1–100 characters.
 
 ---
 

@@ -250,6 +250,18 @@ historical sprint document; consult the root README, architecture, API, and
 database references for current behavior. Historical test totals above are not
 verification of the current revision.
 
+### Current implementation update (2026-11-11)
+
+The current application adds backend request and stage timing headers, a
+background semantic-model prewarm option, a short-lived per-process cache for
+recommendation vectors, batched notification reminders, and reduced database
+round trips for common dashboard, loan, and fine reads. Admin dashboards also
+have a compact 30-day circulation overview endpoint. See the current backend
+README, architecture, deployment, and API specification for behavior and
+configuration. These additions do not change the database schema; the Alembic
+head remains `024_recommendation_feedback`. This is a status note, not a claim
+that the full test suite was run on this date.
+
 ---
 
 ## Related Documents

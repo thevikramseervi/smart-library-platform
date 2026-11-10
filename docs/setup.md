@@ -51,11 +51,18 @@ cp .env.example .env
 uv sync
 uv run alembic upgrade head
 SEED_ALLOWED=true uv run python -m app.db.seed
-# Optional: build embeddings so smart search works immediately
-# (downloads the FastEmbed model on first run)
+# Semantic search prewarms the FastEmbed model in the background after startup
+# by default. The first initialization may download model files; this does not
+# index books. Optionally index catalog books now so semantic results are ready:
+# (skip this command if you do not need semantic results immediately)
 uv run python -m app.scripts.reindex_embeddings
 uv run uvicorn app.main:app --reload --port 8000
 ```
+
+To defer model loading until a semantic search request, set
+`SEMANTIC_SEARCH_PREWARM_ENABLED=false` in `backend/.env`. If no embeddings
+have been indexed, catalog keyword search still works; see the reindex command
+in [`../backend/README.md`](../backend/README.md).
 
 ### 3. Frontend setup
 
