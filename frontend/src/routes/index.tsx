@@ -73,6 +73,9 @@ const MyLoansPage = lazy(() =>
 const NotificationsPage = lazy(() =>
   import("@/pages/NotificationsPage").then((m) => ({ default: m.NotificationsPage })));
 
+const ProfilePage = lazy(() =>
+  import("@/pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+
 const MyReservationsPage = lazy(() =>
   import("@/pages/circulation/MyReservationsPage").then((m) => ({ default: m.MyReservationsPage })));
 
@@ -129,6 +132,14 @@ export const router = createBrowserRouter([
             element: (
               <Suspense fallback={<TableListSkeleton columns={4} />}>
                 <NotificationsPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: "profile",
+            element: (
+              <Suspense fallback={<TableListSkeleton columns={4} />}>
+                <ProfilePage />
               </Suspense>
             ),
           },

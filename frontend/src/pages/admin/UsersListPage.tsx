@@ -28,6 +28,7 @@ import {
   SearchInput,
 } from "@/pages/catalog/components/CatalogShared";
 import type { UserResponse } from "@/types/admin";
+import { StudentQrCodeAction } from "@/pages/admin/components/StudentQrCodeAction";
 
 function formatUserLabel(user: UserResponse): string {
   const identifier = user.student_code ?? user.email;
@@ -151,6 +152,7 @@ export function UsersListPage() {
                 actions={<>
                   <Button variant="outline" size="sm" asChild><Link to={`/admin/users/${user.id}/edit`}>Edit</Link></Button>
                   <Button variant="outline" size="sm" onClick={() => { setErrorMessage(null); setPendingDeactivate(user); }}>Deactivate</Button>
+                  {user.role.name === "STUDENT" ? <StudentQrCodeAction student={user} /> : null}
                 </>}
               />
             ))}
@@ -185,6 +187,7 @@ export function UsersListPage() {
                       >
                         Deactivate
                       </Button>
+                      {user.role.name === "STUDENT" ? <StudentQrCodeAction student={user} compact /> : null}
                     </div>
                   </td>
                 </tr>

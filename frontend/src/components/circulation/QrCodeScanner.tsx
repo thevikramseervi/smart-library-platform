@@ -14,9 +14,15 @@ import {
 export function QrCodeScanner({
   onScan,
   label = "Scan copy QR code",
+  title = "Scan a copy QR code",
+  description = "Point the camera at the QR label. Scanning only finds the copy; you will still review and confirm the circulation action.",
+  manualEntryHint = "enter the inventory code manually",
 }: {
   onScan: (value: string) => void;
   label?: string;
+  title?: string;
+  description?: string;
+  manualEntryHint?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -64,8 +70,8 @@ export function QrCodeScanner({
           setStarting(false);
           setError(
             cause instanceof Error && cause.name === "NotAllowedError"
-              ? "Camera access was blocked. Allow camera access in your browser, or enter the inventory code manually."
-              : "Could not start the camera. Use a secure connection (HTTPS or localhost), or enter the inventory code manually.",
+              ? `Camera access was blocked. Allow camera access in your browser, or ${manualEntryHint}.`
+              : `Could not start the camera. Use a secure connection (HTTPS or localhost), or ${manualEntryHint}.`,
           );
         });
     };
@@ -76,7 +82,7 @@ export function QrCodeScanner({
       window.cancelAnimationFrame(animationFrame);
       controls?.stop();
     };
-  }, [open, onScan]);
+  }, [manualEntryHint, onScan, open]);
 
   return (
     <>
@@ -96,9 +102,9 @@ export function QrCodeScanner({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Scan a copy QR code</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              Point the camera at the QR label. Scanning only finds the copy; you will still review and confirm the circulation action.
+              {description}
             </DialogDescription>
           </DialogHeader>
           <div className="overflow-hidden rounded-xl bg-black">

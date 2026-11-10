@@ -44,7 +44,7 @@ export interface UserResponse {
   last_name: string;
   phone: string | null;
   student_code: string | null;
-  semester: number | null;
+  admission_year: number | null;
   is_active: boolean;
   role: RoleResponse;
   department: DepartmentResponse | null;

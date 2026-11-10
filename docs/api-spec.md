@@ -7,7 +7,7 @@
 The backend exposes REST APIs using FastAPI.
 
 Authentication is JWT-based. The implemented authentication endpoints are
-`POST /auth/login` and `GET /auth/me`; the rest of the implemented API is
+`POST /auth/login`, `GET /auth/me`, and `POST /auth/change-password`; the rest of the implemented API is
 documented in the sections below. Login is rate limited (429 after repeated
 failures), and tokens are revoked server-side when a user's password changes.
 
@@ -80,6 +80,31 @@ Purpose:
 ```text
 Get current user profile.
 ```
+
+## Change Password
+
+```http
+POST /api/v1/auth/change-password
+```
+
+Access: authenticated users.
+
+Request:
+
+```json
+{
+  "current_password": "current-password",
+  "new_password": "new-password-at-least-8-characters"
+}
+```
+
+The current password must be correct. The new password must contain at least 8
+characters and differ from the current password. Success returns a replacement
+JWT: the current browser session stays signed in with the new token, and tokens
+from other sessions are revoked. The change is recorded in the admin audit log;
+password values are never recorded.
+
+Errors: `400` incorrect current password · `422` invalid or unchanged new password.
 
 > **Not yet implemented:** `POST /auth/refresh` and `POST /auth/logout` are not registered. The browser persists the JWT in local storage and clears it on client-side logout; logout does not revoke the token server-side. Password reset/change increments `users.token_version` and does revoke existing tokens.
 
@@ -246,7 +271,7 @@ Shared response shape (`UserResponse`):
   "last_name": "Student",
   "phone": null,
   "student_code": "STU-001",
-  "semester": 4,
+  "admission_year": 2023,
   "is_active": true,
   "role": { "id": "uuid", "name": "STUDENT" },
   "department": { "id": "uuid", "name": "Computer Science", "code": "CSE", "description": "..." }
@@ -255,9 +280,9 @@ Shared response shape (`UserResponse`):
 
 Role-specific validation:
 
-| Role | `student_code` | `semester` | `department_id` |
-|------|----------------|------------|-----------------|
-| STUDENT | Required, unique | Required (≥ 1) | **Required** |
+| Role | `student_code` | `admission_year` | `department_id` |
+|------|----------------|-----------------|-----------------|
+| STUDENT | Required, unique | Optional (1900–2100) | **Required** |
 | LIBRARIAN | Must be null | Must be null | Optional |
 | ADMIN | Must be null | Must be null | Optional |
 
@@ -320,7 +345,7 @@ Request:
   "phone": "+91-9876543210",
   "password": "securePassword123",
   "student_code": "STU-003",
-  "semester": 3,
+  "admission_year": 2023,
   "is_active": true
 }
 ```
@@ -341,7 +366,7 @@ Access:
 Admin
 ```
 
-Request: partial fields (`role_id`, `department_id`, `first_name`, `last_name`, `email`, `phone`, `password`, `student_code`, `semester`, `is_active`). Omit `password` to leave unchanged.
+Request: partial fields (`role_id`, `department_id`, `first_name`, `last_name`, `email`, `phone`, `password`, `student_code`, `admission_year`, `is_active`). Omit `password` to leave unchanged.
 
 Response: `200` — `UserResponse`.
 
@@ -1771,7 +1796,7 @@ Query parameters:
 |-----------|-------|
 | `page` | 1-based page, defaults to `1` |
 | `page_size` | 1–100, defaults to `20` |
-| `action` | `BOOK_CREATED`, `BOOK_UPDATED`, `BOOK_DELETED`, `DIGITAL_RESOURCE_UPLOADED`, `DIGITAL_RESOURCE_REMOVED`, `COPY_CREATED`, `COPY_UPDATED`, `AUTHOR_CREATED`, `AUTHOR_UPDATED`, `AUTHOR_DELETED`, `CATEGORY_CREATED`, `CATEGORY_UPDATED`, `CATEGORY_DELETED`, `PUBLISHER_CREATED`, `PUBLISHER_UPDATED`, `PUBLISHER_DELETED`, `LANGUAGE_CREATED`, `DEPARTMENT_CREATED`, `DEPARTMENT_UPDATED`, `DEPARTMENT_DELETED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `USER_PASSWORD_RESET`, `BOOK_ISSUED`, `BOOK_RETURNED`, `BOOK_RENEWED`, `RESERVATION_CREATED`, `RESERVATION_CANCELLED`, `RESERVATION_EXPIRED`, `RESERVATION_FULFILLED`, `FINE_RECORDED`, `FINE_PAID`, or `CIRCULATION_POLICY_UPDATED` |
+| `action` | `BOOK_CREATED`, `BOOK_UPDATED`, `BOOK_DELETED`, `DIGITAL_RESOURCE_UPLOADED`, `DIGITAL_RESOURCE_REMOVED`, `COPY_CREATED`, `COPY_UPDATED`, `AUTHOR_CREATED`, `AUTHOR_UPDATED`, `AUTHOR_DELETED`, `CATEGORY_CREATED`, `CATEGORY_UPDATED`, `CATEGORY_DELETED`, `PUBLISHER_CREATED`, `PUBLISHER_UPDATED`, `PUBLISHER_DELETED`, `LANGUAGE_CREATED`, `DEPARTMENT_CREATED`, `DEPARTMENT_UPDATED`, `DEPARTMENT_DELETED`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`, `USER_PASSWORD_RESET`, `USER_PASSWORD_CHANGED`, `BOOK_ISSUED`, `BOOK_RETURNED`, `BOOK_RENEWED`, `RESERVATION_CREATED`, `RESERVATION_CANCELLED`, `RESERVATION_EXPIRED`, `RESERVATION_FULFILLED`, `FINE_RECORDED`, `FINE_PAID`, or `CIRCULATION_POLICY_UPDATED` |
 | `q` | Search actor name/email, summary, entity type, or entity ID; max 200 characters |
 | `start_date`, `end_date` | Inclusive UTC calendar dates; start must be on or before end |
 

@@ -56,7 +56,7 @@ class UserService:
         role_name: str,
         department_id: UUID | None,
         student_code: str | None,
-        semester: int | None,
+        admission_year: int | None,
     ) -> None:
         """Validate role-specific user fields."""
         if role_name == "STUDENT":
@@ -70,11 +70,6 @@ class UserService:
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="Students must have a student code",
                 )
-            if semester is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Students must have a semester",
-                )
             return
 
         if student_code is not None:
@@ -82,10 +77,10 @@ class UserService:
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"{role_name} users cannot have a student code",
             )
-        if semester is not None:
+        if admission_year is not None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"{role_name} users cannot have a semester",
+                detail=f"{role_name} users cannot have an admission year",
             )
 
     def _ensure_not_self(self, actor_id: UUID, target_id: UUID, action: str) -> None:
@@ -144,7 +139,7 @@ class UserService:
             role_name=role.name,
             department_id=payload.department_id,
             student_code=payload.student_code,
-            semester=payload.semester,
+            admission_year=payload.admission_year,
         )
 
         if self.repository.get_by_email(payload.email) is not None:
@@ -170,7 +165,7 @@ class UserService:
             phone=payload.phone,
             student_code=payload.student_code,
             password_hash=hash_password(payload.password),
-            semester=payload.semester,
+            admission_year=payload.admission_year,
             is_active=payload.is_active,
         )
         created = self.repository.create(user)
@@ -212,7 +207,7 @@ class UserService:
             "role": user.role.name,
             "department": user.department.name if user.department else None,
             "student_code": user.student_code,
-            "semester": user.semester,
+            "admission_year": user.admission_year,
             "is_active": user.is_active,
         }
 
@@ -221,8 +216,8 @@ class UserService:
         next_department_id = payload.department_id if uses_field_semantics else user.department_id
         sets_student_code = "student_code" in payload.model_fields_set
         next_student_code = payload.student_code if sets_student_code else user.student_code
-        sets_semester = "semester" in payload.model_fields_set
-        next_semester = payload.semester if sets_semester else user.semester
+        sets_admission_year = "admission_year" in payload.model_fields_set
+        next_admission_year = payload.admission_year if sets_admission_year else user.admission_year
 
         if payload.role_id is not None and next_role.name != "ADMIN" and user.role.name == "ADMIN":
             self._ensure_last_admin_guard(user, action="demote the last active admin from")
@@ -264,8 +259,8 @@ class UserService:
                     detail="Student code already exists",
                 )
             user.student_code = next_student_code
-        if "semester" in payload.model_fields_set:
-            user.semester = next_semester
+        if sets_admission_year:
+            user.admission_year = next_admission_year
         if payload.is_active is not None:
             user.is_active = payload.is_active
 
@@ -273,7 +268,7 @@ class UserService:
             role_name=next_role.name,
             department_id=user.department_id,
             student_code=user.student_code,
-            semester=user.semester,
+            admission_year=user.admission_year,
         )
 
         after = {
@@ -282,7 +277,7 @@ class UserService:
             "role": next_role.name,
             "department": next_department.name if next_department else None,
             "student_code": user.student_code,
-            "semester": user.semester,
+            "admission_year": user.admission_year,
             "is_active": user.is_active,
         }
         changes = {

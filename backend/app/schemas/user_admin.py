@@ -16,7 +16,7 @@ class UserCreate(BaseModel):
     phone: str | None = Field(default=None, max_length=20)
     password: str = Field(min_length=8, max_length=128)
     student_code: str | None = Field(default=None, max_length=100)
-    semester: int | None = Field(default=None, ge=1)
+    admission_year: int | None = Field(default=None, ge=1900, le=2100)
     is_active: bool = True
 
 
@@ -31,7 +31,7 @@ class UserUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=20)
     password: str | None = Field(default=None, min_length=8, max_length=128)
     student_code: str | None = Field(default=None, max_length=100)
-    semester: int | None = Field(default=None, ge=1)
+    admission_year: int | None = Field(default=None, ge=1900, le=2100)
     is_active: bool | None = None
 
     @model_validator(mode="after")

@@ -38,7 +38,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     student_code: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    semester: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    admission_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     token_version: Mapped[int] = mapped_column(
         Integer,

@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 export function StaffRoute() {
   const user = useAuthStore((state) => state.user);
 
-  if (!user) {
+  if (!user?.role?.name) {
     return <Navigate to="/login" replace />;
   }
 

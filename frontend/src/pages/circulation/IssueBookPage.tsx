@@ -58,10 +58,20 @@ export function IssueBookPage() {
 
   const [studentSearch, setStudentSearch] = useState("");
   const [copySearch, setCopySearch] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [manualSelectedStudent, setSelectedStudent] = useState<StudentSearchResult | null>(null);
+  const [scannedStudentCode, setScannedStudentCode] = useState<string | null>(null);
   const [selectedCopy, setSelectedCopy] = useState<SelectableCopy | null>(null);
   const [showIssueConfirm, setShowIssueConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const handleStudentQrScan = useCallback((code: string) => {
+    setSelectedStudent(null);
+    setScannedStudentCode(code);
+    setStudentSearch(code);
+    if (selectedCopy?.isReservedForQueue) {
+      setSelectedCopy(null);
+      setCopySearch("");
+    }
+  }, [selectedCopy]);
   const handleQrScan = useCallback((code: string) => {
     setSelectedCopy(null);
     setCopySearch(code);
@@ -74,6 +84,14 @@ export function IssueBookPage() {
     queryFn: () => searchStudents(debouncedStudentSearch),
     enabled: debouncedStudentSearch.length >= 2,
   });
+  const studentSearchSettled = studentSearch.trim() === debouncedStudentSearch;
+  const scannedStudent = scannedStudentCode && studentSearchSettled &&
+      debouncedStudentSearch === scannedStudentCode
+    ? (studentsQuery.data ?? []).find(
+        (student) => student.student_code?.toLocaleLowerCase() === scannedStudentCode.toLocaleLowerCase(),
+      ) ?? null
+    : null;
+  const selectedStudent = manualSelectedStudent ?? scannedStudent;
 
   const copiesQuery = useQuery({
     queryKey: ["circulation", "copies", "available", locationState?.bookId, debouncedCopySearch],
@@ -150,7 +168,6 @@ export function IssueBookPage() {
     setLastAppliedLocationState(locationState);
   }
 
-  const studentSearchSettled = studentSearch.trim() === debouncedStudentSearch;
   const matchingStudents = studentSearchSettled ? (studentsQuery.data ?? []) : [];
 
   // Server already filters by `q` (title / inventory code); the list below
@@ -314,20 +331,31 @@ export function IssueBookPage() {
           <CardContent className="space-y-4 px-5 py-5 sm:px-6">
             <div className="space-y-2">
               <Label htmlFor="student-search">Student</Label>
-              <Input
-                id="student-search"
-                value={studentSearch}
-                onChange={(event) => {
-                  setStudentSearch(event.target.value);
-                  setSelectedStudent(null);
-                  if (selectedCopy?.isReservedForQueue) {
-                    setSelectedCopy(null);
-                    setCopySearch("");
-                  }
-                }}
-                placeholder="e.g. Vikram, email, or student code"
-                autoComplete="off"
-              />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="student-search"
+                  className="min-w-0 flex-1"
+                  value={studentSearch}
+                  onChange={(event) => {
+                    setScannedStudentCode(null);
+                    setStudentSearch(event.target.value);
+                    setSelectedStudent(null);
+                    if (selectedCopy?.isReservedForQueue) {
+                      setSelectedCopy(null);
+                      setCopySearch("");
+                    }
+                  }}
+                  placeholder="e.g. Vikram, email, or student code"
+                  autoComplete="off"
+                />
+                <QrCodeScanner
+                  onScan={handleStudentQrScan}
+                  label="Scan student QR"
+                  title="Scan a student QR code"
+                  description="Scan the student’s QR code to find their account. Confirm the student before issuing a book."
+                  manualEntryHint="search for the student by code, name, or email"
+                />
+              </div>
               {!studentsQuery.isError ? (
                 <p role="status" aria-live="polite" className="min-h-4 text-xs text-muted-foreground">
                   {studentsQuery.isLoading || !studentSearchSettled

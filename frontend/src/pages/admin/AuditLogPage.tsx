@@ -28,6 +28,7 @@ const actionLabels: Record<AuditAction, string> = {
   USER_UPDATED: "Account updated",
   USER_DEACTIVATED: "Account deactivated",
   USER_PASSWORD_RESET: "Password reset",
+  USER_PASSWORD_CHANGED: "Password changed",
   DEPARTMENT_CREATED: "Department added",
   DEPARTMENT_UPDATED: "Department updated",
   DEPARTMENT_DELETED: "Department deleted",

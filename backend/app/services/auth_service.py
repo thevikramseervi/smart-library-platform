@@ -7,10 +7,16 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.rate_limit import login_rate_limiter
-from app.core.security import create_access_token, decode_access_token, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 from app.models.user import User
 from app.repositories.auth_repository import AuthRepository
-from app.schemas.auth import LoginRequest, TokenResponse, UserResponse
+from app.schemas.auth import LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse
+from app.services.audit_log_service import AuditLogService
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +25,9 @@ class AuthService:
     """Service layer for authentication and authorization checks."""
 
     def __init__(self, db: Session) -> None:
+        self.db = db
         self.repository = AuthRepository(db)
+        self.audit_log_service = AuditLogService(db)
 
     def login(self, credentials: LoginRequest, *, client_ip: str = "unknown") -> TokenResponse:
         """Authenticate a user and return a JWT access token."""
@@ -80,6 +88,38 @@ class AuthService:
             )
 
         return UserResponse.model_validate(user)
+
+    def change_password(
+        self,
+        user: User,
+        payload: PasswordChangeRequest,
+    ) -> TokenResponse:
+        """Change a user's password, revoke old sessions, and return a replacement token."""
+        if not verify_password(payload.current_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect",
+            )
+        if verify_password(payload.new_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="New password must be different from the current password",
+            )
+
+        user.password_hash = hash_password(payload.new_password)
+        user.token_version = (user.token_version or 0) + 1
+        self.audit_log_service.record(
+            actor=user,
+            action="USER_PASSWORD_CHANGED",
+            entity_type="USER",
+            entity_id=user.id,
+            summary=f"Changed password for {user.first_name} {user.last_name} ({user.email})",
+            details={"password_value_recorded": False},
+        )
+        self.db.commit()
+        return TokenResponse(
+            access_token=create_access_token(user.id, token_version=user.token_version)
+        )
 
     def ensure_user_has_role(self, user: User, *allowed_role_names: str) -> None:
         """Ensure the user's role name (from the roles table) is allowed.

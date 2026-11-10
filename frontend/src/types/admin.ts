@@ -21,7 +21,7 @@ export interface UserCreate {
   phone?: string | null;
   password: string;
   student_code?: string | null;
-  semester?: number | null;
+  admission_year?: number | null;
   is_active?: boolean;
 }
 
@@ -34,7 +34,7 @@ export interface UserUpdate {
   phone?: string | null;
   password?: string;
   student_code?: string | null;
-  semester?: number | null;
+  admission_year?: number | null;
   is_active?: boolean;
 }
 

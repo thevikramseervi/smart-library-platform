@@ -3,6 +3,7 @@ import {
   Bell,
   BookOpen,
   BookOpenCheck,
+  CircleUserRound,
   LayoutDashboard,
   LogOut,
   Shield,
@@ -82,7 +83,12 @@ export function MainLayout() {
                   </span>
                 ) : null}
               </NavLink>
-              <div className="hidden items-center gap-2.5 rounded-2xl border border-border/70 bg-card/80 py-1.5 pr-3 pl-1.5 sm:flex">
+              <Link
+                to="/profile"
+                aria-label="My Profile"
+                title="My Profile"
+                className="hidden items-center gap-2.5 rounded-2xl border border-border/70 bg-card/80 py-1.5 pr-3 pl-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex"
+              >
                 <span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-xs font-bold uppercase text-primary">
                   {initials}
                 </span>
@@ -90,9 +96,17 @@ export function MainLayout() {
                   <span className="block truncate text-sm font-semibold leading-tight">
                     {user.first_name} {user.last_name}
                   </span>
-                  <RoleBadge role={user.role.name} />
+                  {user.role?.name ? <RoleBadge role={user.role.name} /> : null}
                 </span>
-              </div>
+              </Link>
+              <Link
+                to="/profile"
+                aria-label="My Profile"
+                title="My Profile"
+                className="flex size-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+              >
+                <CircleUserRound className="size-5" aria-hidden="true" />
+              </Link>
               <Button
                 variant="ghost"
                 size="sm"

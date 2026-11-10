@@ -25,8 +25,8 @@ Smart Library Platform is a web application for managing a library catalog, phys
 
 | Module | Capabilities |
 |--------|--------------|
-| **Authentication & RBAC** | JWT login with in-process failed-login lockout, session revocation on password change, role-based route and API protection (Admin, Librarian, Student) |
-| **User Management** | Admin CRUD for users, password reset, soft delete, role/department assignment |
+| **Authentication & RBAC** | JWT login with in-process failed-login lockout, self-service password change with session rotation, role-based route and API protection (Admin, Librarian, Student) |
+| **User Management** | Admin CRUD for users, admin password reset, soft delete, role/department assignment |
 | **Department Management** | Admin CRUD for academic departments |
 | **Catalog Management** | Books, authors, categories, publishers, languages |
 | **Digital Books** | With Cloudflare R2 configured and migration `022_digital_resources` applied, staff can upload, replace, or remove one private PDF per title; authenticated users can open or download it from book details |

@@ -14,7 +14,7 @@ import { useAuthStore } from "@/store/authStore";
 
 export function DashboardPage() {
   const user = useAuthStore((state) => state.user);
-  const roleName = user?.role.name.toUpperCase() ?? "";
+  const roleName = user?.role?.name.toUpperCase() ?? "";
   const firstName = user?.first_name ?? "there";
 
   const studentQuery = useQuery({

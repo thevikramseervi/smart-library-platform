@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.api.deps import get_auth_service, get_current_user
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, UserResponse
+from app.schemas.auth import LoginRequest, PasswordChangeRequest, TokenResponse, UserResponse
 from app.services.auth_service import AuthService
 
 router = APIRouter()
@@ -35,3 +35,13 @@ def get_me(
 ) -> UserResponse:
     """Return the current authenticated user's profile."""
     return auth_service.get_user_profile(current_user.id)
+
+
+@router.post("/change-password", response_model=TokenResponse)
+def change_password(
+    payload: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
+    """Change the authenticated user's password and rotate their session token."""
+    return auth_service.change_password(current_user, payload)

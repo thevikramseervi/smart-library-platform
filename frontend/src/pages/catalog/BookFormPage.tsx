@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { appToast } from "@/lib/toast";
 import {
   createBook,
@@ -17,6 +18,7 @@ import {
   listPublishers,
   updateBook,
 } from "@/services/catalog";
+import { uploadDigitalResource } from "@/services/catalog/digital-resources";
 import {
   CatalogPageHeader,
   FormSelect,
@@ -40,6 +42,8 @@ export function BookFormPage() {
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [authorIds, setAuthorIds] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [digitalPdf, setDigitalPdf] = useState<File | null>(null);
+  const [digitalPdfError, setDigitalPdfError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const bookQuery = useQuery({
@@ -98,15 +102,28 @@ export function BookFormPage() {
         author_ids: authorIds,
         category_ids: categoryIds,
       };
-      if (isEdit) {
-        return updateBook(id!, payload);
+      const book = isEdit ? await updateBook(id!, payload) : await createBook(payload);
+      let pdfUploadError: unknown = null;
+      if (!isEdit && digitalPdf) {
+        try {
+          await uploadDigitalResource(book.id, digitalPdf);
+        } catch (error) {
+          pdfUploadError = error;
+        }
       }
-      return createBook(payload);
+      return { book, pdfUploadError };
     },
-    onSuccess: (book) => {
-      appToast[isEdit ? "updated" : "created"]("Book");
+    onSuccess: ({ book, pdfUploadError }) => {
+      if (pdfUploadError) {
+        const reason = getApiErrorMessage(pdfUploadError, "Unable to attach the PDF.");
+        appToast.error(`Book saved, but the PDF was not attached: ${reason}`);
+      } else if (!isEdit && digitalPdf) {
+        appToast.success("Book and digital PDF created successfully");
+      } else {
+        appToast[isEdit ? "updated" : "created"]("Book");
+      }
       queryClient.invalidateQueries({ queryKey: ["books"] });
-      navigate(isEdit ? `/catalog/books/${book.id}` : "/catalog/books");
+      navigate(`/catalog/books/${book.id}`);
     },
     onError: (error) => {
       if (isAxiosError(error) && typeof error.response?.data?.detail === "string") {
@@ -140,6 +157,26 @@ export function BookFormPage() {
       id: category.id,
       label: category.name,
     })) ?? [];
+
+  function selectDigitalPdf(file?: File): boolean {
+    setDigitalPdfError(null);
+    if (!file) {
+      setDigitalPdf(null);
+      return true;
+    }
+    if (!file.name.toLowerCase().endsWith(".pdf") || file.type !== "application/pdf") {
+      setDigitalPdfError("Choose a PDF file.");
+      setDigitalPdf(null);
+      return false;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setDigitalPdfError("PDF files must be 25 MB or smaller.");
+      setDigitalPdf(null);
+      return false;
+    }
+    setDigitalPdf(file);
+    return true;
+  }
 
   return (
     <section className="space-y-6">
@@ -247,6 +284,31 @@ export function BookFormPage() {
                   onChange={setCategoryIds}
                 />
               </div>
+              {!isEdit ? (
+                <div className="space-y-2 rounded-xl border border-border/70 bg-secondary/20 p-4">
+                  <Label htmlFor="book-digital-pdf">Digital PDF (optional)</Label>
+                  <Input
+                    id="book-digital-pdf"
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    disabled={saveMutation.isPending}
+                    onChange={(event) => {
+                      const isValid = selectDigitalPdf(event.currentTarget.files?.[0]);
+                      if (!isValid) event.currentTarget.value = "";
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Attach a PDF for readers to open from the book details. Maximum file size: 25 MB.
+                    It will upload after the book is saved.
+                  </p>
+                  {digitalPdf ? (
+                    <p className="text-sm text-muted-foreground">Selected: {digitalPdf.name}</p>
+                  ) : null}
+                  {digitalPdfError ? (
+                    <p role="alert" className="text-sm text-destructive">{digitalPdfError}</p>
+                  ) : null}
+                </div>
+              ) : null}
               {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
               <div className="flex gap-2">
                 <Button type="submit" disabled={saveMutation.isPending}>

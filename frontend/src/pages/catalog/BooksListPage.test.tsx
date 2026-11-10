@@ -261,7 +261,7 @@ describe("BooksListPage", () => {
         last_name: "Librarian",
         phone: null,
         student_code: null,
-        semester: null,
+        admission_year: null,
         is_active: true,
         role: { id: "role-librarian", name: "LIBRARIAN" },
         department: null,

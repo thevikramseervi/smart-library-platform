@@ -13,10 +13,10 @@ export function isStaffRole(roleName: string): boolean {
 
 export function useIsAdmin(): boolean {
   const user = useAuthStore((state) => state.user);
-  return user ? isAdminRole(user.role.name) : false;
+  return user?.role?.name ? isAdminRole(user.role.name) : false;
 }
 
 export function useIsStaff(): boolean {
   const user = useAuthStore((state) => state.user);
-  return user ? isStaffRole(user.role.name) : false;
+  return user?.role?.name ? isStaffRole(user.role.name) : false;
 }

@@ -91,7 +91,7 @@ def seed_dev_admin(db: Session, admin_role: Role) -> None:
         last_name=settings.DEV_ADMIN_LAST_NAME,
         email=settings.DEV_ADMIN_EMAIL,
         password_hash=hash_password(settings.DEV_ADMIN_PASSWORD),
-        semester=None,
+        admission_year=None,
         is_active=True,
     )
     db.add(admin)
@@ -114,7 +114,7 @@ def seed_dev_librarian(db: Session, librarian_role: Role) -> None:
         last_name=settings.DEV_LIBRARIAN_LAST_NAME,
         email=settings.DEV_LIBRARIAN_EMAIL,
         password_hash=hash_password(settings.DEV_LIBRARIAN_PASSWORD),
-        semester=None,
+        admission_year=None,
         is_active=True,
     )
     db.add(librarian)
@@ -140,7 +140,7 @@ def seed_dev_student(db: Session, student_role: Role) -> None:
         email=DEV_STUDENT_EMAIL,
         student_code=DEV_STUDENT_CODE,
         password_hash=hash_password(DEV_STUDENT_PASSWORD),
-        semester=3,
+        admission_year=2023,
         is_active=True,
     )
     db.add(student)
@@ -165,7 +165,7 @@ def seed_dev_student_two(db: Session, student_role: Role) -> None:
         email=DEV_STUDENT2_EMAIL,
         student_code=DEV_STUDENT2_CODE,
         password_hash=hash_password(DEV_STUDENT2_PASSWORD),
-        semester=3,
+        admission_year=2023,
         is_active=True,
     )
     db.add(student)

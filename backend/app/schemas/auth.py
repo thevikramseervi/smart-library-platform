@@ -12,6 +12,13 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1)
 
 
+class PasswordChangeRequest(BaseModel):
+    """Credentials required to change the current user's password."""
+
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class TokenResponse(BaseModel):
     """JWT access token response."""
 
@@ -50,7 +57,7 @@ class UserResponse(BaseModel):
     last_name: str
     phone: str | None
     student_code: str | None
-    semester: int | None
+    admission_year: int | None
     is_active: bool
     role: RoleResponse
     department: DepartmentResponse | None

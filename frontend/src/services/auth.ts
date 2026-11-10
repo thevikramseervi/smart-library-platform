@@ -13,3 +13,11 @@ export async function getCurrentUser(token?: string): Promise<UserResponse> {
   });
   return response.data;
 }
+
+export async function changeMyPassword(payload: {
+  current_password: string;
+  new_password: string;
+}): Promise<TokenResponse> {
+  const response = await api.post<TokenResponse>("/auth/change-password", payload);
+  return response.data;
+}

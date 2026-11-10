@@ -32,7 +32,7 @@ export function UserFormPage() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [studentCode, setStudentCode] = useState("");
-  const [semester, setSemester] = useState("");
+  const [admissionYear, setAdmissionYear] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [resetPassword, setResetPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function UserFormPage() {
         setEmail(userQuery.data.email);
         setPhone(userQuery.data.phone ?? "");
         setStudentCode(userQuery.data.student_code ?? "");
-        setSemester(userQuery.data.semester ? String(userQuery.data.semester) : "");
+        setAdmissionYear(userQuery.data.admission_year ? String(userQuery.data.admission_year) : "");
         setIsActive(userQuery.data.is_active);
   }
 
@@ -85,7 +85,7 @@ export function UserFormPage() {
           phone: phone || null,
           password: password || undefined,
           student_code: isStudent ? studentCode : null,
-          semester: isStudent ? Number(semester) : null,
+          admission_year: isStudent && admissionYear ? Number(admissionYear) : null,
           is_active: isActive,
         });
       }
@@ -99,7 +99,7 @@ export function UserFormPage() {
         phone: phone || null,
         password,
         student_code: isStudent ? studentCode : null,
-        semester: isStudent ? Number(semester) : null,
+        admission_year: isStudent && admissionYear ? Number(admissionYear) : null,
         is_active: isActive,
       });
     },
@@ -226,15 +226,17 @@ export function UserFormPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="semester">Semester</Label>
+                    <Label htmlFor="admission-year">Admission year (optional)</Label>
                     <Input
-                      id="semester"
+                      id="admission-year"
                       type="number"
-                      min={1}
-                      value={semester}
-                      onChange={(event) => setSemester(event.target.value)}
-                      required
+                      min={1900}
+                      max={2100}
+                      placeholder="e.g. 2023"
+                      value={admissionYear}
+                      onChange={(event) => setAdmissionYear(event.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground">The year the student joined their program. It does not advance automatically.</p>
                   </div>
                 </div>
               ) : null}

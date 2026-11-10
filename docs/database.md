@@ -180,7 +180,7 @@ remains `FAILED`/`PENDING` and can be retried or rebuilt with
 | phone         | VARCHAR(20)  |
 | student_code  | VARCHAR(100) |
 | password_hash | TEXT         |
-| semester      | INTEGER      |
+| admission_year| INTEGER      |
 | is_active     | BOOLEAN      |
 | token_version | INTEGER      |
 | created_at    | TIMESTAMPTZ  |
@@ -189,7 +189,7 @@ remains `FAILED`/`PENDING` and can be retried or rebuilt with
 
 Constraints: `email` UNIQUE, `student_code` UNIQUE. Default `token_version = 0`.
 
-Students require `semester` and `department_id`. Admins and librarians may have NULL `semester`.
+Students require a `department_id`; `admission_year` is optional and does not advance automatically. Admins and librarians must have NULL `admission_year`.
 
 JWTs carry the `token_version` value at issue time; resetting or changing a password increments the column, invalidating all previously issued tokens for that user.
 

@@ -76,7 +76,7 @@ def test_department_crud_and_delete_guard(
             "email": student_email,
             "password": "student123456",
             "student_code": f"STU-{suffix[:6].upper()}",
-            "semester": 2,
+            "admission_year": 2024,
         },
     )
     assert created_user.status_code == 201
@@ -106,7 +106,7 @@ def test_create_student_requires_department(client: TestClient, admin_token: str
             "email": f"no-dept-{suffix}@library.local",
             "password": "student123456",
             "student_code": f"STU-{suffix[:6].upper()}",
-            "semester": 1,
+            "admission_year": 2024,
         },
     )
     assert response.status_code == 422
@@ -137,7 +137,7 @@ def test_create_student_login_and_deactivate(
             "email": email,
             "password": password,
             "student_code": student_code,
-            "semester": 3,
+            "admission_year": 2023,
         },
     )
     assert created.status_code == 201

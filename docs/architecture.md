@@ -183,7 +183,7 @@ Session security:
 
 ### Admin Module (Sprint 4.5, 4.9)
 
-* **User Management** — CRUD, soft delete, password reset, role/department validation
+* **User Management** — CRUD, soft delete, admin password reset, self-service password change, role/department validation
 * **Department Management** — CRUD, delete protection when users assigned
 * **Circulation Policy Management** — Dynamic configuration of daily overdue fine rates, max fine amounts, loan durations, active loan limits, and reservation hold expiries, with attribution for the latest editor.
 
