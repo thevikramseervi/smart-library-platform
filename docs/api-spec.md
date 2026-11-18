@@ -752,6 +752,12 @@ Sorting
 Search
 ```
 
+Query parameters include `q`, `author_id`, `category_id`, `publisher_id`,
+`language_id`, and `is_digital` (`true` for digital titles, `false` for
+physical titles), along with `page`, `page_size`, and `sort`. Multiple filters
+are combined with AND. These filters apply to regular catalog search; semantic
+search uses its own query endpoint and does not accept catalog filters.
+
 ---
 
 ## Get Book

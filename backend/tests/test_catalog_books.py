@@ -267,6 +267,56 @@ def test_student_can_list_books(client: TestClient, student_token: str) -> None:
     assert "items" in response.json()
 
 
+def test_book_list_filters_publisher_language_and_format(
+    client: TestClient,
+    admin_token: str,
+    catalog_setup: dict,
+) -> None:
+    """Publisher, language, and format filters narrow books independently."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    suffix = uuid.uuid4().hex[:8]
+    publisher = client.post(
+        "/api/v1/publishers", headers=headers, json={"name": f"Other Publisher {suffix}"}
+    ).json()
+    language = client.post(
+        "/api/v1/languages",
+        headers=headers,
+        json={"name": f"Test Language {suffix}", "code": f"tl-{suffix}"},
+    ).json()
+    common = {
+        "publisher_id": catalog_setup["publisher_id"],
+        "language_id": catalog_setup["language_id"],
+    }
+    physical = client.post(
+        "/api/v1/books",
+        headers=headers,
+        json={"title": f"Physical Filter {suffix}", **common},
+    ).json()
+    digital = client.post(
+        "/api/v1/books",
+        headers=headers,
+        json={
+            "title": f"Digital Filter {suffix}",
+            "publisher_id": publisher["id"],
+            "language_id": language["id"],
+            "is_digital": True,
+        },
+    ).json()
+
+    cases = [
+        ({"publisher_id": publisher["id"]}, digital["id"]),
+        ({"language_id": language["id"]}, digital["id"]),
+        ({"is_digital": "true"}, digital["id"]),
+        ({"is_digital": "false"}, physical["id"]),
+    ]
+    for params, expected_id in cases:
+        response = client.get("/api/v1/books", headers=headers, params=params)
+        assert response.status_code == 200
+        ids = {book["id"] for book in response.json()["items"]}
+        assert expected_id in ids
+        assert (digital["id"] if expected_id == physical["id"] else physical["id"]) not in ids
+
+
 def test_student_cannot_create_book(
     client: TestClient,
     student_token: str,

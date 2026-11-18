@@ -136,6 +136,9 @@ class BookService:
         q: str | None = None,
         category_id: UUID | None = None,
         author_id: UUID | None = None,
+        publisher_id: UUID | None = None,
+        language_id: UUID | None = None,
+        is_digital: bool | None = None,
         sort: str | None = None,
     ) -> PaginatedResponse[BookResponse]:
         """Return paginated books with optional filters."""
@@ -145,6 +148,9 @@ class BookService:
             q=q,
             category_id=category_id,
             author_id=author_id,
+            publisher_id=publisher_id,
+            language_id=language_id,
+            is_digital=is_digital,
             sort=sort,
         )
         copy_counts = self.repository.get_copy_counts_by_book_ids([book.id for book in books])

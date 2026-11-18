@@ -29,6 +29,9 @@ def list_books(
     q: str | None = Query(default=None),
     category_id: UUID | None = Query(default=None),
     author_id: UUID | None = Query(default=None),
+    publisher_id: UUID | None = Query(default=None),
+    language_id: UUID | None = Query(default=None),
+    is_digital: bool | None = Query(default=None),
     sort: str | None = Query(default=None),
     _current_user: User = Depends(get_current_user),
     service: BookService = Depends(get_book_service),
@@ -40,6 +43,9 @@ def list_books(
         q=q,
         category_id=category_id,
         author_id=author_id,
+        publisher_id=publisher_id,
+        language_id=language_id,
+        is_digital=is_digital,
         sort=sort,
     )
 

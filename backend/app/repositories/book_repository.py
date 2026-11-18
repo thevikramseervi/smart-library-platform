@@ -60,6 +60,9 @@ class BookRepository(BaseRepository[Book]):
         q: str | None = None,
         category_id: UUID | None = None,
         author_id: UUID | None = None,
+        publisher_id: UUID | None = None,
+        language_id: UUID | None = None,
+        is_digital: bool | None = None,
         sort: str | None = None,
     ) -> tuple[list[Book], int]:
         """Return paginated non-deleted books with optional filters."""
@@ -70,6 +73,15 @@ class BookRepository(BaseRepository[Book]):
 
         if author_id is not None:
             id_query = id_query.where(Book.authors.any(id=author_id))
+
+        if publisher_id is not None:
+            id_query = id_query.where(Book.publisher_id == publisher_id)
+
+        if language_id is not None:
+            id_query = id_query.where(Book.language_id == language_id)
+
+        if is_digital is not None:
+            id_query = id_query.where(Book.is_digital.is_(is_digital))
 
         if q:
             pattern = contains_pattern(q)
