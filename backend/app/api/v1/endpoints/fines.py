@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_roles
 from app.models.user import User
-from app.schemas.fine import FineResponse
+from app.schemas.fine import FineResponse, StudentFineBalanceResponse
 from app.schemas.pagination import PaginatedResponse
 from app.services.fine_service import FineService
 
@@ -26,6 +26,18 @@ def list_my_fines(
 ) -> list[FineResponse]:
     """List fines for the authenticated student."""
     return service.list_my_fines(current_user)
+
+
+@router.get("/student-balances", response_model=PaginatedResponse[StudentFineBalanceResponse])
+def list_student_fine_balances(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    q: str | None = Query(default=None, min_length=1, max_length=100),
+    _current_user: User = Depends(require_roles("ADMIN", "LIBRARIAN")),
+    service: FineService = Depends(get_fine_service),
+) -> PaginatedResponse[StudentFineBalanceResponse]:
+    """Return unpaid fine totals grouped by student for staff."""
+    return service.list_student_balances(page=page, page_size=page_size, q=q)
 
 
 @router.get("", response_model=PaginatedResponse[FineResponse])

@@ -1276,6 +1276,26 @@ Access:
 Admin, Librarian
 ```
 
+## Student Fine Balances
+
+```http
+GET /api/v1/fines/student-balances
+```
+
+Query params: `page`, `page_size`, and `q` (student name, code, or email).
+Returns one row per student with unpaid fines, ordered by outstanding balance.
+`total_outstanding` includes both currently accruing balances for overdue
+unreturned books and finalized unpaid fines; `accruing_amount` and
+`finalized_unpaid_amount` break that total into those two parts. Open overdue
+balances are refreshed before the summary is calculated. Students with no
+positive unpaid balance are omitted.
+
+Access:
+
+```text
+Admin, Librarian
+```
+
 ---
 
 ## Mark Fine Paid

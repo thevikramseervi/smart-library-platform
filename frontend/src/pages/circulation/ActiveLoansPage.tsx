@@ -110,6 +110,7 @@ export function ActiveLoansPage() {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["circulation", "copies"] });
       queryClient.invalidateQueries({ queryKey: ["fines"] });
+      queryClient.invalidateQueries({ queryKey: ["fine-student-balances"] });
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
 

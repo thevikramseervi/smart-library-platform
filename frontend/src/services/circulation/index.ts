@@ -8,8 +8,9 @@ import type {
   Reservation,
   ReservationCreate,
   ReservationListParams,
-  StudentSearchResult,
   StudentActiveTransaction,
+  StudentFineBalance,
+  StudentSearchResult,
   Transaction,
   TransactionIssueRequest,
   TransactionListParams,
@@ -107,6 +108,18 @@ export async function listMyFines(): Promise<Fine[]> {
 
 export async function listFines(params?: FineListParams): Promise<PaginatedResponse<Fine>> {
   const response = await api.get<PaginatedResponse<Fine>>("/fines", { params });
+  return response.data;
+}
+
+export async function listStudentFineBalances(params?: {
+  page?: number;
+  page_size?: number;
+  q?: string;
+}): Promise<PaginatedResponse<StudentFineBalance>> {
+  const response = await api.get<PaginatedResponse<StudentFineBalance>>(
+    "/fines/student-balances",
+    { params },
+  );
   return response.data;
 }
 

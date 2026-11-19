@@ -26,3 +26,16 @@ class FineResponse(BaseModel):
     created_at: datetime
     is_accruing: bool = False
     is_capped: bool = False
+
+
+class StudentFineBalanceResponse(BaseModel):
+    """Unpaid fine totals grouped by student."""
+
+    student_id: UUID
+    student_name: str
+    student_code: str | None
+    total_outstanding: Decimal
+    accruing_amount: Decimal
+    finalized_unpaid_amount: Decimal
+    unpaid_fine_count: int
+    accruing_fine_count: int

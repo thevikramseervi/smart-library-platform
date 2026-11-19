@@ -131,6 +131,29 @@ def test_open_overdue_loan_accrues_fine_and_blocks_borrowing(
     assert fine["is_accruing"] is True
     assert fine["is_capped"] is True
 
+    balances = client.get(
+        "/api/v1/fines/student-balances",
+        headers=headers,
+        params={"q": catalog_book_with_copy["student_code"]},
+    )
+    assert balances.status_code == 200
+    balance = next(
+        item
+        for item in balances.json()["items"]
+        if item["student_id"] == catalog_book_with_copy["student_id"]
+    )
+    assert Decimal(str(balance["total_outstanding"])) == settings.MAX_FINE_AMOUNT
+    assert Decimal(str(balance["accruing_amount"])) == settings.MAX_FINE_AMOUNT
+    assert Decimal(str(balance["finalized_unpaid_amount"])) == Decimal("0.00")
+    assert balance["unpaid_fine_count"] == 1
+    assert balance["accruing_fine_count"] == 1
+
+    forbidden_balances = client.get(
+        "/api/v1/fines/student-balances",
+        headers={"Authorization": f"Bearer {student_token}"},
+    )
+    assert forbidden_balances.status_code == 403
+
     payment = client.post(f"/api/v1/fines/{fine['id']}/pay", headers=headers)
     assert payment.status_code == 409
     assert "returned" in payment.json()["detail"].lower()
@@ -166,6 +189,18 @@ def test_open_overdue_loan_accrues_fine_and_blocks_borrowing(
     assert finalized_fine["is_accruing"] is False
     assert finalized_fine["is_capped"] is False
     assert finalized_fine["reason"].startswith("Overdue return")
+
+    finalized_balances = client.get("/api/v1/fines/student-balances", headers=headers)
+    finalized_balance = next(
+        item
+        for item in finalized_balances.json()["items"]
+        if item["student_id"] == catalog_book_with_copy["student_id"]
+    )
+    assert Decimal(str(finalized_balance["total_outstanding"])) == settings.MAX_FINE_AMOUNT
+    assert Decimal(str(finalized_balance["accruing_amount"])) == Decimal("0.00")
+    assert Decimal(str(finalized_balance["finalized_unpaid_amount"])) == settings.MAX_FINE_AMOUNT
+    assert finalized_balance["unpaid_fine_count"] == 1
+    assert finalized_balance["accruing_fine_count"] == 0
 
 
 def test_return_can_atomically_record_fine_payment(

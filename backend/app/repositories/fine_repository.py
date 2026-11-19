@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, joinedload
 
@@ -12,7 +12,7 @@ from app.core.sql import contains_pattern
 from app.models.book import Book
 from app.models.book_copy import BookCopy
 from app.models.fine import Fine
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionStatus
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -120,6 +120,79 @@ class FineRepository(BaseRepository[Fine]):
             .limit(page_size)
         )
         items = list(self.db.execute(statement).scalars().all())
+        return items, total
+
+    def list_student_balances(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        q: str | None = None,
+    ) -> tuple[list[dict], int]:
+        """Return paginated unpaid fine totals grouped by student."""
+        zero = literal(Decimal("0.00"))
+        accruing_case = case(
+            (Transaction.status == TransactionStatus.ISSUED, Fine.amount),
+            else_=zero,
+        )
+        finalized_case = case(
+            (Transaction.status == TransactionStatus.RETURNED, Fine.amount),
+            else_=zero,
+        )
+        accruing_count_case = case(
+            (Transaction.status == TransactionStatus.ISSUED, 1),
+            else_=0,
+        )
+        statement = (
+            select(
+                User.id.label("student_id"),
+                User.first_name,
+                User.last_name,
+                User.student_code,
+                func.sum(Fine.amount).label("total_outstanding"),
+                func.sum(accruing_case).label("accruing_amount"),
+                func.sum(finalized_case).label("finalized_unpaid_amount"),
+                func.count(Fine.id).label("unpaid_fine_count"),
+                func.sum(accruing_count_case).label("accruing_fine_count"),
+            )
+            .join(Transaction, Fine.transaction_id == Transaction.id)
+            .join(User, Transaction.student_id == User.id)
+            .where(Fine.paid.is_(False), Fine.amount > 0)
+        )
+        if q:
+            pattern = contains_pattern(q)
+            statement = statement.where(
+                or_(
+                    User.first_name.ilike(pattern),
+                    User.last_name.ilike(pattern),
+                    func.concat(User.first_name, " ", User.last_name).ilike(pattern),
+                    User.student_code.ilike(pattern),
+                    User.email.ilike(pattern),
+                )
+            )
+
+        statement = statement.group_by(User.id).having(func.sum(Fine.amount) > 0)
+        total = self.db.execute(
+            select(func.count()).select_from(statement.order_by(None).subquery())
+        ).scalar_one()
+        rows = self.db.execute(
+            statement.order_by(func.sum(Fine.amount).desc(), User.last_name, User.first_name)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).mappings().all()
+        items = [
+            {
+                "student_id": row["student_id"],
+                "student_name": f"{row['first_name']} {row['last_name']}".strip(),
+                "student_code": row["student_code"],
+                "total_outstanding": row["total_outstanding"],
+                "accruing_amount": row["accruing_amount"],
+                "finalized_unpaid_amount": row["finalized_unpaid_amount"],
+                "unpaid_fine_count": row["unpaid_fine_count"],
+                "accruing_fine_count": row["accruing_fine_count"],
+            }
+            for row in rows
+        ]
         return items, total
 
     def get_by_id(self, fine_id: UUID) -> Fine | None:

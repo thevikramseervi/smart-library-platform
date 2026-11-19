@@ -117,6 +117,17 @@ export interface Fine {
   is_capped: boolean;
 }
 
+export interface StudentFineBalance {
+  student_id: string;
+  student_name: string;
+  student_code: string | null;
+  total_outstanding: string;
+  accruing_amount: string;
+  finalized_unpaid_amount: string;
+  unpaid_fine_count: number;
+  accruing_fine_count: number;
+}
+
 export interface StudentSearchResult {
   id: string;
   first_name: string;

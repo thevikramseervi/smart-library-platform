@@ -15,7 +15,7 @@ from app.models.user import User
 from app.repositories.circulation_policy_repository import CirculationPolicyRepository
 from app.repositories.fine_repository import FineRepository
 from app.repositories.transaction_repository import TransactionRepository
-from app.schemas.fine import FineResponse
+from app.schemas.fine import FineResponse, StudentFineBalanceResponse
 from app.schemas.pagination import PaginatedResponse
 from app.services.audit_log_service import AuditLogService
 from app.services.notification_service import NotificationService
@@ -138,6 +138,23 @@ class FineService:
             q=q,
         )
         responses = [self._response(item) for item in items]
+        return PaginatedResponse.create(responses, total, page, page_size)
+
+    def list_student_balances(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        q: str | None = None,
+    ) -> PaginatedResponse[StudentFineBalanceResponse]:
+        """Refresh open overdue amounts and return grouped student balances."""
+        self.sync_open_overdue_fines()
+        items, total = self.repository.list_student_balances(
+            page=page,
+            page_size=page_size,
+            q=q,
+        )
+        responses = [StudentFineBalanceResponse.model_validate(item) for item in items]
         return PaginatedResponse.create(responses, total, page, page_size)
 
     def mark_paid(self, fine_id: UUID, paid_by: User) -> FineResponse:
